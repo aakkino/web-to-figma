@@ -1,4 +1,4 @@
-import { deflateRaw } from "pako";
+import { deflateSync } from "fflate";
 
 import { KiwiWriter } from "./kiwi-writer";
 import { SCHEMA } from "./schema";
@@ -294,8 +294,7 @@ export function encodeFigmaData(jsonData: unknown) {
   writeSchema(schemaWriter, types);
   const schemaDataBytes = schemaWriter.getBytes();
 
-  // Compress schema (using pako - must be loaded separately)
-  const compressedSchema = deflateRaw(schemaDataBytes, { level: 6 });
+  const compressedSchema = deflateSync(schemaDataBytes, { level: 6 });
 
   // Write schema segment length and data
   const schemaLengthBuffer = new ArrayBuffer(4);
@@ -308,8 +307,7 @@ export function encodeFigmaData(jsonData: unknown) {
   encodeType(dataWriter, types, rootIndex, convertedData, false);
   const dataBytes = dataWriter.getBytes();
 
-  // Compress data
-  const compressedData = deflateRaw(dataBytes, { level: 6 });
+  const compressedData = deflateSync(dataBytes, { level: 6 });
 
   // Write data segment length and data
   const dataLengthBuffer = new ArrayBuffer(4);
