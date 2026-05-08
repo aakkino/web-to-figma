@@ -27,8 +27,7 @@ import type {
 import { decodeBinarySchema } from "kiwi-schema";
 import type { Field, Schema, TypeDef } from "../src/types";
 
-// Negative datatype sentinels used by this package's encoder for primitives.
-// Mirrors the order Kiwi's binary schema uses (~i, where i is the index).
+// Negative datatype sentinels for primitives, matching the encoder's switch.
 const PRIMITIVES: Record<string, number> = {
   bool: -1,
   byte: -2,
@@ -192,8 +191,6 @@ function main() {
   const outPath = resolve(import.meta.dirname, "../src/schema.json");
   writeFileSync(outPath, `${JSON.stringify(local, null, 2)}\n`);
 
-  // Status to stderr so stdout is reserved for piped output (e.g. if we ever
-  // add a `--stdout` flag for inline regeneration).
   console.error(`prelude:  ${prelude}`);
   console.error(`version:  ${version}`);
   console.error(`types:    ${local.types.length}`);

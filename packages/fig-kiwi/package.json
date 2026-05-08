@@ -1,6 +1,6 @@
 {
   "name": "@sleekdesign/fig-kiwi",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Encode Figma's Kiwi binary format and HTML clipboard envelope.",
   "license": "MIT",
   "author": "Sleek Design <https://sleek.design>",

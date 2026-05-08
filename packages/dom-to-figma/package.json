@@ -1,6 +1,6 @@
 {
   "name": "@sleekdesign/dom-to-figma",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Convert any DOM tree to a Figma clipboard payload, in the browser.",
   "license": "MIT",
   "author": "Sleek Design <https://sleek.design>",

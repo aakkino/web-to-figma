@@ -105,8 +105,8 @@ function encodeStruct(
     throw new Error(`Struct expected object, got ${typeof value}`);
   }
   const obj = value as Record<string, unknown>;
-  // Structs serialize all fields in field-id order with no terminator. Treat
-  // explicit `undefined` the same as a missing key — required is required.
+  // Structs serialize every field in id order, no terminator. Explicit
+  // `undefined` is treated as missing.
   const fieldCount = Object.keys(type.fields).length;
   for (let id = 1; id <= fieldCount; id += 1) {
     const field = type.fields[id];
@@ -133,9 +133,7 @@ function encodeMessage(
     throw new Error(`Message expected object, got ${typeof value}`);
   }
   const obj = value as Record<string, unknown>;
-  // Messages serialize only present fields, each preceded by its id, with a 0
-  // terminator. Unknown ids on the read side are skipped — that's the
-  // forward-compat hook in the format.
+  // Messages emit only present fields (each preceded by its id), terminated by 0.
   for (const [fieldId, field] of Object.entries(type.fields)) {
     if (field.name in obj) {
       w.uint(Number.parseInt(fieldId, 10));
@@ -207,9 +205,8 @@ function concatBytes(parts: ReadonlyArray<Uint8Array>): Uint8Array {
   return out;
 }
 
-// `btoa` accepts a binary string. `String.fromCharCode(...arr)` blows the call
-// stack on large inputs, so chunk through it. `subarray` is used over `slice`
-// to avoid copies — the strings are produced once and discarded.
+// `String.fromCharCode(...arr)` blows the call stack on large inputs, so
+// chunk through it before handing the binary string to `btoa`.
 function bytesToBase64(bytes: Uint8Array): string {
   const CHUNK = 0x80_00;
   let binary = "";

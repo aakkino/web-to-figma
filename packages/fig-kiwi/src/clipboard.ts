@@ -21,10 +21,7 @@ const DEFAULT_META: FigmaClipboardMeta = {
   pasteId: 123,
 };
 
-/**
- * Build the HTML clipboard envelope. Pure: works in any environment that has
- * a `btoa` (browsers, workers, Node 16+).
- */
+/** Build the HTML clipboard envelope. No DOM required. */
 export function composeClipboardHtml(
   base64: string,
   meta: FigmaClipboardMeta = DEFAULT_META
@@ -42,13 +39,7 @@ export function composeClipboardHtml(
   );
 }
 
-/**
- * Browser/extension helper: wrap the envelope HTML in a `ClipboardItem` so it
- * can be passed to `navigator.clipboard.write([...])`.
- *
- * Requires `Blob` and `ClipboardItem` globals (any modern browser context,
- * including Manifest V3 content scripts and service workers).
- */
+/** Wrap envelope HTML in a `ClipboardItem` for `navigator.clipboard.write`. */
 export function toClipboardItem(html: string): ClipboardItem {
   const blob = new Blob([html], { type: "text/html" });
   return new ClipboardItem({ "text/html": blob });
