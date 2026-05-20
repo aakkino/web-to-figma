@@ -76,3 +76,287 @@
   </div>
 </section>
 <footer class="footer">© Figit</footer>
+<script>
+(function () {
+  const ACCENT = '#0d99ff';
+  const HANDLE_SIZE = 8;
+  const DRAG_THRESHOLD = 3;
+  const SHAPE_SELECTOR = [
+    '.nav', '.brand', '.nav-cta', '.nav-links a',
+    '.hero', '.pill', '.hero h1', '.hero p', '.primary', '.secondary',
+    '.features', '.features h2', '.feature', '.feature h3', '.feature p', '.icon',
+    '.footer'
+  ].join(', ');
+
+  const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  const CURSOR = {
+    nw: 'nwse-resize', n: 'ns-resize', ne: 'nesw-resize', e: 'ew-resize',
+    se: 'nwse-resize', s: 'ns-resize', sw: 'nesw-resize', w: 'ew-resize',
+  };
+
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  ready(init);
+
+  function init() {
+    for (const el of document.querySelectorAll(SHAPE_SELECTOR)) {
+      el.setAttribute('data-figit-shape', '');
+    }
+
+    const root = document.createElement('div');
+    root.setAttribute('aria-hidden', 'true');
+    root.style.cssText =
+      'position:fixed;inset:0;pointer-events:none;z-index:2147483647;font-family:Inter,system-ui,sans-serif;';
+
+    const hoverBox = document.createElement('div');
+    hoverBox.style.cssText =
+      'position:absolute;border:1px solid ' + ACCENT + ';display:none;box-sizing:border-box;pointer-events:none;';
+    root.appendChild(hoverBox);
+
+    const selBox = document.createElement('div');
+    selBox.style.cssText =
+      'position:absolute;border:1.5px solid ' + ACCENT + ';display:none;box-sizing:border-box;pointer-events:none;';
+    root.appendChild(selBox);
+
+    const dims = document.createElement('div');
+    dims.style.cssText =
+      'position:absolute;display:none;background:' + ACCENT +
+      ';color:#fff;font:600 11px/1 Inter,system-ui,sans-serif;padding:3px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;transform:translateX(-50%);';
+    root.appendChild(dims);
+
+    const handles = {};
+    for (const pos of HANDLES) {
+      const h = document.createElement('div');
+      h.dataset.handle = pos;
+      h.style.cssText =
+        'position:absolute;width:' + HANDLE_SIZE + 'px;height:' + HANDLE_SIZE +
+        'px;background:#fff;border:1.5px solid ' + ACCENT +
+        ';box-sizing:border-box;pointer-events:auto;display:none;cursor:' + CURSOR[pos] + ';';
+      root.appendChild(h);
+      handles[pos] = h;
+    }
+
+    document.documentElement.appendChild(root);
+
+    let selected = null;
+    let hovered = null;
+    let interaction = null;
+
+    function getOffset(el) {
+      const m = (el.style.transform || '').match(/translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)/);
+      return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+    }
+    function setOffset(el, x, y) {
+      el.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+    }
+
+    function ensurePositionable(el) {
+      const cs = getComputedStyle(el);
+      if (cs.position === 'static') el.style.position = 'relative';
+      el.style.zIndex = el.style.zIndex || '1';
+    }
+    function ensureResizable(el) {
+      const cs = getComputedStyle(el);
+      if (cs.display.startsWith('inline') && cs.display !== 'inline-block' && cs.display !== 'inline-flex') {
+        el.style.display = 'inline-block';
+      }
+      el.style.boxSizing = 'border-box';
+    }
+
+    function findShape(target) {
+      let el = target;
+      while (el && el !== document.body && el.nodeType === 1) {
+        if (el.hasAttribute && el.hasAttribute('data-figit-shape')) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function updateOverlay() {
+      if (selected && selected.isConnected) {
+        const r = selected.getBoundingClientRect();
+        selBox.style.left = r.left + 'px';
+        selBox.style.top = r.top + 'px';
+        selBox.style.width = r.width + 'px';
+        selBox.style.height = r.height + 'px';
+        selBox.style.display = 'block';
+
+        const points = {
+          nw: [r.left, r.top],
+          n:  [r.left + r.width / 2, r.top],
+          ne: [r.right, r.top],
+          e:  [r.right, r.top + r.height / 2],
+          se: [r.right, r.bottom],
+          s:  [r.left + r.width / 2, r.bottom],
+          sw: [r.left, r.bottom],
+          w:  [r.left, r.top + r.height / 2],
+        };
+        for (const pos of HANDLES) {
+          const [cx, cy] = points[pos];
+          const h = handles[pos];
+          h.style.left = (cx - HANDLE_SIZE / 2) + 'px';
+          h.style.top = (cy - HANDLE_SIZE / 2) + 'px';
+          h.style.display = 'block';
+        }
+
+        dims.textContent = Math.round(r.width) + ' × ' + Math.round(r.height);
+        dims.style.left = (r.left + r.width / 2) + 'px';
+        dims.style.top = (r.bottom + 8) + 'px';
+        dims.style.display = 'block';
+      } else {
+        selBox.style.display = 'none';
+        dims.style.display = 'none';
+        for (const pos of HANDLES) handles[pos].style.display = 'none';
+      }
+
+      if (hovered && hovered !== selected && hovered.isConnected) {
+        const r = hovered.getBoundingClientRect();
+        hoverBox.style.left = r.left + 'px';
+        hoverBox.style.top = r.top + 'px';
+        hoverBox.style.width = r.width + 'px';
+        hoverBox.style.height = r.height + 'px';
+        hoverBox.style.display = 'block';
+      } else {
+        hoverBox.style.display = 'none';
+      }
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      if (interaction) return;
+      if (e.target && e.target.dataset && e.target.dataset.handle) return;
+      const shape = findShape(e.target);
+      if (shape !== hovered) {
+        hovered = shape;
+        document.body.style.cursor = shape ? 'move' : '';
+        updateOverlay();
+      }
+    });
+
+    document.addEventListener('mouseleave', () => {
+      hovered = null;
+      document.body.style.cursor = '';
+      updateOverlay();
+    });
+
+    document.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target && e.target.dataset && e.target.dataset.handle) {
+        startResize(e, e.target.dataset.handle);
+        return;
+      }
+      const shape = findShape(e.target);
+      if (shape) {
+        e.preventDefault();
+        if (selected !== shape) {
+          selected = shape;
+          updateOverlay();
+        }
+        startDrag(e);
+      } else if (e.target === document.body || e.target === document.documentElement || !findShape(e.target)) {
+        selected = null;
+        updateOverlay();
+      }
+    }, true);
+
+    document.addEventListener('click', (e) => {
+      // Prevent anchor navigation while interacting.
+      const a = e.target.closest && e.target.closest('a');
+      if (a) e.preventDefault();
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        selected = null;
+        updateOverlay();
+      }
+    });
+
+    function startDrag(e) {
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const offset = getOffset(selected);
+      const target = selected;
+      let moved = false;
+
+      function onMove(ev) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        if (!moved) {
+          moved = true;
+          ensurePositionable(target);
+          document.body.style.userSelect = 'none';
+        }
+        setOffset(target, offset.x + dx, offset.y + dy);
+        updateOverlay();
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        interaction = null;
+      }
+      interaction = 'drag';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    function startResize(e, dir) {
+      if (!selected) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const rect = selected.getBoundingClientRect();
+      const startW = rect.width;
+      const startH = rect.height;
+      const offset = getOffset(selected);
+      const target = selected;
+
+      ensurePositionable(target);
+      ensureResizable(target);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = CURSOR[dir];
+
+      function onMove(ev) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        let newW = startW;
+        let newH = startH;
+        let ox = offset.x;
+        let oy = offset.y;
+        if (dir.indexOf('e') !== -1) newW = Math.max(8, startW + dx);
+        if (dir.indexOf('s') !== -1) newH = Math.max(8, startH + dy);
+        if (dir.indexOf('w') !== -1) {
+          newW = Math.max(8, startW - dx);
+          ox = offset.x + (startW - newW);
+        }
+        if (dir.indexOf('n') !== -1) {
+          newH = Math.max(8, startH - dy);
+          oy = offset.y + (startH - newH);
+        }
+        target.style.width = newW + 'px';
+        target.style.height = newH + 'px';
+        setOffset(target, ox, oy);
+        updateOverlay();
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        interaction = null;
+      }
+      interaction = 'resize';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    document.addEventListener('scroll', updateOverlay, true);
+    window.addEventListener('resize', updateOverlay);
+  }
+})();
+</script>
