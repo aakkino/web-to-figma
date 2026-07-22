@@ -445,7 +445,7 @@
     },
     "05-exotic/text-in-box": {
       "tier0": {
-        "findings": 28,
+        "findings": 14,
         "maxDeltaPx": 4.65625
       },
       "tier1": {
@@ -469,7 +469,19 @@
         "diffRatio": 0.07180555555555555
       }
     },
+    "bord/bord-03-per-side-color": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
     "clip/clip-01-overflow-hidden": {
+      "tier0": {
+        "findings": 0,
+        "maxDeltaPx": 0
+      }
+    },
+    "fx/fx-04-shadow-spread": {
       "tier0": {
         "findings": 0,
         "maxDeltaPx": 0
@@ -483,7 +495,7 @@
     },
     "img/img-01-raster": {
       "tier0": {
-        "findings": 1,
+        "findings": 0,
         "maxDeltaPx": 0
       }
     },

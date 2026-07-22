@@ -7,19 +7,28 @@ import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
 } from "../../styles/blur";
+import type { BorderProperties } from "../../styles/border";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
-import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
+import {
+  cssBoxShadowToFigmaEffects,
+  isPureRingShadow,
+  ringShadowToStroke,
+} from "../../styles/shadow";
 import type {
+  FigmaBlob,
+  FigmaEffect,
   FigmaFrameNodeChange,
   FigmaGuid,
   FigmaNodeChange,
   FigmaPaint,
+  FigmaVectorNodeChange,
 } from "../../types";
 import type { FigmaSize, FigmaTransform } from "../../types/core";
 import type { ConverterLayout } from "../../walk";
+import { decomposePerSideBorder } from "./border-decomposition";
 
 type PositioningResult = {
   horizontalConstraint?: string;
@@ -151,6 +160,26 @@ function getTransformOverride(
   };
 }
 
+/**
+ * Drop the single-stroke border fields so the frame paints no stroke — used
+ * when a per-side-colored border is decomposed into child vectors instead.
+ * Corner-radius fields are preserved (decomposition only runs when there is no
+ * radius, so they are already zero/absent).
+ */
+function withoutFrameStroke(props: BorderProperties): BorderProperties {
+  const {
+    strokePaints: _paints,
+    strokeWeight: _weight,
+    borderTopWeight: _top,
+    borderRightWeight: _right,
+    borderBottomWeight: _bottom,
+    borderLeftWeight: _left,
+    borderStrokeWeightsIndependent: _independent,
+    ...rest
+  } = props;
+  return { ...rest, strokeWeight: 0, strokePaints: [] };
+}
+
 function getFillProperties(element: Element, rect: DOMRect) {
   const parentElement = element.parentElement;
   const parentRect = parentElement?.getBoundingClientRect();
@@ -175,10 +204,16 @@ type Params = {
   /** Set for the converted root element only: the size of the paste-template
    * frame (a VERTICAL stack) that this element is a fill child of. */
   rootFill?: { width: number; height: number };
+  /** Needed only to decompose a per-side-colored border into child vectors. */
+  createGuid?: () => FigmaGuid;
+  registerBlob?: (blob: FigmaBlob) => number;
 };
 
 type FrameResult = {
   nodeChange: FigmaFrameNodeChange;
+  /** Per-side border trapezoids emitted when the sides differ in color/style;
+   * the walker paints them below the frame's real children. */
+  borderChildren?: Array<FigmaVectorNodeChange>;
   textGradient?: Array<FigmaPaint>;
   /** Set when the frame became an inferred auto-layout stack, so the walker
    * can tell its children. */
@@ -202,6 +237,8 @@ export function elementToFrameNodeChange(
     parentIsAutoLayout,
     childStackSpec,
     rootFill,
+    createGuid,
+    registerBlob,
   } = options;
 
   // Inferred auto-layout, spread onto the node change last so it overrides
@@ -247,13 +284,59 @@ export function elementToFrameNodeChange(
   const filterEffects = cssFilterToFigmaEffects(filter);
   const backdropEffects = cssBackdropFilterToFigmaEffects(backdropFilter);
 
-  // Combine all effects
-  const effects = [...shadowEffects, ...filterEffects, ...backdropEffects];
+  // A pure-ring box-shadow (`0 0 0 <spread>`) renders as nothing in Figma as a
+  // DROP_SHADOW, but CSS draws a crisp solid ring. Promote the dominant (widest)
+  // ring to an OUTSIDE stroke so Figma draws it following the corner radius.
+  // A Figma node has a single stroke alignment/weight, so this only applies
+  // when the element has no real CSS border (which owns the stroke); rings on
+  // bordered elements stay DROP_SHADOWs. Any non-promoted shadows (blur/offset
+  // shadows, narrower concentric rings) keep rendering as effects.
+  const hasCssBorder = borderProperties.strokePaints.length > 0;
+  let ringForStroke: FigmaEffect | null = null;
+  if (!hasCssBorder) {
+    for (const effect of shadowEffects) {
+      if (
+        isPureRingShadow(effect) &&
+        (ringForStroke === null ||
+          (effect.spread ?? 0) > (ringForStroke.spread ?? 0))
+      ) {
+        ringForStroke = effect;
+      }
+    }
+  }
+  const ringStroke = ringForStroke ? ringShadowToStroke(ringForStroke) : null;
+
+  // Combine all effects, dropping only the ring promoted to a stroke.
+  const effects = [
+    ...shadowEffects.filter((effect) => effect !== ringForStroke),
+    ...filterEffects,
+    ...backdropEffects,
+  ];
 
   const { horizontalConstraint, verticalConstraint, positionOverride } =
     getPositioningInfo(element, rect, computedStyle);
   const finalPosition = positionOverride ?? position;
   const transformOverride = getTransformOverride(element, rect, computedStyle);
+
+  // A frame carries a single stroke color, so four different border colors
+  // collapse to one. When the sides disagree, decompose the border into a
+  // filled trapezoid per side (exact CSS miters) and drop the frame stroke.
+  // Skipped for inferred stacks (children would be laid out by the stack) and
+  // transformed frames (size differs from the measured rect used for geometry).
+  const borderChildren =
+    createGuid && registerBlob && !(inferred || transformOverride)
+      ? decomposePerSideBorder({
+          computedStyle,
+          width,
+          height,
+          frameGuid: guid,
+          createGuid,
+          registerBlob,
+        })
+      : null;
+  const effectiveBorderProperties = borderChildren
+    ? withoutFrameStroke(borderProperties)
+    : borderProperties;
 
   const { fillsParentHeight, fillsParentWidth } = getFillProperties(
     element,
@@ -347,7 +430,10 @@ export function elementToFrameNodeChange(
     fillPaints,
     strokeAlign: "INSIDE",
     strokeJoin: "MITER",
-    ...borderProperties,
+    ...effectiveBorderProperties,
+    // A promoted pure-ring shadow overrides the (absent) border stroke with an
+    // OUTSIDE stroke; keeps INSIDE/border strokes untouched when there is none.
+    ...(ringStroke ?? {}),
 
     /* Effects */
     effects,
@@ -378,6 +464,7 @@ export function elementToFrameNodeChange(
 
   return {
     nodeChange,
+    ...(borderChildren && { borderChildren }),
     textGradient,
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,
