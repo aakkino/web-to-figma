@@ -1,39 +1,151 @@
-import type { Classify, FigmaConverter } from "@figit/dom-to-figma";
-import {
-  createFigmaConverter,
-  createFontsourceLoader,
-  defaultClassify,
-} from "@figit/dom-to-figma";
+import type {
+  BrowserCaptureAdapter,
+  BundledFont,
+  FontLoader,
+} from "@figit/browser-capture-adapter";
+import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
+import type { Classify } from "@figit/dom-to-figma";
+import { defaultClassify } from "@figit/dom-to-figma";
 import { toast } from "sonner";
+import { browser } from "#imports";
 
 import { toErrorMessage } from "../../shared/errors";
-import { createBackgroundImageLoader } from "../../shared/loaders";
-import { createPageFontLoader } from "../../shared/page-font-loader";
+import {
+  createBackgroundFontTransport,
+  createBackgroundImageLoader,
+} from "../../shared/loaders";
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
 
 const COPY_TOAST_ID = "copy-to-figma";
+const RGBA_COLOR_PATTERN = /^rgba?\(([^)]+)\)$/;
+const RGBA_COMPONENT_COUNT = 4;
+const GENERIC_FALLBACK_FAMILY = "Noto Sans Arabic";
+const GENERIC_FALLBACK_PATH = "/fonts/noto-sans-arabic-400.ttf";
+const CJK_FALLBACK_FAMILY = "Noto Sans TC Thin";
+const CJK_WEIGHT_REGULAR = 400;
+const CJK_WEIGHT_MEDIUM = 500;
+const CJK_WEIGHT_SEMIBOLD = 600;
+const CJK_WEIGHT_BOLD = 700;
+const CJK_FALLBACK_WEIGHTS = [
+  CJK_WEIGHT_REGULAR,
+  CJK_WEIGHT_MEDIUM,
+  CJK_WEIGHT_SEMIBOLD,
+  CJK_WEIGHT_BOLD,
+] as const;
+type CjkFallbackWeight = (typeof CJK_FALLBACK_WEIGHTS)[number];
+const CJK_FONT_PATHS = {
+  [CJK_WEIGHT_REGULAR]: "/fonts/noto-sans-tc-composite-400.ttf",
+  [CJK_WEIGHT_MEDIUM]: "/fonts/noto-sans-tc-composite-500.ttf",
+  [CJK_WEIGHT_SEMIBOLD]: "/fonts/noto-sans-tc-composite-600.ttf",
+  [CJK_WEIGHT_BOLD]: "/fonts/noto-sans-tc-composite-700.ttf",
+} as const;
+const CJK_FONT_ALIASES = [
+  "PingFang TC",
+  "黑體-繁",
+  "Heiti TC",
+  "Noto Sans TC",
+  "微軟正黑體",
+  "Microsoft JhengHei",
+  "Source Han Sans TC",
+  "思源黑體",
+  "Noto Sans CJK TC",
+  "Noto Sans SC",
+  "Source Han Sans CN",
+  "思源黑体",
+  "Noto Sans Simplified Chinese",
+  "Google Sans Text",
+  "Roboto",
+  "Arial",
+  "Helvetica Neue",
+  "Segoe UI",
+  "system-ui",
+  "-apple-system",
+  "BlinkMacSystemFont",
+  "sans-serif",
+];
 const NOOP = () => {
   // intentional: default cleanup callback when nothing was set up
 };
 
-const getConverter: () => FigmaConverter = (() => {
-  let instance: FigmaConverter | null = null;
+const bundledCjkFontCache = new Map<CjkFallbackWeight, Promise<ArrayBuffer>>();
+let genericFallbackFontCache: Promise<ArrayBuffer> | null = null;
+
+const getAdapter: () => BrowserCaptureAdapter = (() => {
+  let instance: BrowserCaptureAdapter | null = null;
   return () => {
     if (!instance) {
-      instance = createFigmaConverter({
-        // Try the page's own @font-face URLs first (browser cache hits for
-        // free, exact metrics + postScriptName) and fall back to fontsource
-        // for anything we couldn't match or parse on the page.
-        fontLoader: createPageFontLoader({
-          fallbackLoader: createFontsourceLoader(),
-        }),
-        imageLoader: createBackgroundImageLoader(),
-        classify: skipExtensionUiClassify,
+      instance = createBrowserCaptureAdapter({
+        fonts: {
+          bundledFonts: createBundledCjkFonts(),
+          fallbackLoader: createGenericFallbackLoader(),
+          transport: createBackgroundFontTransport(),
+        },
+        converterConfig: {
+          imageLoader: createBackgroundImageLoader(),
+          classify: skipExtensionUiClassify,
+        },
       });
     }
     return instance;
   };
 })();
+
+function createBundledCjkFonts(): ReadonlyArray<BundledFont> {
+  return CJK_FALLBACK_WEIGHTS.map((weight) => ({
+    family: CJK_FALLBACK_FAMILY,
+    aliases: CJK_FONT_ALIASES,
+    weight,
+    italic: false,
+    bytes: () => loadBundledCjkFont(weight),
+    source: `extension ${CJK_FALLBACK_FAMILY} ${weight}`,
+  }));
+}
+
+function createGenericFallbackLoader(): FontLoader {
+  return async () => ({
+    bytes: await loadGenericFallbackFont(),
+    resolvedFamily: GENERIC_FALLBACK_FAMILY,
+    resolvedWeight: CJK_WEIGHT_REGULAR,
+    resolvedItalic: false,
+  });
+}
+
+function loadGenericFallbackFont(): Promise<ArrayBuffer> {
+  if (genericFallbackFontCache) {
+    return genericFallbackFontCache;
+  }
+
+  const request = fetch(browser.runtime.getURL(GENERIC_FALLBACK_PATH), {
+    cache: "force-cache",
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(
+        `Bundled generic font request failed: ${response.status}`
+      );
+    }
+    return await response.arrayBuffer();
+  });
+  genericFallbackFontCache = request;
+  return request;
+}
+
+function loadBundledCjkFont(weight: CjkFallbackWeight): Promise<ArrayBuffer> {
+  const cached = bundledCjkFontCache.get(weight);
+  if (cached) {
+    return cached;
+  }
+
+  const request = fetch(browser.runtime.getURL(CJK_FONT_PATHS[weight]), {
+    cache: "force-cache",
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`Bundled CJK font request failed: ${response.status}`);
+    }
+    return await response.arrayBuffer();
+  });
+  bundledCjkFontCache.set(weight, request);
+  return request;
+}
 
 const skipExtensionUiClassify: Classify = (element) => {
   if (
@@ -59,11 +171,10 @@ function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
 }
 
 export function copyWholePage(): void {
-  const root = document.documentElement;
+  // Measure after the adapter's settle gate so late layout and horizontal
+  // overflow are included in the page frame.
   runConversion({
     element: document.body,
-    width: root.scrollWidth,
-    height: root.scrollHeight,
     name: derivePageFrameName(),
   });
 }
@@ -88,8 +199,8 @@ export function copyElement(element: HTMLElement): void {
 
 type ConversionInput = {
   element: Element;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
   name: string;
 };
 
@@ -108,7 +219,7 @@ function runConversion(
 }
 
 async function convertAndCopy(input: ConversionInput): Promise<void> {
-  const result = await getConverter().convert(input);
+  const result = await getAdapter().capture(input);
   await navigator.clipboard.write([result.toClipboardItem()]);
 }
 
@@ -156,12 +267,12 @@ function isTransparentColor(color: string): boolean {
   if (!color || color === "transparent") {
     return true;
   }
-  const match = color.match(/^rgba?\(([^)]+)\)$/);
+  const match = color.match(RGBA_COLOR_PATTERN);
   if (!match) {
     return false;
   }
   const parts = match[1].split(",").map((s) => s.trim());
-  if (parts.length !== 4) {
+  if (parts.length !== RGBA_COMPONENT_COUNT) {
     return false;
   }
   return Number.parseFloat(parts[3]) === 0;

@@ -10,6 +10,12 @@ export default defineConfig({
       "Copy any website to Figma. One click, paste in Figma. No plugin needed.",
     permissions: ["activeTab", "clipboardWrite", "scripting", "storage"],
     host_permissions: ["<all_urls>"],
+    web_accessible_resources: [
+      {
+        resources: ["fonts/*.ttf"],
+        matches: ["<all_urls>"],
+      },
+    ],
   },
   vite: () => ({
     plugins: [tailwindcss()],

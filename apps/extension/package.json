@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "2.1.10",
+    "@figit/browser-capture-adapter": "workspace:*",
     "@figit/dom-to-figma": "workspace:*",
     "@figit/ui": "workspace:*",
     "@webext-core/messaging": "^2.3.0",

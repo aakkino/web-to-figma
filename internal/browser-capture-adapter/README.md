@@ -1,0 +1,20 @@
+# Browser capture adapter
+
+`@figit/browser-capture-adapter` is a private consumer-side layer around the
+public `@figit/dom-to-figma` API. It stabilizes a live page, resolves usable
+font bytes, records browser CJK line boundaries, and restores temporary page
+state before returning a conversion result.
+
+The adapter keeps text editable. When the original font bytes cannot be read,
+it tries the configured bundled and fallback loaders, then reports the
+requested and resolved font in `diagnostics`. Use `fontFailure: "strict"` when
+an exact family, weight, and italic match is required; strict captures fail
+before conversion instead of returning a partial text payload.
+
+The extension supplies its background `fetchFont` transport. The adapter only
+accepts that transport as an injected function; URL permissions, messaging,
+credentials, and clipboard writes remain owned by the host application.
+
+Line breaks are measured for the current browser viewport only. They are
+temporary DOM changes during conversion and are restored on success, timeout,
+or error. `lineBreaks: "off"` disables all text measurement and mutation.
