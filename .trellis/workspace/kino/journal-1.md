@@ -38,3 +38,39 @@ Replaced Trellis spec scaffolding with codebase-backed conventions for six works
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: Browser capture adapter milestone
+
+**Date**: 2026-07-24
+**Task**: Browser capture adapter milestone
+**Branch**: `main`
+
+### Summary
+
+Implemented a resilient browser capture adapter, fixed responsive and open Shadow DOM capture, documented the milestone, and planned the composed DOM utility package.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f9ecdea` | (see git log) |
+| `af1bec8` | (see git log) |
+| `58a51f3` | (see git log) |
+| `3950296` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
