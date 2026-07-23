@@ -1,7 +1,7 @@
 /**
  * Identifier for the image being loaded. The element is included so loaders
  * can read auxiliary attributes (`crossOrigin`, `referrerPolicy`, etc.) when
- * choosing a fetch strategy, but `src` is the canonical key.
+ * choosing a fetch strategy, but `src` is the resolved request URL.
  */
 export type ImageRequest = {
   src: string;

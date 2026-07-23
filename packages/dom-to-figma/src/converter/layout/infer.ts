@@ -1,4 +1,8 @@
-import { sortNodesByStackingOrder } from "../dom";
+import {
+  getComposedChildNodes,
+  isElementNode,
+  sortNodesByStackingOrder,
+} from "../dom";
 
 /**
  * Auto-layout properties inferred from a flex container, phrased directly in
@@ -139,10 +143,11 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   // from layout on both sides and stacking order only affects z, which the
   // walker preserves.
   const flowSet = new Set<Node>(flow);
-  const domFlow = Array.from(element.childNodes).filter((n) => flowSet.has(n));
-  const stackedFlow = sortNodesByStackingOrder(
-    Array.from(element.childNodes)
-  ).filter((n) => flowSet.has(n));
+  const composedChildren = getComposedChildNodes(element);
+  const domFlow = composedChildren.filter((n) => flowSet.has(n));
+  const stackedFlow = sortNodesByStackingOrder(composedChildren).filter((n) =>
+    flowSet.has(n)
+  );
   if (domFlow.some((node, i) => node !== stackedFlow[i])) {
     return null;
   }
@@ -785,9 +790,11 @@ function isContentDrivenSize(
 function collectChildren(
   element: Element
 ): { flow: Array<Element>; absolute: Array<Element> } | null {
+  const composedChildren = getComposedChildNodes(element);
+
   // Non-empty direct text nodes become anonymous flow items we can't map to
   // a converted node yet.
-  for (const node of element.childNodes) {
+  for (const node of composedChildren) {
     if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim()) {
       return null;
     }
@@ -795,7 +802,10 @@ function collectChildren(
 
   const flow: Array<Element> = [];
   const absolute: Array<Element> = [];
-  for (const child of element.children) {
+  for (const child of composedChildren) {
+    if (!isElementNode(child)) {
+      continue;
+    }
     const style = window.getComputedStyle(child);
     if (style.display === "none") {
       continue; // Takes no space and the walker skips it too.

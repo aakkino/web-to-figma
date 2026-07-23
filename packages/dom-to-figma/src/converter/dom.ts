@@ -24,11 +24,60 @@ export function isSvgElement(element: Element): boolean {
   return element.tagName.toLowerCase() === "svg";
 }
 
+export type ComposedChild = {
+  node: Node;
+  /**
+   * The element whose coordinate space owns this child. Shadow-root children
+   * and slotted light-DOM nodes have a DOM parent that is not their visual
+   * Figma parent, so the walker supplies this override when measuring them.
+   */
+  positionParent?: Element;
+};
+
+/**
+ * Return the direct children of the browser's composed tree for an element.
+ * Open shadow roots replace the host's light-DOM children; slot elements are
+ * replaced by their assigned nodes, matching what the user actually sees.
+ */
+export function getComposedChildren(element: Element): Array<ComposedChild> {
+  const source = element.shadowRoot
+    ? Array.from(element.shadowRoot.childNodes).map((node) => ({
+        node,
+        positionParent: element,
+      }))
+    : Array.from(element.childNodes).map((node) => ({ node }));
+
+  return source.flatMap(expandSlot);
+}
+
+export function getComposedChildNodes(element: Element): Array<Node> {
+  return getComposedChildren(element).map(({ node }) => node);
+}
+
+function expandSlot(entry: ComposedChild): Array<ComposedChild> {
+  const { node } = entry;
+  if (!isElementNode(node) || node.localName.toLowerCase() !== "slot") {
+    return [entry];
+  }
+
+  const slot = node as HTMLSlotElement;
+  const assigned =
+    typeof slot.assignedNodes === "function"
+      ? Array.from(slot.assignedNodes({ flatten: true }))
+      : [];
+  const nodes = assigned.length > 0 ? assigned : Array.from(slot.childNodes);
+  const positionParent = slot.parentElement ?? entry.positionParent;
+  return nodes.flatMap((child) => expandSlot({ node: child, positionParent }));
+}
+
 /**
  * Gets the position of an element relative to its parent.
  */
-export function getElementPositionRelativeToParent(element: Element): Position {
-  const parentElement = element.parentElement;
+export function getElementPositionRelativeToParent(
+  element: Element,
+  relativeTo?: Element
+): Position {
+  const parentElement = relativeTo ?? element.parentElement;
   const elementRect = element.getBoundingClientRect();
 
   if (!parentElement) {
@@ -56,8 +105,11 @@ function getTextRect(textNode: Text) {
   return range.getBoundingClientRect();
 }
 
-export function getTextPositionRelativeToParent(textNode: Text): Position {
-  const parentElement = textNode.parentElement;
+export function getTextPositionRelativeToParent(
+  textNode: Text,
+  relativeTo?: Element
+): Position {
+  const parentElement = relativeTo ?? textNode.parentElement;
   if (!parentElement) {
     return { x: 0, y: 0 };
   }

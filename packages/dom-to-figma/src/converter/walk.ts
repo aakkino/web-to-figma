@@ -2,8 +2,9 @@ import type { ElementKind } from "./classify";
 import { defaultClassify } from "./classify";
 import type { ConversionResult, InheritedProperties } from "./convert";
 import { convertElement } from "./convert";
-import type { TextLineSegment } from "./dom";
+import type { ComposedChild, TextLineSegment } from "./dom";
 import {
+  getComposedChildren,
   getElementPositionRelativeToParent,
   getTextPositionRelativeToParent,
   getTextSize,
@@ -129,7 +130,8 @@ async function walkNode(
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
   parentStack: ParentStackInfo = NO_PARENT_STACK,
-  parentDomPath = ""
+  parentDomPath = "",
+  positionParent?: Element
 ): Promise<number> {
   try {
     if (isTextNode(node)) {
@@ -140,10 +142,14 @@ async function walkNode(
         inheritedProperties,
         ctx,
         parentStack.isAutoLayout,
-        parentDomPath
+        parentDomPath,
+        positionParent
       );
     }
     if (!isElementNode(node)) {
+      return 0;
+    }
+    if (node.localName.toLowerCase() === "slot") {
       return 0;
     }
 
@@ -158,15 +164,16 @@ async function walkNode(
     // and wraps needs the same per-line split as a raw text node; segments
     // are positioned against the element's parent, which is also their
     // parent in the emitted tree.
-    if (kind === "text" && node.parentElement) {
+    if (kind === "text" && (node.parentElement || positionParent)) {
       const only =
         node.childNodes.length === 1 && node.firstChild
           ? node.firstChild
           : null;
-      if (only && isTextNode(only)) {
+      const textParent = positionParent ?? node.parentElement;
+      if (only && isTextNode(only) && textParent) {
         const segments = splitMidLineWrappedText(only, {
           siblingContext: node,
-          relativeTo: node.parentElement,
+          relativeTo: textParent,
         });
         if (segments) {
           const ownerPath = ctx.recordTrace
@@ -179,7 +186,7 @@ async function walkNode(
             childIndex,
             inheritedProperties,
             ctx,
-            node.parentElement,
+            textParent,
             ownerPath
           );
         }
@@ -187,7 +194,7 @@ async function walkNode(
     }
 
     const guid = ctx.createGuid();
-    const position = getElementPositionRelativeToParent(node);
+    const position = getElementPositionRelativeToParent(node, positionParent);
 
     const result = await convertElement(node, kind, {
       guid,
@@ -240,28 +247,38 @@ async function walkChildren(
   parentDomPath = "",
   startChildIndex = 0
 ) {
-  const sortedNodes = sortNodesByStackingOrder(Array.from(element.childNodes));
+  const sortedChildren = sortComposedChildren(getComposedChildren(element));
   if (parentStack.reverse) {
     // Reversed flex parent: Figma stacks lay children out in emission order,
     // so emit the visual order; stackReverseZIndex restores paint order.
-    sortedNodes.reverse();
+    sortedChildren.reverse();
   }
 
   // Real children start after any slots the converter already reserved (e.g.
   // decomposed border sides), so their positions don't collide and they paint
   // above the border.
   let childNodeIndex = startChildIndex;
-  for (const node of sortedNodes) {
+  for (const child of sortedChildren) {
     childNodeIndex += await walkNode(
-      node,
+      child.node,
       parentGuid,
       childNodeIndex,
       inheritedProperties,
       ctx,
       parentStack,
-      parentDomPath
+      parentDomPath,
+      child.positionParent
     );
   }
+}
+
+function sortComposedChildren(
+  children: ReadonlyArray<ComposedChild>
+): Array<ComposedChild> {
+  const byNode = new Map(children.map((child) => [child.node, child]));
+  return sortNodesByStackingOrder(children.map((child) => child.node))
+    .map((node) => byNode.get(node))
+    .filter((child): child is ComposedChild => child !== undefined);
 }
 
 async function renderTextNode(
@@ -271,19 +288,26 @@ async function renderTextNode(
   inheritedProperties: InheritedProperties,
   ctx: WalkContext,
   parentIsAutoLayout = false,
-  parentDomPath = ""
+  parentDomPath = "",
+  positionParent?: Element
 ): Promise<number> {
   if (isTextEmpty(textNode)) {
     return 0;
   }
-  if (!textNode.parentElement) {
+  if (!(textNode.parentElement || positionParent)) {
     return 0;
   }
 
   // A text node that continues a sibling's line and wraps cannot be one
   // Figma text box (its indented first line isn't representable): emit one
   // box per rendered line instead.
-  const segments = splitMidLineWrappedText(textNode);
+  const textParent = positionParent ?? textNode.parentElement;
+  if (!textParent) {
+    return 0;
+  }
+  const segments = splitMidLineWrappedText(textNode, {
+    relativeTo: textParent,
+  });
   if (segments) {
     const ownerPath = ctx.recordTrace
       ? textDomPath(textNode, parentDomPath)
@@ -295,7 +319,7 @@ async function renderTextNode(
       childIndex,
       inheritedProperties,
       ctx,
-      textNode.parentElement,
+      textParent,
       ownerPath
     );
   }
@@ -305,7 +329,7 @@ async function renderTextNode(
     guid,
     parentGuid,
     childIndex,
-    position: getTextPositionRelativeToParent(textNode),
+    position: getTextPositionRelativeToParent(textNode, positionParent),
     // Exact size inside stacks: box edges drive sibling positions there.
     size: getTextSize(textNode, parentIsAutoLayout),
     textContent: (textNode.textContent || "").trim(),

@@ -26,6 +26,11 @@ import { walkRoot } from "./converter/walk";
 
 export type { ElementKind } from "./converter/classify";
 export { defaultClassify } from "./converter/classify";
+export type { ComposedChild } from "./converter/dom";
+export {
+  getComposedChildNodes,
+  getComposedChildren,
+} from "./converter/dom";
 export type {
   ImageFile,
   ImageLoader,
