@@ -24,7 +24,8 @@ popup click
   -> browser.scripting.executeScript
   -> synchronous CustomEvent in the tab
   -> content listener
-  -> dom-to-figma conversion
+  -> browser capture adapter
+  -> dom-to-figma conversion and cleanup
   -> navigator.clipboard.write
 ~~~
 
@@ -55,4 +56,3 @@ Reference files:
 - `apps/extension/entrypoints/content/index.tsx`
 - `apps/extension/entrypoints/content/convert.ts`
 - `apps/extension/shared/triggers.ts`
-
