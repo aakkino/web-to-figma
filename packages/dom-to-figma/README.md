@@ -139,12 +139,23 @@ For non-fontsource fonts, write your own loader:
 ```ts
 import type { FontLoader } from "@figit/dom-to-figma";
 
-const myFontLoader: FontLoader = async ({ family, weight, italic }) => {
+const myFontLoader: FontLoader = async ({
+  family,
+  weight,
+  italic,
+  codePoints,
+}) => {
   const url = await myFontCDN(family, weight, italic);
   const response = await fetch(url);
   return { bytes: await response.arrayBuffer() };
 };
 ```
+
+`codePoints` is an optional sorted, unique list for the current text run. A
+loader can use it to reject a parseable font that lacks required glyphs without
+receiving the source text. When a loader returns `resolvedFamily`,
+`resolvedWeight`, or `resolvedItalic`, those actual values are emitted in the
+Figma text payload as well as used for metrics.
 
 ### Images
 

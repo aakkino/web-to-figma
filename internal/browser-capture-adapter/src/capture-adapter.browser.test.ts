@@ -8,6 +8,10 @@ import type {
   FontResolver,
 } from "./types";
 
+const LATIN_A_CODE_POINT = "A".codePointAt(0) ?? 0;
+const LATIN_B_CODE_POINT = "B".codePointAt(0) ?? 0;
+const CJK_CODE_POINT = "中".codePointAt(0) ?? 0;
+
 function createFakeBridge(
   onConvert?: (input: BridgeCaptureInput) => void
 ): ConversionBridge {
@@ -45,6 +49,26 @@ function createNoopFontResolver(): FontResolver {
 }
 
 describe("browser capture adapter", () => {
+  it("collects sorted unique code points for text sharing a font style", () => {
+    document.body.innerHTML = `
+      <div style="font-family: Inter; font-weight: 400">
+        <span>BA</span><span>中A</span>
+      </div>
+    `;
+    const resolver = createFontResolver({ fallbackLoader: null });
+
+    const requests = resolver.collectRequests(document.body);
+
+    expect(requests).toEqual([
+      {
+        family: "Inter",
+        weight: 400,
+        italic: false,
+        codePoints: [LATIN_A_CODE_POINT, LATIN_B_CODE_POINT, CJK_CODE_POINT],
+      },
+    ]);
+  });
+
   it("restores temporary text changes after conversion", async () => {
     document.body.innerHTML =
       '<div id="target" style="width: 90px; font: 16px Arial; white-space: normal;">這是一段連續的中文文字用來測試瀏覽器換行</div>';

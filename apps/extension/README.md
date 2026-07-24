@@ -12,16 +12,17 @@ published `@figit/dom-to-figma` API.
 - Failed cross-origin font requests use the existing typed `fetchFont` message
   and background worker. The worker accepts only HTTP(S), omits credentials,
   and returns base64 bytes through the shared protocol.
-- Common web and Traditional Chinese system-font aliases (`Inter`,
-  `ui-sans-serif`, `PingFang TC`, `Heiti TC`, `Microsoft JhengHei`, and related
-  names) have a local Noto Sans TC fallback catalog with the nearest available
-  weight. This keeps CJK glyph data valid when the operating-system font cannot
-  be extracted; page-declared web fonts still take precedence.
-- An unmatched family uses the bundled Noto Sans Arabic 400 font as a stable
-  Latin/Arabic/number fallback. The payload still requests the original family
-  so Figma can use it when the destination has it; the bundled bytes only feed
-  conversion-time metrics. Fontsource remains the generic adapter fallback for
-  callers that do not supply an extension catalog.
+- Page and transported fonts are checked for the CJK and Latin code points used
+  by the captured text. A parseable font that lacks a required glyph is not
+  treated as an exact match.
+- Any request that cannot be satisfied exactly uses the local Noto Sans TC
+  composite catalog at the nearest available 400/500/600/700 weight. Ties use
+  the lower weight and italic requests fall back to normal. The Figma payload
+  names the selected font's real family; the 500 and 600 files therefore use
+  `Noto Sans TC Thin Medium` and `Noto Sans TC Thin SemiBold` respectively.
+- Fallback is selected once per family/weight/style during a capture, so mixed
+  CJK/Latin text stays editable as one font run. Per-character font fallback,
+  emoji, Arabic, and Hebrew coverage are outside this catalog's scope.
 - Result diagnostics identify the requested and resolved family, weight, italic
   state, source, and attempt errors.
 - The default failure mode keeps editable text and uses the nearest parseable

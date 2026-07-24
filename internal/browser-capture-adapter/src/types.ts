@@ -8,6 +8,8 @@ export type FontProperties = {
   family: string;
   weight: number;
   italic: boolean;
+  /** Sorted unique code points needed by this text run; never contains source text. */
+  codePoints?: ReadonlyArray<number>;
 };
 
 export type FontFile = {

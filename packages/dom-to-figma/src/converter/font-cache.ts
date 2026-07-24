@@ -11,6 +11,13 @@ export type FontCache = DedupCache<FontProperties, LoadedFont>;
 export function createFontCache(fontLoader: FontLoader): FontCache {
   return new DedupCache({
     load: (properties) => loadFont(fontLoader, properties),
-    toCacheKey: ({ family, weight, italic }) => `${family}:${weight}:${italic}`,
+    toCacheKey: ({ family, weight, italic, codePoints }) =>
+      `${family}:${weight}:${italic}:${normalizeCodePoints(codePoints).join(",")}`,
   });
+}
+
+function normalizeCodePoints(
+  codePoints: ReadonlyArray<number> | undefined
+): ReadonlyArray<number> {
+  return [...new Set(codePoints ?? [])].sort((left, right) => left - right);
 }

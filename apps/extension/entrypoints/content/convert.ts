@@ -1,9 +1,7 @@
 import type {
-  BundledFont,
   CaptureClassifier,
   CaptureElementInput,
   CaptureEngine,
-  FontLoader,
 } from "@figit/browser-capture-adapter";
 import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
 import { browser } from "#imports";
@@ -14,6 +12,8 @@ import {
   createBackgroundImageLoader,
 } from "../../shared/loaders";
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
+import type { CjkFallbackVariant } from "./font-fallback";
+import { createFixedCjkFallbackLoader } from "./font-fallback";
 import type {
   OutputPort,
   OutputRunResult,
@@ -22,52 +22,11 @@ import type {
 
 const RGBA_COLOR_PATTERN = /^rgba?\(([^)]+)\)$/;
 const RGBA_COMPONENT_COUNT = 4;
-const GENERIC_FALLBACK_FAMILY = "Noto Sans Arabic";
-const GENERIC_FALLBACK_PATH = "/fonts/noto-sans-arabic-400.ttf";
-const CJK_FALLBACK_FAMILY = "Noto Sans TC Thin";
-const CJK_WEIGHT_REGULAR = 400;
-const CJK_WEIGHT_MEDIUM = 500;
-const CJK_WEIGHT_SEMIBOLD = 600;
-const CJK_WEIGHT_BOLD = 700;
-const CJK_FALLBACK_WEIGHTS = [
-  CJK_WEIGHT_REGULAR,
-  CJK_WEIGHT_MEDIUM,
-  CJK_WEIGHT_SEMIBOLD,
-  CJK_WEIGHT_BOLD,
-] as const;
-type CjkFallbackWeight = (typeof CJK_FALLBACK_WEIGHTS)[number];
-const CJK_FONT_PATHS = {
-  [CJK_WEIGHT_REGULAR]: "/fonts/noto-sans-tc-composite-400.ttf",
-  [CJK_WEIGHT_MEDIUM]: "/fonts/noto-sans-tc-composite-500.ttf",
-  [CJK_WEIGHT_SEMIBOLD]: "/fonts/noto-sans-tc-composite-600.ttf",
-  [CJK_WEIGHT_BOLD]: "/fonts/noto-sans-tc-composite-700.ttf",
-} as const;
-const CJK_FONT_ALIASES = [
-  "Inter",
-  "ui-sans-serif",
-  "PingFang TC",
-  "Heiti TC",
-  "Noto Sans TC",
-  "Microsoft JhengHei",
-  "Source Han Sans TC",
-  "Noto Sans CJK TC",
-  "Noto Sans SC",
-  "Source Han Sans CN",
-  "Roboto",
-  "Arial",
-  "Helvetica Neue",
-  "Segoe UI",
-  "system-ui",
-  "-apple-system",
-  "BlinkMacSystemFont",
-  "sans-serif",
-];
 const NOOP = () => {
   // intentional: default cleanup callback when no inherited background exists
 };
 
-const bundledCjkFontCache = new Map<CjkFallbackWeight, Promise<ArrayBuffer>>();
-let genericFallbackFontCache: Promise<ArrayBuffer> | null = null;
+const bundledCjkFontCache = new Map<number, Promise<ArrayBuffer>>();
 
 export function createExtensionCaptureEngine(
   settings: CaptureSettings
@@ -78,8 +37,7 @@ export function createExtensionCaptureEngine(
     lineBreaks: settings.advanced.lineBreaks,
     fontFailure: settings.font.mode,
     fonts: {
-      bundledFonts: createBundledCjkFonts(),
-      fallbackLoader: createGenericFallbackLoader(),
+      fallbackLoader: createFixedCjkFallbackLoader(loadBundledCjkFont),
       fallbackIsLocal: true,
       transport: createBackgroundFontTransport(),
     },
@@ -144,61 +102,16 @@ export function createPageCaptureTarget(): CaptureElementInput {
   };
 }
 
-function createBundledCjkFonts(): ReadonlyArray<BundledFont> {
-  return CJK_FALLBACK_WEIGHTS.map((weight) => ({
-    family: CJK_FALLBACK_FAMILY,
-    aliases: CJK_FONT_ALIASES,
-    weight,
-    italic: false,
-    bytes: (signal) => loadBundledCjkFont(weight, signal),
-    source: `extension ${CJK_FALLBACK_FAMILY} ${weight}`,
-  }));
-}
-
-function createGenericFallbackLoader(): FontLoader {
-  return async (_request, signal) => ({
-    bytes: await loadGenericFallbackFont(signal),
-    resolvedFamily: GENERIC_FALLBACK_FAMILY,
-    resolvedWeight: CJK_WEIGHT_REGULAR,
-    resolvedItalic: false,
-  });
-}
-
-function loadGenericFallbackFont(signal?: AbortSignal): Promise<ArrayBuffer> {
-  if (genericFallbackFontCache) {
-    return genericFallbackFontCache;
-  }
-
-  const request = fetch(browser.runtime.getURL(GENERIC_FALLBACK_PATH), {
-    cache: "force-cache",
-    signal,
-  }).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(
-        `Bundled generic font request failed: ${response.status}`
-      );
-    }
-    return await response.arrayBuffer();
-  });
-  genericFallbackFontCache = request;
-  request.catch(() => {
-    if (genericFallbackFontCache === request) {
-      genericFallbackFontCache = null;
-    }
-  });
-  return request;
-}
-
 function loadBundledCjkFont(
-  weight: CjkFallbackWeight,
+  variant: CjkFallbackVariant,
   signal?: AbortSignal
 ): Promise<ArrayBuffer> {
-  const cached = bundledCjkFontCache.get(weight);
+  const cached = bundledCjkFontCache.get(variant.weight);
   if (cached) {
     return cached;
   }
 
-  const request = fetch(browser.runtime.getURL(CJK_FONT_PATHS[weight]), {
+  const request = fetch(browser.runtime.getURL(variant.path), {
     cache: "force-cache",
     signal,
   }).then(async (response) => {
@@ -207,10 +120,10 @@ function loadBundledCjkFont(
     }
     return await response.arrayBuffer();
   });
-  bundledCjkFontCache.set(weight, request);
+  bundledCjkFontCache.set(variant.weight, request);
   request.catch(() => {
-    if (bundledCjkFontCache.get(weight) === request) {
-      bundledCjkFontCache.delete(weight);
+    if (bundledCjkFontCache.get(variant.weight) === request) {
+      bundledCjkFontCache.delete(variant.weight);
     }
   });
   return request;

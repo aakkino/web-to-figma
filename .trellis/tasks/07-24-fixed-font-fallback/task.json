@@ -3,7 +3,7 @@
   "name": "fixed-font-fallback",
   "title": "固定字体回退与 Figma 字体载荷",
   "description": "当页面字体无法获取时，使用固定 CJK fallback 并明确 Figma payload 的字体选择，避免不可覆盖字符产生空白字形。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": "extension",

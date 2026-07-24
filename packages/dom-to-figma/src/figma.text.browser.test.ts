@@ -200,6 +200,42 @@ describe("text rendering with bundled font", () => {
 });
 
 describe("text rendering with Inter", () => {
+  it("emits a loader's resolved family and requests the text code points", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${ALT_TEST_FONT_FAMILY}',sans-serif;font-size:16px">BAA</div>`
+    );
+    const fixtureLoader = createTestFontLoader();
+    const requests: Array<ReadonlyArray<number> | undefined> = [];
+    const figma = createFigmaConverter({
+      fontLoader: async (request) => {
+        requests.push(request.codePoints);
+        return {
+          ...(await fixtureLoader(request)),
+          resolvedFamily: TEST_FONT_FAMILY,
+        };
+      },
+    });
+
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const textChange = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    if (textChange?.type !== "TEXT") {
+      throw new Error("expected TEXT node");
+    }
+    expect(requests).toEqual([["A".codePointAt(0), "B".codePointAt(0)]]);
+    expect(textChange.fontName?.family).toBe(TEST_FONT_FAMILY);
+    expect(textChange.fontName?.postscript).toBe("OpenSans-Regular");
+    expect(textChange.derivedTextData?.fontMetaData?.[0]?.key.family).toBe(
+      TEST_FONT_FAMILY
+    );
+  });
+
   it("emits a TEXT node with one glyph per character", async () => {
     const element = mountElement(
       `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${ALT_TEST_FONT_FAMILY}',sans-serif;font-size:16px">office affinity</div>`

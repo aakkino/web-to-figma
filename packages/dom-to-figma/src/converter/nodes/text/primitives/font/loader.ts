@@ -13,6 +13,8 @@ export type FontProperties = {
   family: string;
   weight: number;
   italic: boolean;
+  /** Sorted unique code points used by the text run; source text is not exposed. */
+  codePoints?: ReadonlyArray<number>;
 };
 
 /**
@@ -20,14 +22,9 @@ export type FontProperties = {
  * WOFF, or WOFF2 — fontkit detects the format). The optional `resolved*`
  * fields let the loader signal that a fallback was applied.
  *
- * `resolvedFamily` is set when the loader could not honour the requested
- * family and substituted bytes from a different family entirely (e.g. when
- * the requested family isn't in the loader's catalog). The conversion still
- * uses the *requested* family in the Figma payload — the substituted bytes
- * exist so dom-to-figma has metrics to lay out the text. Figma resolves
- * fonts at paste time via the user's system fonts, so a system-installed
- * family like Verdana renders correctly even if the loader had to feed
- * Inter bytes through the converter.
+ * `resolvedFamily` is set when the loader substitutes bytes from a different
+ * family. The resolved family is emitted in the Figma payload so its declared
+ * font matches the bytes used for metrics and glyph data.
  */
 export type FontFile = {
   bytes: ArrayBuffer;
@@ -48,6 +45,7 @@ export type LoadedFont = {
   /** What was requested. */
   properties: FontProperties;
   /** What was actually loaded (after the loader's fallbacks). */
+  actualFamily: string;
   actualWeight?: number;
   actualItalic: boolean;
   fontStyleName: string;
@@ -83,31 +81,33 @@ export async function loadFont(
   const font = parsed;
   const metrics = extractFontMetrics(font);
 
+  const actualFamily = file.resolvedFamily ?? properties.family;
   const actualWeight = file.resolvedWeight ?? properties.weight;
   const actualItalic = file.resolvedItalic ?? properties.italic;
   const fontStyleName = buildFontStyleName(actualWeight, actualItalic);
-  // When the loader substituted a different family, the loaded bytes' name
-  // table belongs to the substitute (e.g. "Inter-Regular"). Synthesize the
-  // postScriptName from the *requested* family so the Figma payload asks for
-  // "Verdana-Regular", letting Figma render it from the destination's system
-  // fonts instead of the substitute.
-  const familyWasSubstituted =
-    file.resolvedFamily !== undefined &&
-    file.resolvedFamily !== properties.family;
-  const synthesizedPostScriptName = `${properties.family.replace(/\s+/g, "")}-${fontStyleName.replace(/\s+/g, "")}`;
-  const postScriptName = familyWasSubstituted
-    ? synthesizedPostScriptName
-    : (font.postscriptName ?? synthesizedPostScriptName);
+  const synthesizedPostScriptName = `${actualFamily.replace(/\s+/g, "")}-${fontStyleName.replace(/\s+/g, "")}`;
+  const postScriptName = font.postscriptName ?? synthesizedPostScriptName;
 
   return {
     font,
     metrics,
     properties,
+    actualFamily,
     actualWeight,
     actualItalic,
     fontStyleName,
     postScriptName,
   };
+}
+
+export function collectFontCodePoints(text: string): ReadonlyArray<number> {
+  return [
+    ...new Set(
+      Array.from(text)
+        .filter((character) => character.trim().length > 0)
+        .map((character) => character.codePointAt(0) ?? 0)
+    ),
+  ].sort((left, right) => left - right);
 }
 
 /**
@@ -144,9 +144,8 @@ export type FontsourceLoaderOptions = {
    * Family to substitute when the requested family isn't in fontsource (web-safe
    * fonts like Verdana, Tahoma, Georgia, Times New Roman, etc. — fontsource
    * mirrors Google Fonts only). The substitute must itself be on fontsource.
-   * The Figma payload still claims the *requested* family name, so destinations
-   * with the system font installed render it correctly — the substituted bytes
-   * only feed conversion-time metrics.
+   * The Figma payload uses the resolved family so its font declaration matches
+   * the bytes used for metrics and glyph data.
    *
    * Defaults to `"Inter"`. Pass `null` to disable substitution and throw on
    * missing families instead — the converter's per-node try/catch will then

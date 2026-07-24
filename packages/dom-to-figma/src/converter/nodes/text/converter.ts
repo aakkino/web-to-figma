@@ -17,6 +17,7 @@ import { buildBaselines } from "./builders/baselines";
 import { buildCharacterOffsets } from "./builders/character-offsets";
 import { processTextDecorations } from "./builders/decorations";
 import { parseTextProperties } from "./primitives/css/parser";
+import { collectFontCodePoints } from "./primitives/font/loader";
 import { processGlyphs } from "./primitives/glyph/processor";
 import { processTextLayout } from "./primitives/layout/processor";
 
@@ -158,8 +159,6 @@ export async function nodeToTextNodeChange(
   const baseHeight = nodeSize.height;
 
   const fontSize = Number.parseFloat(computedStyle.fontSize || "16");
-  const fontFamily =
-    computedStyle.fontFamily.replace(/["']/g, "").split(",")[0]?.trim() ?? "";
   const fontWeight = Number.parseInt(computedStyle.fontWeight, 10);
   const textAlign =
     cssToFigmaTextAlignHorizontalMap[computedStyle.textAlign] ?? "LEFT";
@@ -258,7 +257,10 @@ export async function nodeToTextNodeChange(
 
   const { font, ...styles } = parseTextProperties(element);
 
-  const loadedFont = await fontCache.get(font);
+  const loadedFont = await fontCache.get({
+    ...font,
+    codePoints: collectFontCodePoints(text),
+  });
 
   // Wrap and align within the box this node ships with, NOT the parent
   // element's width: glyph/baseline offsets bake the alignment in, and the
@@ -426,7 +428,7 @@ export async function nodeToTextNodeChange(
       fontMetaData: [
         {
           key: {
-            family: loadedFont.properties.family,
+            family: loadedFont.actualFamily,
             style: loadedFont.fontStyleName,
             // Figma writes its FontMetaData entries with an empty postscript
             // even when the top-level fontName carries one. Match that so a
@@ -497,7 +499,7 @@ export async function nodeToTextNodeChange(
       units: "PIXELS",
     },
     fontName: {
-      family: fontFamily,
+      family: loadedFont.actualFamily,
       style: loadedFont.fontStyleName,
       postscript: loadedFont.postScriptName,
     },

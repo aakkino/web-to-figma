@@ -7,8 +7,7 @@
 font/image caches remain warm. Configure cross-context behavior at creation:
 
 - page-aware font resolver with Fontsource fallback and the injected background
-  font transport, plus the extension's local CJK catalog and stable
-  Latin/Arabic fallback for unmatched families;
+  font transport, plus the extension's fixed local CJK fallback;
 - direct image loader with background-proxy fallback;
 - classifier that skips extension UI and inaccessible cross-origin iframes.
 
@@ -32,10 +31,9 @@ createBrowserCaptureAdapter({
 
 The resolver scans readable `@font-face` rules, then tries the injected
 HTTP(S) transport, explicit bundled fonts, and a fallback loader. The
-extension supplies local Noto Sans TC weights for common web and CJK aliases
-(including `Inter` and `ui-sans-serif`) and a local Noto Sans Arabic 400 file
-for unmatched Latin/Arabic families; callers that do not supply a catalog use
-the generic Fontsource loader. It reports the
+extension fallback is a fixed local Noto Sans TC catalog; it does not depend on
+the requested family matching an alias. Callers that do not supply the
+extension loader use the generic Fontsource loader. The resolver reports the
 requested and resolved family/weight/italic for every unique request.
 `fontFailure: "strict"` rejects before conversion when a request is not exact;
 fallback mode continues with a diagnostic.
@@ -59,21 +57,123 @@ Keep the global font URL regex cloned per parse because `RegExp.exec` mutates
 state. Accept only formats/font extensions that fontkit can parse. A best-effort
 page match must never prevent the fallback loader from running.
 
-### Common Mistake: Cataloging Only System Font Names
+### Common Mistake: Treating Parseable Bytes As Sufficient
 
-**Symptom**: A page with Chinese text and a common web font such as `Inter`
-captures images and layout correctly, but text nodes paste with missing glyphs.
+**Symptom**: A page with Chinese text and a Latin-only web font captures images
+and layout correctly, but text nodes paste with missing glyphs.
 
-**Cause**: The computed first family is not necessarily a system font. If that
-family misses the local CJK catalog, the generic Latin/Arabic fallback can
-produce valid font bytes that still have no CJK glyph coverage.
+**Cause**: A font can parse successfully and have a matching name-table family
+while still mapping a required character to `.notdef`.
 
-**Fix**: Keep common web families that can lead a CJK-capable stack (including
-`Inter` and `ui-sans-serif`) in the local CJK alias catalog. Page-declared
-`@font-face` bytes still win before this catalog is consulted.
+**Fix**: Aggregate target code points per style request, validate every
+candidate's glyph coverage, and use the fixed local CJK fallback when an exact
+candidate misses any target character. Page-declared `@font-face` bytes still
+win when they cover the full request.
 
-**Prevention**: Every new fallback alias must be checked with a mixed Latin and
-CJK text fixture, and the built extension artifact must contain the alias.
+**Prevention**: Test mixed Latin/CJK content with parseable Latin-only page font
+bytes, and assert both fallback diagnostics and the emitted Figma font family.
+
+## Scenario: Glyph-Aware Fixed CJK Fallback
+
+### 1. Scope / Trigger
+
+Read and preserve this scenario when changing font request collection,
+resolver caching, font byte validation, extension fallback assets, or emitted
+TEXT node font metadata. This is a cross-layer adapter-to-core contract.
+
+### 2. Signatures
+
+~~~ts
+interface FontProperties {
+  family: string;
+  weight: number;
+  italic: boolean;
+  codePoints?: ReadonlyArray<number>;
+}
+
+interface LoadedFont {
+  actualFamily: string;
+  resolvedFamily?: string;
+  resolvedWeight?: number;
+  resolvedItalic?: boolean;
+}
+~~~
+
+`codePoints` is optional for loader compatibility. When present it is sorted,
+unique, excludes whitespace/control-only characters, and never contains source
+text. `actualFamily` is the family parsed from the bytes and is the family that
+must be emitted in consumer-visible Figma fields.
+
+### 3. Contracts
+
+- Aggregate code points by normalized `family + weight + italic` before
+  preflight; include the normalized code-point signature in resolver and core
+  font-cache keys.
+- Page, transport, bundled, and fallback candidates pass through the same
+  parse, name-table, and target-glyph validation.
+- A coverage miss rejects that candidate for the entire style request. Do not
+  create per-character font runs in this path.
+- The extension fallback always selects among local weights 400/500/600/700 by
+  nearest absolute distance; ties choose the lower weight and italic requests
+  resolve to normal.
+- Use each file's real name-table family: 400/700 are `Noto Sans TC Thin`, 500
+  is `Noto Sans TC Thin Medium`, and 600 is `Noto Sans TC Thin SemiBold`.
+- Top-level `fontName.family`, `fontMetaData[*].key.family`, and synthesized
+  PostScript metadata use the actual resolved family, never a metrics-only
+  fallback hidden behind the requested page family.
+- Diagnostics may include code-point-independent attempt codes such as
+  `glyph-coverage-miss`, but must not expose source text or code points.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior |
+| --- | --- |
+| Exact page font covers all target glyphs | Keep exact family/style/weight. |
+| Parseable page font misses one target glyph | Record coverage miss and try the next source/fallback. |
+| Requested weight lies between local variants | Choose nearest; on a tie choose the lower weight. |
+| Italic requested from normal-only catalog | Return fallback with `resolvedItalic: false`. |
+| Fixed fallback misses a target glyph | Return failed/throw under the configured failure policy. |
+| Same style appears in separate text nodes | Merge code points and pin one resolution for the capture. |
+| Diagnostics are serialized | Omit source text and the code-point list. |
+
+### 5. Good / Base / Bad Cases
+
+- Good: Latin-only Inter bytes plus mixed Latin/CJK text resolve to a local
+  Noto Sans TC variant and emit that variant's real family in the TEXT payload.
+- Base: an exact page font covering all requested characters remains exact.
+- Bad: accepting parseable Latin-only bytes as exact, requiring an `Inter`
+  alias, or emitting `Inter` while measuring and serializing fallback bytes.
+
+### 6. Tests Required
+
+- Adapter unit/browser tests assert sorted aggregation, coverage rejection,
+  capture-level pinning, stable attempts, and exact/fallback diagnostics.
+- Extension unit tests cover 400/500/600/700, boundary/tie weights, real family
+  names, and italic downgrade; Chrome and Firefox builds must include assets.
+- Core browser tests assert loader code points and that top-level `fontName`,
+  `fontMetaData`, and PostScript metadata use the actual resolved family.
+- Run adapter, core, and extension tests/type-check/build gates plus
+  `git diff --check`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+// Parseable bytes may still lack a glyph, and the requested family may lie.
+return { bytes, fontName: { family: requested.family } };
+~~~
+
+#### Correct
+
+~~~ts
+validateGlyphCoverage(bytes, request.codePoints);
+return {
+  bytes,
+  actualFamily: parsedFamily,
+  fontName: { family: parsedFamily },
+};
+~~~
 
 ## Image Loading
 
