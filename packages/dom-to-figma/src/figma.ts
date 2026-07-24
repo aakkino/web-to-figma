@@ -8,6 +8,7 @@ import type { DomTraversalStrategy } from "./converter/dom";
 import { lightDomTraversal } from "./converter/dom";
 import { createFontCache } from "./converter/font-cache";
 import { createImageCache } from "./converter/image-cache";
+import type { ImagePreparation } from "./converter/image-preparation";
 import type { ImageLoader } from "./converter/nodes/image/loader";
 import { createDirectImageLoader } from "./converter/nodes/image/loader";
 import {
@@ -32,6 +33,13 @@ export type {
   DomTraversalChild,
   DomTraversalStrategy,
 } from "./converter/dom";
+export type {
+  ImagePlaceholderReason,
+  ImagePreparation,
+  ImageResolution,
+  PreparedImage,
+} from "./converter/image-preparation";
+export { createImagePreparation } from "./converter/image-preparation";
 export type {
   ImageFile,
   ImageLoader,
@@ -63,6 +71,8 @@ export type FigmaConverterConfig = {
   fontLoader?: FontLoader;
   /** Defaults to `createDirectImageLoader()` (single direct `fetch(src)`). */
   imageLoader?: ImageLoader;
+  /** Optional staged preparation capability. Omitted for legacy behavior. */
+  imagePreparation?: ImagePreparation;
   /** Override the default DOM-element classification. */
   classify?: Classify;
   /**
@@ -70,14 +80,14 @@ export type FigmaConverterConfig = {
    * whenever the layout can be reproduced exactly, falling back to absolute
    * positioning per node when it can't. `"absolute"` positions every frame
    * absolutely, disabling auto-layout inference entirely.
-    */
+   */
   layout?: ConverterLayout;
   /**
    * When `true`, `convert()` also returns a {@link ConvertTrace} mapping every
    * emitted node back to its source DOM element. Off by default and adds no
    * cost when disabled; does not change the payload bytes. Intended for the
    * visual-parity harness, not production copies.
-  */
+   */
   trace?: boolean;
   /**
    * Optional DOM tree strategy. The default is light DOM; consumers that need
@@ -128,13 +138,14 @@ export function createFigmaConverter(
 ): FigmaConverter {
   const fontLoader = config.fontLoader ?? createFontsourceLoader();
   const imageLoader = config.imageLoader ?? createDirectImageLoader();
+  const imagePreparation = config.imagePreparation;
   const { classify } = config;
   const layout = config.layout ?? "auto";
   const traceEnabled = config.trace ?? false;
   const domTraversal = config.domTraversal ?? lightDomTraversal;
 
   const fontCache = createFontCache(fontLoader);
-  const imageCache = createImageCache(imageLoader);
+  const imageCache = createImageCache(imageLoader, imagePreparation);
 
   const convert = async (input: ConvertInput): Promise<ConvertResult> => {
     const nodeChanges: Array<FigmaNodeChange> = [];
@@ -196,6 +207,7 @@ export function createFigmaConverter(
     clearCache() {
       fontCache.clear();
       imageCache.clear();
+      imagePreparation?.clear();
     },
   };
 }

@@ -1,16 +1,46 @@
-import type { ConvertResult, FigmaConverter } from "@figit/dom-to-figma";
 import { describe, expect, it } from "vitest";
 
 import { createBrowserCaptureAdapter } from "./capture-adapter";
 import { createFontResolver } from "./font-resolver";
+import type {
+  BridgeCaptureInput,
+  ConversionBridge,
+  FontResolver,
+} from "./types";
 
-function createFakeResult(): ConvertResult {
+function createFakeBridge(
+  onConvert?: (input: BridgeCaptureInput) => void
+): ConversionBridge {
   return {
-    document: { nodeChanges: [], blobs: [] } as never,
-    bytes: new Uint8Array(),
-    base64: "",
-    toClipboardItem: () => ({}) as ClipboardItem,
-    toClipboardHtml: () => "",
+    imagePreparation: {
+      prepare: async () => ({ status: "prepared", byteLength: 0 }),
+      setPlaceholder() {
+        // no-op test capability
+      },
+      clear() {
+        // no-op test capability
+      },
+    },
+    fontLoader: async () => ({ bytes: new ArrayBuffer(0) }),
+    convert(input) {
+      onConvert?.(input);
+      return Promise.resolve({ clipboardHtml: "" });
+    },
+    clearCache() {
+      // no-op test bridge
+    },
+  };
+}
+
+function createNoopFontResolver(): FontResolver {
+  return {
+    loader: async () => ({ bytes: new ArrayBuffer(0) }),
+    beginCapture() {
+      // no-op test resolver
+    },
+    collectRequests: () => [],
+    preflight: async (requests) => ({ requests, failures: [] }),
+    getDiagnostics: () => [],
   };
 }
 
@@ -24,19 +54,11 @@ describe("browser capture adapter", () => {
     }
     const originalText = target.textContent;
     const observed: Array<string | null> = [];
-    const resolver = createFontResolver({ fallbackLoader: null });
-    const converter: FigmaConverter = {
-      convert() {
-        observed.push(target.textContent);
-        return Promise.resolve(createFakeResult());
-      },
-      clearCache() {
-        // no-op test converter
-      },
-    };
     const adapter = createBrowserCaptureAdapter({
-      converter,
-      fontResolver: resolver,
+      bridge: createFakeBridge(() => {
+        observed.push(target.textContent);
+      }),
+      fontResolver: createNoopFontResolver(),
       settleTimeoutMs: 0,
       motion: "live",
     });
@@ -66,17 +88,10 @@ describe("browser capture adapter", () => {
     const resolver = createFontResolver({
       fallbackLoader: () => Promise.reject(new Error("no font")),
     });
-    const converter: FigmaConverter = {
-      convert() {
-        convertCalls += 1;
-        return Promise.resolve(createFakeResult());
-      },
-      clearCache() {
-        // no-op test converter
-      },
-    };
     const adapter = createBrowserCaptureAdapter({
-      converter,
+      bridge: createFakeBridge(() => {
+        convertCalls += 1;
+      }),
       fontResolver: resolver,
       fontFailure: "strict",
       settleTimeoutMs: 0,
@@ -98,19 +113,12 @@ describe("browser capture adapter", () => {
       throw new Error("target not found");
     }
     const originalText = target.textContent;
-    const resolver = createFontResolver({ fallbackLoader: null });
-    const converter: FigmaConverter = {
-      convert() {
-        expect(target.textContent).toContain("\n");
-        return Promise.reject(new Error("conversion unavailable"));
-      },
-      clearCache() {
-        // no-op test converter
-      },
-    };
     const adapter = createBrowserCaptureAdapter({
-      converter,
-      fontResolver: resolver,
+      bridge: createFakeBridge(() => {
+        expect(target.textContent).toContain("\n");
+        throw new Error("conversion unavailable");
+      }),
+      fontResolver: createNoopFontResolver(),
       settleTimeoutMs: 0,
       motion: "live",
     });

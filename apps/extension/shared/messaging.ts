@@ -15,11 +15,28 @@ export type FetchUrlResult = {
   mimeType: string;
 };
 
+export type ResourceRequest = {
+  sessionId: string;
+  requestId: string;
+  url: string;
+};
+
+export type ResourceCancelRequest = {
+  sessionId: string;
+  requestId: string;
+};
+
+export type ResourceCancelResult = {
+  canceled: boolean;
+};
+
 export type ProtocolMap = {
   /** Fetch an image as base64 + mime, bypassing the page's CORS posture. */
-  fetchImage(src: string): FetchUrlResult;
+  fetchImage(request: ResourceRequest): FetchUrlResult;
   /** Fetch a font file as base64 + mime. */
-  fetchFont(url: string): FetchUrlResult;
+  fetchFont(request: ResourceRequest): FetchUrlResult;
+  /** Abort a privileged resource request by its session/request identity. */
+  cancelResource(request: ResourceCancelRequest): ResourceCancelResult;
 };
 
 export const { sendMessage, onMessage } =

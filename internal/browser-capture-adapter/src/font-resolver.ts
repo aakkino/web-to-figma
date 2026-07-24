@@ -1,14 +1,17 @@
 import type { DomTreeStrategy } from "@figit/composed-dom";
 import { openComposedDomTree } from "@figit/composed-dom";
-import type { FontFile, FontLoader, FontProperties } from "@figit/dom-to-figma";
-import { createFontsourceLoader } from "@figit/dom-to-figma";
 import { create as createFont } from "fontkit";
 
 import type {
   BundledFont,
   FontDiagnostic,
   FontDiagnosticSource,
+  FontFailureMode,
+  FontFile,
+  FontLoader,
+  FontMode,
   FontPreflightResult,
+  FontProperties,
   FontResolver,
   FontResolverOptions,
   FontTransportResult,
@@ -97,20 +100,23 @@ export function createFontResolver(
   const byteCache = new Map<string, Promise<ArrayBuffer>>();
   const diagnostics = new Map<string, FontDiagnostic>();
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
-  const fallbackLoader =
-    options.fallbackLoader === undefined
-      ? createFontsourceLoader()
-      : options.fallbackLoader;
+  const fallbackLoader = options.fallbackLoader ?? null;
+  const fallbackIsLocal = options.fallbackIsLocal ?? false;
   const bundledFonts = options.bundledFonts ?? [];
+  let activeMode: FontMode = "compatible";
 
-  const loader: FontLoader = (request) => {
-    const key = requestKey(request);
+  const loader: FontLoader = (request, signal) => {
+    const mode = activeMode;
+    const key = `${mode}:${requestKey(request)}`;
     const cached = requestCache.get(key);
     if (cached) {
-      return cached.then((outcome) => outcome.file);
+      return cached.then((outcome) => {
+        recordDiagnostic(request, outcome);
+        return outcome.file;
+      });
     }
 
-    const pending = resolveRequest(request);
+    const pending = resolveRequest(request, mode, signal);
     requestCache.set(key, pending);
     pending.catch(() => {
       if (requestCache.get(key) === pending) {
@@ -130,12 +136,18 @@ export function createFontResolver(
     collectRequests(root, domTraversal = openComposedDomTree) {
       return collectFontRequests(root, domTraversal);
     },
-    async preflight(requests, failureMode): Promise<FontPreflightResult> {
+    async preflight(
+      requests,
+      failureMode,
+      signal
+    ): Promise<FontPreflightResult> {
+      const mode = normalizeFontMode(failureMode);
+      activeMode = mode;
       const uniqueRequests = dedupeRequests(requests);
       await Promise.all(
         uniqueRequests.map(async (request) => {
           try {
-            await loader(request);
+            await loader(request, signal);
           } catch {
             // The structured diagnostic is captured by resolveRequest.
           }
@@ -149,7 +161,7 @@ export function createFontResolver(
             diagnostic !== undefined && diagnostic.status !== "exact"
         );
 
-      if (failureMode === "strict" && failures.length > 0) {
+      if (mode === "strict" && failures.length > 0) {
         throw new FontPreflightError(failures);
       }
 
@@ -165,30 +177,44 @@ export function createFontResolver(
 
   return resolver;
 
-  async function resolveRequest(request: FontProperties): Promise<FontOutcome> {
+  async function resolveRequest(
+    request: FontProperties,
+    mode: FontMode,
+    signal?: AbortSignal
+  ): Promise<FontOutcome> {
+    throwIfAborted(signal);
     const attempts: Array<string> = [];
-    const pageOutcome = await resolvePageFont(request, attempts);
-    if (pageOutcome) {
-      recordDiagnostic(request, pageOutcome);
-      return pageOutcome;
+    if (mode === "compatible" || mode === "strict") {
+      const pageOutcome = await resolvePageFont(request, attempts, signal);
+      if (pageOutcome) {
+        recordDiagnostic(request, pageOutcome);
+        return pageOutcome;
+      }
     }
 
-    const bundledOutcome = await resolveBundledFont(request, attempts);
+    throwIfAborted(signal);
+    const bundledOutcome = await resolveBundledFont(request, attempts, signal);
     if (bundledOutcome) {
       recordDiagnostic(request, bundledOutcome);
       return bundledOutcome;
     }
 
-    const fallbackOutcome = await resolveFallbackFont(request, attempts);
-    if (fallbackOutcome) {
-      recordDiagnostic(request, fallbackOutcome);
-      return fallbackOutcome;
+    if (mode === "compatible" || (mode === "fast-local" && fallbackIsLocal)) {
+      const fallbackOutcome = await resolveFallbackFont(
+        request,
+        attempts,
+        signal
+      );
+      if (fallbackOutcome) {
+        recordDiagnostic(request, fallbackOutcome);
+        return fallbackOutcome;
+      }
     }
 
     const diagnostic: FontDiagnostic = {
       request,
       status: "failed",
-      attempts,
+      attempts: attempts.map(sanitizeMessage),
       reason: "No parseable font bytes were available",
     };
     diagnostics.set(requestKey(request), diagnostic);
@@ -199,11 +225,18 @@ export function createFontResolver(
 
   async function resolvePageFont(
     request: FontProperties,
-    attempts: Array<string>
+    attempts: Array<string>,
+    signal?: AbortSignal
   ): Promise<FontOutcome | null> {
     for (const candidate of findPageCandidates(pageEntries, request)) {
       for (const url of candidate.urls) {
-        const direct = await tryLoadUrl(url, fetchImpl, byteCache, attempts);
+        const direct = await tryLoadUrl(
+          url,
+          fetchImpl,
+          byteCache,
+          attempts,
+          signal
+        );
         if (direct) {
           const outcome = buildPageOutcome(
             request,
@@ -219,7 +252,8 @@ export function createFontResolver(
           request,
           candidate,
           url,
-          attempts
+          attempts,
+          signal
         );
         if (transported) {
           return transported;
@@ -231,11 +265,13 @@ export function createFontResolver(
 
   async function resolveBundledFont(
     request: FontProperties,
-    attempts: Array<string>
+    attempts: Array<string>,
+    signal?: AbortSignal
   ): Promise<FontOutcome | null> {
     for (const candidate of findBundledCandidates(bundledFonts, request)) {
       try {
-        const bytes = await readBundledBytes(candidate.bytes);
+        const bytes = await readBundledBytes(candidate.bytes, signal);
+        throwIfAborted(signal);
         const expectedFamily = candidate.resolvedFamily ?? candidate.family;
         const metadata = validateFontBytes(bytes, expectedFamily);
         return buildOutcome(
@@ -262,13 +298,15 @@ export function createFontResolver(
 
   async function resolveFallbackFont(
     request: FontProperties,
-    attempts: Array<string>
+    attempts: Array<string>,
+    signal?: AbortSignal
   ): Promise<FontOutcome | null> {
     if (!fallbackLoader) {
       return null;
     }
     try {
-      const file = await fallbackLoader(request);
+      throwIfAborted(signal);
+      const file = await fallbackLoader(request, signal);
       const actualFamily = file.resolvedFamily ?? request.family;
       const actualWeight = file.resolvedWeight ?? request.weight;
       const actualItalic = file.resolvedItalic ?? request.italic;
@@ -286,7 +324,8 @@ export function createFontResolver(
         file
       );
     } catch (error) {
-      attempts.push(`fallback: ${toErrorMessage(error)}`);
+      throwIfAborted(signal);
+      attempts.push(`fallback: ${toErrorCode(error)}`);
       return null;
     }
   }
@@ -295,13 +334,18 @@ export function createFontResolver(
     request: FontProperties,
     candidate: PageFontEntry,
     url: string,
-    attempts: Array<string>
+    attempts: Array<string>,
+    signal?: AbortSignal
   ): Promise<FontOutcome | null> {
     if (!(options.transport && isHttpUrl(url))) {
       return null;
     }
     try {
-      const transported = await loadTransportBytes(url, options.transport);
+      const transported = await loadTransportBytes(
+        url,
+        options.transport,
+        signal
+      );
       const metadata = validateFontBytes(transported.bytes, candidate.family);
       return buildOutcome(
         request,
@@ -312,10 +356,11 @@ export function createFontResolver(
         candidate.italic,
         metadata,
         attempts,
-        `background transport ${url}`
+        "background transport"
       );
     } catch (error) {
-      attempts.push(`transport ${url}: ${toErrorMessage(error)}`);
+      throwIfAborted(signal);
+      attempts.push(`transport: ${toErrorCode(error)}`);
       return null;
     }
   }
@@ -328,14 +373,16 @@ export function createFontResolver(
       resolvedFamily: outcome.actualFamily,
       resolvedWeight: outcome.actualWeight,
       resolvedItalic: outcome.actualItalic,
-      attempts: outcome.attempts,
+      attempts: outcome.attempts.map(sanitizeMessage),
       reason: outcome.exact
         ? undefined
-        : `Resolved to ${formatRequest({
-            family: outcome.actualFamily,
-            weight: outcome.actualWeight,
-            italic: outcome.actualItalic,
-          })}`,
+        : sanitizeMessage(
+            `Resolved to ${formatRequest({
+              family: outcome.actualFamily,
+              weight: outcome.actualWeight,
+              italic: outcome.actualItalic,
+            })}`
+          ),
     });
   }
 }
@@ -412,14 +459,16 @@ async function tryLoadUrl(
   url: string,
   fetchImpl: typeof globalThis.fetch,
   byteCache: Map<string, Promise<ArrayBuffer>>,
-  attempts: Array<string>
+  attempts: Array<string>,
+  signal?: AbortSignal
 ): Promise<ArrayBuffer | null> {
   try {
-    const bytes = await loadBytes(url, fetchImpl, byteCache);
-    attempts.push(`page ${url}: ok`);
+    const bytes = await loadBytes(url, fetchImpl, byteCache, signal);
+    attempts.push("page: ok");
     return bytes;
   } catch (error) {
-    attempts.push(`page ${url}: ${toErrorMessage(error)}`);
+    throwIfAborted(signal);
+    attempts.push(`page: ${toErrorCode(error)}`);
     return null;
   }
 }
@@ -427,7 +476,8 @@ async function tryLoadUrl(
 function loadBytes(
   url: string,
   fetchImpl: typeof globalThis.fetch,
-  byteCache: Map<string, Promise<ArrayBuffer>>
+  byteCache: Map<string, Promise<ArrayBuffer>>,
+  signal?: AbortSignal
 ): Promise<ArrayBuffer> {
   const cached = byteCache.get(url);
   if (cached) {
@@ -437,6 +487,7 @@ function loadBytes(
   const pending = fetchImpl(url, {
     credentials: "omit",
     cache: "force-cache",
+    signal,
   }).then(async (response) => {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -458,9 +509,10 @@ function loadBytes(
 
 async function loadTransportBytes(
   url: string,
-  transport: NonNullable<FontResolverOptions["transport"]>
+  transport: NonNullable<FontResolverOptions["transport"]>,
+  signal?: AbortSignal
 ): Promise<FontTransportResult> {
-  const result = await transport(url);
+  const result = await transport(url, signal);
   const normalized = result instanceof ArrayBuffer ? { bytes: result } : result;
   if (
     !(normalized.bytes instanceof ArrayBuffer) ||
@@ -472,9 +524,10 @@ async function loadTransportBytes(
 }
 
 async function readBundledBytes(
-  bytes: BundledFont["bytes"]
+  bytes: BundledFont["bytes"],
+  signal?: AbortSignal
 ): Promise<ArrayBuffer> {
-  const value = typeof bytes === "function" ? await bytes() : bytes;
+  const value = typeof bytes === "function" ? await bytes(signal) : bytes;
   if (!(value instanceof ArrayBuffer) || value.byteLength === 0) {
     throw new Error("empty bundled font");
   }
@@ -877,6 +930,34 @@ function formatRequest(request: FontProperties): string {
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function sanitizeMessage(message: string): string {
+  return message.replace(/https?:\/\/[^\s)]+/gi, "[resource]");
+}
+
+function toErrorCode(error: unknown): string {
+  const message = toErrorMessage(error).toLowerCase();
+  if (message.includes("abort")) {
+    return "aborted";
+  }
+  if (message.includes("http")) {
+    return "http-error";
+  }
+  if (message.includes("empty")) {
+    return "empty-response";
+  }
+  return "failed";
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw new Error("Font preparation aborted");
+  }
+}
+
+function normalizeFontMode(mode: FontFailureMode): FontMode {
+  return mode === "fallback" ? "compatible" : mode;
 }
 
 function getGlobalDocument(): Document | null {

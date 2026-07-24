@@ -1,11 +1,10 @@
 import type {
   BrowserCaptureAdapter,
   BundledFont,
+  CaptureClassifier,
   FontLoader,
 } from "@figit/browser-capture-adapter";
 import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
-import type { Classify } from "@figit/dom-to-figma";
-import { defaultClassify } from "@figit/dom-to-figma";
 import { toast } from "sonner";
 import { browser } from "#imports";
 
@@ -78,9 +77,10 @@ const getAdapter: () => BrowserCaptureAdapter = (() => {
         fonts: {
           bundledFonts: createBundledCjkFonts(),
           fallbackLoader: createGenericFallbackLoader(),
+          fallbackIsLocal: true,
           transport: createBackgroundFontTransport(),
         },
-        converterConfig: {
+        bridgeOptions: {
           imageLoader: createBackgroundImageLoader(),
           classify: skipExtensionUiClassify,
         },
@@ -96,27 +96,28 @@ function createBundledCjkFonts(): ReadonlyArray<BundledFont> {
     aliases: CJK_FONT_ALIASES,
     weight,
     italic: false,
-    bytes: () => loadBundledCjkFont(weight),
+    bytes: (signal) => loadBundledCjkFont(weight, signal),
     source: `extension ${CJK_FALLBACK_FAMILY} ${weight}`,
   }));
 }
 
 function createGenericFallbackLoader(): FontLoader {
-  return async () => ({
-    bytes: await loadGenericFallbackFont(),
+  return async (_request, signal) => ({
+    bytes: await loadGenericFallbackFont(signal),
     resolvedFamily: GENERIC_FALLBACK_FAMILY,
     resolvedWeight: CJK_WEIGHT_REGULAR,
     resolvedItalic: false,
   });
 }
 
-function loadGenericFallbackFont(): Promise<ArrayBuffer> {
+function loadGenericFallbackFont(signal?: AbortSignal): Promise<ArrayBuffer> {
   if (genericFallbackFontCache) {
     return genericFallbackFontCache;
   }
 
   const request = fetch(browser.runtime.getURL(GENERIC_FALLBACK_PATH), {
     cache: "force-cache",
+    signal,
   }).then(async (response) => {
     if (!response.ok) {
       throw new Error(
@@ -126,10 +127,18 @@ function loadGenericFallbackFont(): Promise<ArrayBuffer> {
     return await response.arrayBuffer();
   });
   genericFallbackFontCache = request;
+  request.catch(() => {
+    if (genericFallbackFontCache === request) {
+      genericFallbackFontCache = null;
+    }
+  });
   return request;
 }
 
-function loadBundledCjkFont(weight: CjkFallbackWeight): Promise<ArrayBuffer> {
+function loadBundledCjkFont(
+  weight: CjkFallbackWeight,
+  signal?: AbortSignal
+): Promise<ArrayBuffer> {
   const cached = bundledCjkFontCache.get(weight);
   if (cached) {
     return cached;
@@ -137,6 +146,7 @@ function loadBundledCjkFont(weight: CjkFallbackWeight): Promise<ArrayBuffer> {
 
   const request = fetch(browser.runtime.getURL(CJK_FONT_PATHS[weight]), {
     cache: "force-cache",
+    signal,
   }).then(async (response) => {
     if (!response.ok) {
       throw new Error(`Bundled CJK font request failed: ${response.status}`);
@@ -144,10 +154,15 @@ function loadBundledCjkFont(weight: CjkFallbackWeight): Promise<ArrayBuffer> {
     return await response.arrayBuffer();
   });
   bundledCjkFontCache.set(weight, request);
+  request.catch(() => {
+    if (bundledCjkFontCache.get(weight) === request) {
+      bundledCjkFontCache.delete(weight);
+    }
+  });
   return request;
 }
 
-const skipExtensionUiClassify: Classify = (element) => {
+const skipExtensionUiClassify: CaptureClassifier = (element, defaultKind) => {
   if (
     element instanceof HTMLElement &&
     element.tagName.toLowerCase() === SHADOW_HOST_NAME
@@ -159,7 +174,7 @@ const skipExtensionUiClassify: Classify = (element) => {
   if (element instanceof HTMLIFrameElement && !isSameOriginIframe(element)) {
     return "skip";
   }
-  return defaultClassify(element);
+  return defaultKind;
 };
 
 function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
@@ -220,7 +235,13 @@ function runConversion(
 
 async function convertAndCopy(input: ConversionInput): Promise<void> {
   const result = await getAdapter().capture(input);
-  await navigator.clipboard.write([result.toClipboardItem()]);
+  await navigator.clipboard.write([createClipboardItem(result.clipboardHtml)]);
+}
+
+function createClipboardItem(clipboardHtml: string): ClipboardItem {
+  return new ClipboardItem({
+    "text/html": new Blob([clipboardHtml], { type: "text/html" }),
+  });
 }
 
 /**

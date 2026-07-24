@@ -1,8 +1,7 @@
 import { defineBackground } from "#imports";
 
-import { arrayBufferToBase64 } from "../shared/base64";
-import type { FetchUrlResult } from "../shared/messaging";
 import { onMessage } from "../shared/messaging";
+import { createResourceProxy } from "../shared/resource-proxy";
 
 /**
  * The bg proxy holds `<all_urls>` host permissions, so any URL it forwards to
@@ -17,42 +16,14 @@ import { onMessage } from "../shared/messaging";
  * the proxy in practice (the direct loader handles inline data without
  * failing) and adding them would just widen the allowed input space.
  */
-const ALLOWED_SCHEMES = new Set(["http:", "https:"]);
+const resourceProxy = createResourceProxy();
 
 export default defineBackground(() => {
   // Service-worker fetch proxy. Content scripts inherit the page's CORS
   // posture, so cross-origin images often fail to load when fetched from the
   // page. The service worker has `<all_urls>` host permissions and is allowed
   // to read those bytes regardless of CORS, then ferries them back as base64.
-  onMessage("fetchImage", ({ data }) => fetchAsBase64(data));
-  onMessage("fetchFont", ({ data }) => fetchAsBase64(data));
+  onMessage("fetchImage", ({ data }) => resourceProxy.fetch(data));
+  onMessage("fetchFont", ({ data }) => resourceProxy.fetch(data));
+  onMessage("cancelResource", ({ data }) => resourceProxy.cancel(data));
 });
-
-async function fetchAsBase64(url: string): Promise<FetchUrlResult> {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new Error(`Invalid URL: ${url}`);
-  }
-  if (!ALLOWED_SCHEMES.has(parsed.protocol)) {
-    throw new Error(
-      `Refused to fetch ${parsed.protocol} URL via background proxy`
-    );
-  }
-
-  const response = await fetch(url, {
-    credentials: "omit",
-    cache: "force-cache",
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Fetch failed (${response.status} ${response.statusText}) for ${url}`
-    );
-  }
-  const blob = await response.blob();
-  return {
-    bytesBase64: arrayBufferToBase64(await blob.arrayBuffer()),
-    mimeType: blob.type || "application/octet-stream",
-  };
-}

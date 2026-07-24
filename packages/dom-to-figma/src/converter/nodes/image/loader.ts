@@ -6,6 +6,8 @@
 export type ImageRequest = {
   src: string;
   element: HTMLImageElement;
+  /** Optional cancellation signal for staged resource preparation. */
+  signal?: AbortSignal;
 };
 
 /**
@@ -46,8 +48,8 @@ const PNG_QUALITY = 1.0;
  * chain should inject their own `ImageLoader`.
  */
 export function createDirectImageLoader(): ImageLoader {
-  return async ({ src }) => {
-    const response = await fetch(src);
+  return async ({ src, signal }) => {
+    const response = await fetch(src, { signal });
     if (!response.ok) {
       throw new Error(`Image fetch failed (${response.status}): ${src}`);
     }
@@ -64,11 +66,15 @@ export function createDirectImageLoader(): ImageLoader {
  * the mime type isn't supported, then SHA-1 hash the final bytes.
  */
 export async function processImageFile(
-  file: ImageFile
+  file: ImageFile,
+  signal?: AbortSignal
 ): Promise<ImageBlobInfo> {
+  throwIfAborted(signal);
   const finalBytes = isFigmaSupportedFormat(file.mimeType)
     ? file.bytes
-    : await convertToPng(file);
+    : await convertToPng(file, signal);
+
+  throwIfAborted(signal);
 
   const hash = await sha1(finalBytes);
   return {
@@ -83,11 +89,16 @@ function isFigmaSupportedFormat(mimeType: string): boolean {
   );
 }
 
-async function convertToPng(file: ImageFile): Promise<ArrayBuffer> {
+async function convertToPng(
+  file: ImageFile,
+  signal?: AbortSignal
+): Promise<ArrayBuffer> {
+  throwIfAborted(signal);
   const sourceBlob = new Blob([file.bytes], { type: file.mimeType });
   const objectUrl = URL.createObjectURL(sourceBlob);
   try {
-    const img = await loadImageElement(objectUrl);
+    const img = await loadImageElement(objectUrl, signal);
+    throwIfAborted(signal);
     const canvas = createCanvasFromImage(img);
     if (!canvas) {
       throw new Error("Failed to create canvas for PNG conversion");
@@ -99,13 +110,59 @@ async function convertToPng(file: ImageFile): Promise<ArrayBuffer> {
   }
 }
 
-function loadImageElement(src: string): Promise<HTMLImageElement> {
+function loadImageElement(
+  src: string,
+  signal?: AbortSignal
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    let settled = false;
+    const cleanup = () => {
+      signal?.removeEventListener("abort", onAbort);
+      img.onload = null;
+      img.onerror = null;
+    };
+    const onAbort = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(createAbortError());
+    };
+    img.onload = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(img);
+    };
+    img.onerror = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(new Error(`Failed to load image: ${src}`));
+    };
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
     img.src = src;
   });
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+}
+
+function createAbortError(): Error {
+  return new Error("Image preparation aborted");
 }
 
 function createCanvasFromImage(

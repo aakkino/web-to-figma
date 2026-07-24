@@ -51,3 +51,97 @@ must arrive through serializable arguments.
 AbortSignal. Content-script subscriptions should normally use `ctx.signal` so
 extension reload/disable tears them down.
 
+## Scenario: Abortable Resource Requests
+
+### 1. Scope / Trigger
+
+- Trigger: staged capture must cancel a privileged image/font fetch without
+  accepting a late response from an older capture.
+- Scope: `apps/extension/shared/messaging.ts`, the background service worker,
+  and content-side resource loaders.
+
+### 2. Signatures
+
+~~~ts
+type ResourceRequest = {
+  sessionId: string;
+  requestId: string;
+  url: string;
+};
+
+type ResourceCancelRequest = {
+  sessionId: string;
+  requestId: string;
+};
+
+type ProtocolMap = {
+  fetchImage(request: ResourceRequest): FetchUrlResult;
+  fetchFont(request: ResourceRequest): FetchUrlResult;
+  cancelResource(request: ResourceCancelRequest): ResourceCancelResult;
+};
+~~~
+
+### 3. Contracts
+
+- Content creates a session id per loader and a unique request id per
+  privileged request. The background indexes controllers by the pair.
+- Background parses the URL, permits only `http:` and `https:`, fetches with
+  `credentials: "omit"`, and removes the controller in `finally`.
+- Abort sends an idempotent `cancelResource` message and locally rejects the
+  pending content promise. A response is accepted only while the matching
+  session/request signal is live.
+- `data:` and `blob:` image sources remain on the page side and never enter
+  the privileged protocol. Raw URLs are internal message data only; public
+  diagnostics use stable codes without URLs.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior | Forbidden behavior |
+| --- | --- | --- |
+| Invalid URL or non-HTTP(S) scheme | Reject before privileged fetch | Expand proxy schemes |
+| HTTP error | Reject as transport failure | Return an error body as bytes |
+| Explicit cancel | Abort the worker fetch when active | Start queued work or keep controller entries |
+| Duplicate cancel/completed request | Return `{ canceled: false }` | Throw or affect a new request |
+| Late response after local abort | Suppress it | Update the current capture |
+| Successful fetch | Return base64 bytes and MIME | Send credentials/cookies |
+
+### 5. Good / Base / Bad Cases
+
+- Good: page fetch handles a same-origin resource; the background is used only
+  after a direct failure and receives a typed HTTP(S) request.
+- Base: a background request completes before cancellation and its controller
+  is removed by `finally`.
+- Bad: content forwards arbitrary `data:`/`file:` URLs to the privileged worker,
+  or accepts a late payload after the session signal was aborted.
+
+### 6. Tests Required
+
+- Protocol tests assert request/session identity, invalid/refused URL behavior,
+  non-2xx handling, credential omission, abort, duplicate cancel, and map
+  cleanup.
+- Loader tests assert page-first behavior, signal propagation, local stale
+  response suppression, and no privileged request for `data:` or `blob:`.
+- Chromium MV3 and Firefox builds remain required after protocol changes.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+sendMessage("fetchImage", { url });
+~~~
+
+#### Correct
+
+~~~ts
+const request = { sessionId, requestId, url };
+const pending = sendMessage("fetchImage", request);
+signal.addEventListener("abort", () => {
+  void sendMessage("cancelResource", {
+    sessionId,
+    requestId,
+  }).catch(() => undefined);
+});
+~~~
+
+The typed identity is part of the cancellation contract, not optional metadata.

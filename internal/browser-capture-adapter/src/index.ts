@@ -1,31 +1,76 @@
 // biome-ignore lint/performance/noBarrelFile: this file is the package's deliberate public API boundary.
 export {
+  createDefaultFontLoader,
+  createDirectImageLoader,
+  createDomToFigmaBridge,
+  UnsupportedCaptureCapabilityError,
+} from "./bridges/dom-to-figma";
+export {
   CaptureError,
   createBrowserCaptureAdapter,
 } from "./capture-adapter";
+export { createCaptureEngine } from "./capture-engine";
 export {
   createCaptureFontLoader,
   createFontResolver,
   createPageFontLoader,
   FontPreflightError,
 } from "./font-resolver";
+export type {
+  ImageScheduler,
+  ImageSchedulerOptions,
+  ImageSchedulerResource,
+  ImageSchedulerRunOptions,
+  ImageSchedulerRunResult,
+} from "./image-scheduler";
+export {
+  createImageScheduler,
+  IMAGE_HARD_LIMIT_BYTES,
+  IMAGE_ITEM_TIMEOUT_MS,
+  IMAGE_SOFT_LIMIT_BYTES,
+  IMAGE_STAGE_CONCURRENCY,
+  IMAGE_STAGE_TIMEOUT_MS,
+} from "./image-scheduler";
 export type { MotionSnapshot } from "./motion-snapshot";
 export { freezeCaptureMotion } from "./motion-snapshot";
 export { waitForPageToSettle } from "./page-stability";
+export { analyzeCaptureTarget } from "./resource-inventory";
 export type { LineBreakPreparation } from "./text-line-breaks";
 export {
   getBrowserLineBreakIndexes,
   prepareCjkLineBreaks,
 } from "./text-line-breaks";
 export type {
+  BridgeCaptureInput,
+  BridgeCaptureResult,
   BrowserCaptureAdapter,
   BrowserCaptureAdapterOptions,
   BundledFont,
   BundledFontBytes,
+  CaptureAnalysis,
+  CaptureCanvasInput,
+  CaptureClassifier,
+  CaptureCommand,
+  CaptureDecision,
   CaptureDiagnostics,
   CaptureElementInput,
+  CaptureElementKind,
+  CaptureEngine,
+  CaptureEngineOptions,
+  CaptureEvent,
+  CaptureFailure,
+  CaptureFrameInput,
   CaptureInput,
+  CapturePhase,
+  CapturePlan,
+  CaptureResourceSummary,
   CaptureResult,
+  CaptureSettings,
+  CaptureState,
+  CaptureTarget,
+  ConversionBridge,
+  ConverterLayout,
+  DomToFigmaBridgeOptions,
   DomTreeStrategy,
   FontDiagnostic,
   FontDiagnosticSource,
@@ -33,17 +78,31 @@ export type {
   FontFailureMode,
   FontFile,
   FontLoader,
+  FontMode,
   FontPreflightResult,
   FontProperties,
   FontResolver,
   FontResolverOptions,
+  FontStageProgress,
   FontTransport,
   FontTransportResult,
+  ImageDecision,
+  ImageFile,
+  ImageLoader,
+  ImagePlaceholderReason,
+  ImagePreparationPort,
+  ImagePreparationResult,
+  ImageRequest,
+  ImageResourceDiagnostic,
+  ImageStageDiagnostics,
+  ImageStageProgress,
   LineBreakDiagnostics,
   LineBreakMode,
   MotionDiagnostics,
   MotionMode,
   PageSettleDiagnostics,
   PageSettleOptions,
+  PreparedCapture,
+  ResourceErrorCode,
   SettleTimeoutPhase,
 } from "./types";

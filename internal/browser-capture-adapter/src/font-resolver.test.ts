@@ -200,6 +200,80 @@ describe("createFontResolver", () => {
     ).rejects.toBeInstanceOf(FontPreflightError);
   });
 
+  it("keeps fast-local preflight free of page, transport, and remote fallback calls", async () => {
+    let pageCalls = 0;
+    let transportCalls = 0;
+    let fallbackCalls = 0;
+    const style = {
+      getPropertyValue(property: string) {
+        const values: Record<string, string> = {
+          "font-family": "Open Sans",
+          src: "url(https://cdn.example.test/open-sans.woff2) format(woff2)",
+          "font-weight": "400",
+          "font-style": "normal",
+        };
+        return values[property] ?? "";
+      },
+    };
+    const document = {
+      baseURI: "https://example.test/page.html",
+      styleSheets: [
+        {
+          href: "https://example.test/styles.css",
+          cssRules: { length: 1, item: () => ({ type: 5, style }) },
+        },
+      ],
+    } as unknown as Document;
+    const resolver = createFontResolver({
+      document,
+      fetch: () => {
+        pageCalls += 1;
+        return Promise.reject(new Error("must not fetch"));
+      },
+      transport: () => {
+        transportCalls += 1;
+        return Promise.reject(new Error("must not transport"));
+      },
+      fallbackLoader: () => {
+        fallbackCalls += 1;
+        throw new Error("remote fallback is disabled");
+      },
+    });
+
+    const result = await resolver.preflight(
+      [{ family: "Open Sans", weight: TEST_WEIGHT, italic: false }],
+      "fast-local"
+    );
+
+    expect(result.failures[0]?.status).toBe("failed");
+    expect(pageCalls).toBe(0);
+    expect(transportCalls).toBe(0);
+    expect(fallbackCalls).toBe(0);
+  });
+
+  it("re-records cached outcomes after a new capture begins", async () => {
+    const bytes = await loadFixtureBytes();
+    const request = { family: "Arial", weight: 700, italic: true };
+    const resolver = createFontResolver({
+      fallbackLoader: async () => ({
+        bytes,
+        resolvedFamily: "Open Sans",
+        resolvedWeight: TEST_WEIGHT,
+        resolvedItalic: false,
+      }),
+    });
+
+    await resolver.loader(request);
+    resolver.beginCapture({
+      styleSheets: [],
+      baseURI: "https://example.test/page.html",
+    } as unknown as Document);
+
+    await expect(
+      resolver.preflight([request], "strict")
+    ).rejects.toBeInstanceOf(FontPreflightError);
+  });
+
   it("does not permanently cache a failed request", async () => {
     const bytes = await loadFixtureBytes();
     let attempts = 0;

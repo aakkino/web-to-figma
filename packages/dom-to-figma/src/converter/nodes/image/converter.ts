@@ -1,5 +1,6 @@
 import type { Position } from "../../dom";
 import type { ImageCache } from "../../image-cache";
+import type { ImageResolution } from "../../image-preparation";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
@@ -42,8 +43,9 @@ export async function elementToImageNodeChange(
     height,
   });
 
-  const { hash, bytes } = await imageCache.get(element);
-  const blobIndex = registerBlob({ bytes });
+  const resolution: ImageResolution = await imageCache.get(element);
+  const image = resolution.kind === "image" ? resolution.image : undefined;
+  const blobIndex = image ? registerBlob({ bytes: image.bytes }) : -1;
 
   const nodeChange: FigmaNodeChange = {
     /* General Info */
@@ -54,7 +56,7 @@ export async function elementToImageNodeChange(
       position: childIndex.toString(),
     },
     type: "ROUNDED_RECTANGLE",
-    name: "Image",
+    name: image ? "Image" : "Image (skipped)",
     visible: true,
     opacity,
 
@@ -78,39 +80,31 @@ export async function elementToImageNodeChange(
     ...borderProperties,
 
     /* Fill */
-    fillPaints: [
-      {
-        type: "IMAGE",
-        opacity: 1.0,
-        visible: true,
-        blendMode: "NORMAL",
-        transform: {
-          m00: 1.0,
-          m01: 0.0,
-          m02: 0.0,
-          m10: 0.0,
-          m11: 1.0,
-          m12: 0.0,
-        },
-        image: {
-          hash,
-          dataBlob: blobIndex,
-        },
-        // imageThumbnail: {
-        //   hash: [],
-        //   name: "image",
-        // },
-        imageScaleMode: "FILL",
-        // animationFrame: 0,
-        // imageShouldColorManage: true,
-        // rotation: 0.0,
-        // scale: 0.5,
-        // originalImageWidth: 3000,
-        // originalImageHeight: 2003,
-        // thumbHash: [],
-        // altText: "",
-      },
-    ],
+    ...(image
+      ? {
+          fillPaints: [
+            {
+              type: "IMAGE" as const,
+              opacity: 1.0,
+              visible: true,
+              blendMode: "NORMAL" as const,
+              transform: {
+                m00: 1.0,
+                m01: 0.0,
+                m02: 0.0,
+                m10: 0.0,
+                m11: 1.0,
+                m12: 0.0,
+              },
+              image: {
+                hash: image.hash,
+                dataBlob: blobIndex,
+              },
+              imageScaleMode: "FILL" as const,
+            },
+          ],
+        }
+      : {}),
 
     /* Effects */
     effects,

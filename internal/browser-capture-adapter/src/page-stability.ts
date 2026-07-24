@@ -24,10 +24,10 @@ export async function waitForPageToSettle(
 
   const document = root.ownerDocument;
   const view = document.defaultView;
-  const images = collectImages(
-    root,
-    options.domTraversal ?? openComposedDomTree
-  );
+  const images =
+    options.waitForImages === false
+      ? []
+      : collectImages(root, options.domTraversal ?? openComposedDomTree);
   const errors: Array<string> = [];
   const controller = new AbortController();
   let timedOut = false;
@@ -36,6 +36,7 @@ export async function waitForPageToSettle(
   let waitedForImages = 0;
   let frameCount = 0;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const removeExternalAbort = linkAbortSignal(options.signal, controller);
 
   const timeoutPromise = new Promise<"timeout">((resolve) => {
     timeoutId = setTimeout(() => {
@@ -87,6 +88,7 @@ export async function waitForPageToSettle(
       clearTimeout(timeoutId);
     }
     controller.abort();
+    removeExternalAbort();
   }
 
   const pendingImages = images.filter((image) => !image.complete).length;
@@ -141,7 +143,9 @@ async function waitForFonts(
 
   await Promise.race([
     ready.catch((error: unknown) => {
-      errors.push(`document.fonts.ready: ${toErrorMessage(error)}`);
+      errors.push(
+        `document.fonts.ready: ${sanitizeMessage(toErrorMessage(error))}`
+      );
     }),
     waitForAbort(signal),
   ]);
@@ -164,7 +168,7 @@ async function waitForImages(
       }
       if (outcome === "error") {
         completed += 1;
-        errors.push(`image failed to load: ${image.currentSrc || image.src}`);
+        errors.push("image failed to load");
       }
     })
   );
@@ -248,6 +252,26 @@ function waitForAbort(signal: AbortSignal): Promise<void> {
   });
 }
 
+function linkAbortSignal(
+  source: AbortSignal | undefined,
+  target: AbortController
+): () => void {
+  if (!source) {
+    return () => undefined;
+  }
+  const abort = () => target.abort();
+  if (source.aborted) {
+    abort();
+    return () => undefined;
+  }
+  source.addEventListener("abort", abort, { once: true });
+  return () => source.removeEventListener("abort", abort);
+}
+
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function sanitizeMessage(message: string): string {
+  return message.replace(/https?:\/\/[^\s)]+/gi, "[resource]");
 }
