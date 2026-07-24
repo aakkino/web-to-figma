@@ -8,6 +8,7 @@ import { App } from "./app";
 import {
   createClipboardOutputPort,
   createExtensionCaptureEngine,
+  createExtensionFontSpecPort,
 } from "./convert";
 import type { WorkspaceController } from "./workspace-controller";
 import { createWorkspaceController } from "./workspace-controller";
@@ -33,6 +34,7 @@ export default defineContentScript({
           engineFactory: createExtensionCaptureEngine,
           settingsRepository: createCaptureSettingsRepository(),
           outputPort: createClipboardOutputPort(),
+          fontSpecPort: createExtensionFontSpecPort(),
         });
         controller = workspaceController;
         const root = createRoot(container);

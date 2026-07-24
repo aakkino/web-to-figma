@@ -34,6 +34,12 @@ The extension supplies its background `fetchFont` transport. The adapter only
 accepts that transport as an injected function; URL permissions, messaging,
 credentials, and clipboard writes remain owned by the host application.
 
+`inspectTypography(target)` is a read-only inventory API over the same composed
+DOM strategy and font resolver. It groups visible text-node usage by ordered
+font family stack, weight, style, size, line height, and letter spacing, then
+returns exact/fallback/failed diagnostics. Its result never contains source
+text, source code points, resource URLs, CSS rules, or font bytes.
+
 Line breaks are measured for the current browser viewport only. They are
 temporary DOM changes during conversion and are restored on success, timeout,
 or error. `lineBreaks: "off"` disables all text measurement and mutation.

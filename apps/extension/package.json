@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
-    "test": "vitest run shared/resource-proxy.test.ts shared/capture-settings.test.ts entrypoints/content/workspace-controller.test.ts entrypoints/content/font-fallback.test.ts",
+    "test": "vitest run",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
@@ -16,20 +16,24 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@phosphor-icons/react": "2.1.10",
     "@figit/browser-capture-adapter": "workspace:*",
     "@figit/dom-to-figma": "workspace:*",
     "@figit/ui": "workspace:*",
+    "@phosphor-icons/react": "2.1.10",
     "@webext-core/messaging": "^2.3.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "sonner": "^2.0.7"
   },
   "devDependencies": {
+    "@figit/fig-kiwi": "workspace:*",
     "@tailwindcss/vite": "^4.1.16",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@vitest/browser-playwright": "^4.1.5",
     "@wxt-dev/module-react": "^1.1.5",
+    "happy-dom": "^20.9.0",
+    "playwright": "^1.59.1",
     "tailwindcss": "^4.1.16",
     "typescript": "catalog:",
     "vitest": "^4.1.5",

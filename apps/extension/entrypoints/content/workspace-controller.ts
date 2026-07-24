@@ -18,6 +18,7 @@ import {
   hasSelectedOutput,
   mergeCaptureSettings,
 } from "../../shared/capture-settings";
+import type { FontSpecPort } from "./font-spec";
 
 export type WorkspaceSurface = "hidden" | "visible" | "minimized";
 
@@ -56,6 +57,11 @@ export type OutputRunState = {
   results: Record<CaptureOutput, OutputSinkResult | null>;
 };
 
+export type FontSpecRunState = {
+  status: "idle" | "running" | "success" | "failed";
+  message?: string;
+};
+
 export type OutputPort = {
   capabilities: Readonly<Record<CaptureOutput, boolean>>;
   execute(
@@ -79,6 +85,7 @@ export type WorkspaceState = {
   capture: CaptureState;
   prepared?: PreparedCapture;
   output: OutputRunState;
+  fontSpec: FontSpecRunState;
   message?: {
     kind: "info" | "error";
     text: string;
@@ -97,6 +104,7 @@ export type WorkspaceController = {
   cancelPicker(): void;
   analyzeTarget(target: CaptureInput): Promise<void>;
   startCapture(): Promise<void>;
+  copyFontSpec(): Promise<void>;
   dispatchCapture(
     type:
       | "retry-failed-images"
@@ -119,6 +127,7 @@ type WorkspaceControllerOptions = {
   engineFactory?: CaptureEngineFactory;
   settingsRepository: CaptureSettingsRepository;
   outputPort: OutputPort;
+  fontSpecPort: FontSpecPort;
 };
 
 const INITIAL_OUTPUT_STATE: OutputRunState = {
@@ -140,6 +149,7 @@ export function createWorkspaceController(
     effectiveSettings: DEFAULT_CAPTURE_SETTINGS,
     capture: activeEngine.getState(),
     output: createOutputState(),
+    fontSpec: { status: "idle" },
   };
 
   const controller: WorkspaceController = {
@@ -187,7 +197,10 @@ export function createWorkspaceController(
       update({ surface: "visible" });
     },
     startPicker() {
-      if (isCaptureBusy(state.capture.phase)) {
+      if (
+        isCaptureBusy(state.capture.phase) ||
+        state.fontSpec.status === "running"
+      ) {
         return false;
       }
       update({
@@ -215,6 +228,7 @@ export function createWorkspaceController(
         effectiveSettings: settings,
         prepared: undefined,
         output: createOutputState(),
+        fontSpec: { status: "idle" },
         message: undefined,
       });
       try {
@@ -229,13 +243,54 @@ export function createWorkspaceController(
       }
     },
     async startCapture() {
-      if (state.capture.phase !== "review") {
+      if (
+        state.capture.phase !== "review" ||
+        state.fontSpec.status === "running"
+      ) {
         return;
       }
       await dispatchCaptureCommand({
         type: "start",
         sessionId: state.capture.sessionId,
       });
+    },
+    async copyFontSpec() {
+      const target = state.capture.analysis?.plan.target.input;
+      if (
+        state.capture.phase !== "review" ||
+        state.fontSpec.status === "running" ||
+        !target
+      ) {
+        return;
+      }
+      update({
+        fontSpec: { status: "running" },
+        message: undefined,
+      });
+      try {
+        const result = await options.fontSpecPort.copy(
+          target,
+          state.draftSettings
+        );
+        update({
+          view: "review",
+          fontSpec: result,
+          message: {
+            kind: result.status === "success" ? "info" : "error",
+            text: result.message,
+          },
+        });
+      } catch (error) {
+        const text =
+          error instanceof Error && error.message
+            ? error.message
+            : "Unable to copy the typography spec.";
+        update({
+          view: "review",
+          fontSpec: { status: "failed", message: text },
+          message: { kind: "error", text },
+        });
+      }
     },
     async dispatchCapture(type) {
       const sessionId = state.capture.sessionId;

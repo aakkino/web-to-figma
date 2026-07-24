@@ -39,6 +39,27 @@ published `@figit/dom-to-figma` API.
   behavior. Every temporary text and inline-style change is restored on both
   success and failure.
 
+## Typography spec
+
+After a page or element reaches Review, `Copy typography spec` scans that same
+target and writes a separate editable Figma frame to the clipboard. It does
+not run or modify the ordinary page capture session.
+
+- Inspection keeps the complete computed typography token: ordered family
+  stack, weight, style, font size, line height, and letter spacing. Text color
+  is intentionally excluded.
+- The report projects those tokens into one deduplicated font-resolution table,
+  repeated core styles, and compact single-use variants. Core styles keep every
+  line-height/letter-spacing variant and reference the font table by stable
+  `F01`-style ids; no Top-N truncation drops long-tail records.
+- Each report section is its own vertical container so Figma paste preserves
+  semantic grouping and sibling order even on highly fragmented pages.
+- Specimens use fixed Latin and CJK text. Page text, CSS rules, font URLs, font
+  bytes, URL paths, queries, and hashes are not included.
+- Page attribution is limited to `document.title` and `location.hostname`.
+- Report DOM is mounted in an off-screen shadow root, converted with the
+  existing adapter, and removed in `finally` after success or failure.
+
 The adapter does not own extension permissions, runtime messaging, clipboard
 writes, or page-specific selectors. It is a private workspace package until
 the API has been validated across more sites.

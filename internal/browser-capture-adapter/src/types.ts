@@ -82,6 +82,44 @@ export type FontDiagnostic = {
   reason?: string;
 };
 
+export type TypographyLineHeight =
+  | { kind: "normal" }
+  | { kind: "px"; value: number };
+
+export type TypographyLetterSpacing =
+  | { kind: "normal" }
+  | { kind: "px"; value: number };
+
+export type TypographyToken = {
+  familyStack: ReadonlyArray<string>;
+  family: string;
+  weight: number;
+  style: "normal" | "italic" | "oblique";
+  fontSizePx: number;
+  lineHeight: TypographyLineHeight;
+  letterSpacing: TypographyLetterSpacing;
+};
+
+export type TypographyUsage = {
+  token: TypographyToken;
+  usageCount: number;
+  resolution: FontDiagnostic;
+};
+
+export type TypographyInspection = {
+  usages: ReadonlyArray<TypographyUsage>;
+  summary: {
+    total: number;
+    exact: number;
+    fallback: number;
+    failed: number;
+  };
+};
+
+export type TypographyInspectionOptions = {
+  signal?: AbortSignal;
+};
+
 export type FontPreflightResult = {
   requests: ReadonlyArray<FontProperties>;
   failures: ReadonlyArray<FontDiagnostic>;
@@ -460,4 +498,9 @@ export type CaptureEngine = {
   clearCache(): void;
 };
 
-export type BrowserCaptureAdapter = CaptureEngine & {};
+export type BrowserCaptureAdapter = CaptureEngine & {
+  inspectTypography(
+    target: CaptureInput,
+    options?: TypographyInspectionOptions
+  ): Promise<TypographyInspection>;
+};

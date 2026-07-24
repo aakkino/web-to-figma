@@ -10,6 +10,7 @@ import type {
 import { describe, expect, it } from "vitest";
 import type { CaptureSettings } from "../../shared/capture-settings";
 import { createMemorySettingsRepository } from "../../shared/capture-settings";
+import type { FontSpecCopyResult, FontSpecPort } from "./font-spec";
 import type { OutputPort, OutputSinkResult } from "./workspace-controller";
 import { createWorkspaceController } from "./workspace-controller";
 
@@ -21,6 +22,7 @@ describe("WorkspaceController", () => {
       engine,
       settingsRepository: repository,
       outputPort: createFakeOutputPort(),
+      fontSpecPort: createFakeFontSpecPort(),
     });
 
     await controller.init();
@@ -53,6 +55,7 @@ describe("WorkspaceController", () => {
       engine,
       settingsRepository: createMemorySettingsRepository(),
       outputPort: output,
+      fontSpecPort: createFakeFontSpecPort(),
     });
     const target = { element: {} as Element } as CaptureInput;
 
@@ -78,6 +81,75 @@ describe("WorkspaceController", () => {
     expect(controller.getSnapshot().view).toBe("output");
     controller.dispose();
   });
+
+  it("copies a typography spec from the reviewed target without changing capture state", async () => {
+    const engine = createFakeEngine();
+    let finishCopy: ((result: FontSpecCopyResult) => void) | undefined;
+    const fontSpecPort = createFakeFontSpecPort(
+      () =>
+        new Promise((resolve) => {
+          finishCopy = resolve;
+        })
+    );
+    const controller = createWorkspaceController({
+      engine,
+      settingsRepository: createMemorySettingsRepository(),
+      outputPort: createFakeOutputPort(),
+      fontSpecPort,
+    });
+    const target = { element: {} as Element } as CaptureInput;
+
+    await controller.init();
+    await controller.analyzeTarget(target);
+    const captureBefore = controller.getSnapshot().capture;
+    const copyPromise = controller.copyFontSpec();
+
+    expect(controller.getSnapshot().fontSpec.status).toBe("running");
+    expect(fontSpecPort.target).toBe(target);
+    await controller.startCapture();
+    expect(engine.startCount).toBe(0);
+
+    finishCopy?.({ status: "success", message: "Copied." });
+    await copyPromise;
+    expect(controller.getSnapshot().view).toBe("review");
+    expect(controller.getSnapshot().fontSpec).toEqual({
+      status: "success",
+      message: "Copied.",
+    });
+    expect(controller.getSnapshot().capture).toBe(captureBefore);
+    expect(controller.getSnapshot().prepared).toBeUndefined();
+    expect(controller.getSnapshot().output.status).toBe("idle");
+    controller.dispose();
+  });
+
+  it("keeps typography copy failures retryable in Review", async () => {
+    let attempt = 0;
+    const fontSpecPort = createFakeFontSpecPort(() => {
+      attempt += 1;
+      return Promise.resolve(
+        attempt === 1
+          ? { status: "failed", message: "Clipboard rejected." }
+          : { status: "success", message: "Copied." }
+      );
+    });
+    const controller = createWorkspaceController({
+      engine: createFakeEngine(),
+      settingsRepository: createMemorySettingsRepository(),
+      outputPort: createFakeOutputPort(),
+      fontSpecPort,
+    });
+
+    await controller.init();
+    await controller.analyzeTarget({ element: {} as Element });
+    await controller.copyFontSpec();
+    expect(controller.getSnapshot().view).toBe("review");
+    expect(controller.getSnapshot().fontSpec.status).toBe("failed");
+
+    await controller.copyFontSpec();
+    expect(controller.getSnapshot().fontSpec.status).toBe("success");
+    expect(fontSpecPort.copyCount).toBe(2);
+    controller.dispose();
+  });
 });
 
 function createTestController() {
@@ -85,7 +157,24 @@ function createTestController() {
     engine: createFakeEngine(),
     settingsRepository: createMemorySettingsRepository(),
     outputPort: createFakeOutputPort(),
+    fontSpecPort: createFakeFontSpecPort(),
   });
+}
+
+function createFakeFontSpecPort(
+  copyImplementation: FontSpecPort["copy"] = () =>
+    Promise.resolve({ status: "success", message: "Copied." })
+): FontSpecPort & { copyCount: number; target: CaptureInput | null } {
+  const port = {
+    copyCount: 0,
+    target: null as CaptureInput | null,
+    copy(target: CaptureInput, settings: CaptureSettings) {
+      port.copyCount += 1;
+      port.target = target;
+      return copyImplementation(target, settings);
+    },
+  } satisfies FontSpecPort & { copyCount: number; target: CaptureInput | null };
+  return port;
 }
 
 function createFakeEngine(): CaptureEngine & {

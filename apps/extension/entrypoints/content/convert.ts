@@ -1,7 +1,7 @@
 import type {
+  BrowserCaptureAdapter,
   CaptureClassifier,
   CaptureElementInput,
-  CaptureEngine,
 } from "@figit/browser-capture-adapter";
 import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
 import { browser } from "#imports";
@@ -14,6 +14,8 @@ import {
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
 import type { CjkFallbackVariant } from "./font-fallback";
 import { createFixedCjkFallbackLoader } from "./font-fallback";
+import type { FontSpecPort } from "./font-spec";
+import { createFontSpecPort } from "./font-spec";
 import type {
   OutputPort,
   OutputRunResult,
@@ -30,7 +32,7 @@ const bundledCjkFontCache = new Map<number, Promise<ArrayBuffer>>();
 
 export function createExtensionCaptureEngine(
   settings: CaptureSettings
-): CaptureEngine {
+): BrowserCaptureAdapter {
   return createBrowserCaptureAdapter({
     settleTimeoutMs: settings.advanced.settleTimeoutMs,
     motion: settings.advanced.motion,
@@ -45,6 +47,37 @@ export function createExtensionCaptureEngine(
       imageLoader: createBackgroundImageLoader(),
       classify: skipExtensionUiClassify,
       layout: settings.advanced.layout,
+    },
+    isExcluded: isExtensionUiElement,
+  });
+}
+
+export function createExtensionFontSpecPort(): FontSpecPort {
+  return createFontSpecPort({
+    createAdapter(settings) {
+      return createExtensionCaptureEngine({
+        ...settings,
+        image: { mode: "skip" },
+        font: { mode: "compatible" },
+        advanced: {
+          ...settings.advanced,
+          motion: "live",
+          lineBreaks: "off",
+          settleTimeoutMs: 0,
+        },
+      });
+    },
+    async writeClipboard(clipboardHtml) {
+      const result = await writeClipboardAsync(clipboardHtml);
+      return result.status === "success"
+        ? {
+            status: "success",
+            message: "Typography spec copied to the clipboard.",
+          }
+        : {
+            status: "failed",
+            message: result.message ?? "Unable to copy the typography spec.",
+          };
     },
   });
 }
@@ -130,10 +163,7 @@ function loadBundledCjkFont(
 }
 
 const skipExtensionUiClassify: CaptureClassifier = (element, defaultKind) => {
-  if (
-    element instanceof HTMLElement &&
-    element.tagName.toLowerCase() === SHADOW_HOST_NAME
-  ) {
+  if (isExtensionUiElement(element)) {
     return "skip";
   }
   if (element instanceof HTMLIFrameElement && !isSameOriginIframe(element)) {
@@ -141,6 +171,10 @@ const skipExtensionUiClassify: CaptureClassifier = (element, defaultKind) => {
   }
   return defaultKind;
 };
+
+function isExtensionUiElement(element: Element): boolean {
+  return element.localName.toLowerCase() === SHADOW_HOST_NAME;
+}
 
 function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
   try {
@@ -166,7 +200,7 @@ function clipboardAvailability(): OutputSinkResult {
   };
 }
 
-async function writeClipboardAsync(
+export async function writeClipboardAsync(
   clipboardHtml: string
 ): Promise<OutputSinkResult> {
   const availability = clipboardAvailability();

@@ -11,6 +11,7 @@ import {
   MinusIcon,
   PlayIcon,
   SlidersHorizontalIcon,
+  TextTIcon,
   WarningCircleIcon,
   XIcon,
 } from "@phosphor-icons/react";
@@ -175,7 +176,8 @@ function WorkspacePanel({
   onPickerStart,
   state,
 }: WorkspacePanelProps) {
-  const locked = isCaptureBusy(state.capture.phase);
+  const locked =
+    isCaptureBusy(state.capture.phase) || state.fontSpec.status === "running";
   return (
     <section
       aria-labelledby="figit-workspace-title"
@@ -352,11 +354,40 @@ function ReviewView({
       </p>
       <Button
         className="w-full"
+        disabled={state.fontSpec.status === "running"}
         onClick={() => ignorePromise(controller.startCapture())}
       >
         <PlayIcon />
         Start capture
       </Button>
+      <Button
+        className="w-full"
+        disabled={state.fontSpec.status === "running"}
+        onClick={() => ignorePromise(controller.copyFontSpec())}
+        variant="outline"
+      >
+        {state.fontSpec.status === "running" ? (
+          <CircleNotchIcon className="animate-spin" />
+        ) : (
+          <TextTIcon />
+        )}
+        {state.fontSpec.status === "running"
+          ? "Copying typography spec..."
+          : "Copy typography spec"}
+      </Button>
+      {state.fontSpec.status === "success" ||
+      state.fontSpec.status === "failed" ? (
+        <p
+          className={
+            state.fontSpec.status === "failed"
+              ? "text-destructive text-xs"
+              : "text-muted-foreground text-xs"
+          }
+          role={state.fontSpec.status === "failed" ? "alert" : "status"}
+        >
+          {state.fontSpec.message}
+        </p>
+      ) : null}
     </div>
   );
 }

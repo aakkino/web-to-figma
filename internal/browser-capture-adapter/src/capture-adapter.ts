@@ -1,3 +1,5 @@
+import { openComposedDomTree } from "@figit/composed-dom";
+
 import {
   createDefaultFontLoader,
   createDomToFigmaBridge,
@@ -10,6 +12,7 @@ import type {
   CaptureEngineOptions,
   FontMode,
 } from "./types";
+import { inspectTypography } from "./typography";
 
 // biome-ignore lint/performance/noBarrelFile: the adapter keeps its public error at the package boundary.
 export { CaptureError } from "./capture-engine";
@@ -23,7 +26,9 @@ export function createBrowserCaptureAdapter(
   options: BrowserCaptureAdapterOptions = {}
 ): BrowserCaptureAdapter {
   const domTraversal =
-    options.domTraversal ?? options.bridgeOptions?.domTraversal;
+    options.domTraversal ??
+    options.bridgeOptions?.domTraversal ??
+    openComposedDomTree;
   const suppliedBridge = options.bridge;
   const defaultFontLoader =
     options.fonts?.fallbackLoader ??
@@ -55,7 +60,21 @@ export function createBrowserCaptureAdapter(
     domTraversal,
     isExcluded: options.isExcluded,
   };
-  return createCaptureEngine(engineOptions);
+  const engine = createCaptureEngine(engineOptions);
+  return {
+    ...engine,
+    inspectTypography(target, inspectionOptions) {
+      return inspectTypography(
+        target,
+        {
+          fontResolver,
+          domTraversal,
+          isExcluded: options.isExcluded,
+        },
+        inspectionOptions?.signal
+      );
+    },
+  };
 }
 
 function normalizeFontMode(

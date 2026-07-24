@@ -105,4 +105,11 @@ export type {
   PreparedCapture,
   ResourceErrorCode,
   SettleTimeoutPhase,
+  TypographyInspection,
+  TypographyInspectionOptions,
+  TypographyLetterSpacing,
+  TypographyLineHeight,
+  TypographyToken,
+  TypographyUsage,
 } from "./types";
+export { parseFontFamilyList } from "./typography";

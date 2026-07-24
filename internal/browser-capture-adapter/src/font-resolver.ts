@@ -16,6 +16,7 @@ import type {
   FontResolverOptions,
   FontTransportResult,
 } from "./types";
+import { parseFontFamilyList } from "./typography";
 
 const CSS_FONT_FACE_RULE = 5;
 const TEXT_NODE = 3;
@@ -904,8 +905,7 @@ function readFontRequest(
 }
 
 function parseFirstFamily(value: string): string {
-  const first = value.split(",")[0]?.trim() ?? "";
-  return unquote(first);
+  return parseFontFamilyList(value)[0] ?? "";
 }
 
 function parseWeight(value: string): number {

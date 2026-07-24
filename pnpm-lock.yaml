@@ -75,6 +75,9 @@ importers:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
     devDependencies:
+      '@figit/fig-kiwi':
+        specifier: workspace:*
+        version: link:../../packages/fig-kiwi
       '@tailwindcss/vite':
         specifier: ^4.1.16
         version: 4.2.4(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -84,9 +87,18 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      '@vitest/browser-playwright':
+        specifier: ^4.1.5
+        version: 4.1.5(msw@2.14.3(@types/node@25.6.0)(typescript@6.0.3))(playwright@1.59.1)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(vitest@4.1.5)
       '@wxt-dev/module-react':
         specifier: ^1.1.5
         version: 1.2.2(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(wxt@0.20.25(@types/node@25.6.0)(jiti@2.7.0)(oxc-parser@0.130.0)(tsx@4.21.0)(yaml@2.9.0))
+      happy-dom:
+        specifier: ^20.9.0
+        version: 20.9.0
+      playwright:
+        specifier: ^1.59.1
+        version: 1.59.1
       tailwindcss:
         specifier: ^4.1.16
         version: 4.2.4
