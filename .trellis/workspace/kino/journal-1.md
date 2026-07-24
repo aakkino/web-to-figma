@@ -244,3 +244,38 @@ Added lossless typography inspection, aggregated resolution/core/rare report pro
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: DOM-to-Figma image fit semantics
+
+**Date**: 2026-07-25
+**Task**: DOM-to-Figma image fit semantics
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+Preserved CSS object-fit and object-position in Figma image paints, added intrinsic image metadata, browser/unit/oracle coverage, a patch changeset, and the rendering contract. Live Figma matrix inspection and the Portal image smoke remain documented residual checks.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0149d62` | (see git log) |
+| `5ea3317` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
