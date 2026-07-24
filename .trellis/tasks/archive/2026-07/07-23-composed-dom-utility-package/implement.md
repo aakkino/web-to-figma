@@ -35,7 +35,7 @@
 
 - [x] 验证 light DOM、open shadow、默认/命名 slot、fallback、嵌套 slot、重复分配保护和 iframe realm fixture。
 - [x] 验证核心默认 payload/snapshot 与基线一致。
-- [ ] 回归 Leibal、Heho、thefrontpage 和 Siteleaf 真实站点；上一字体适配任务的结果保留为本次重构前基线。
+- [x] 回归 Leibal、Heho、thefrontpage 和 Siteleaf 真实站点；上一字体适配任务的结果保留为本次重构前基线。
 - [x] 回归发布包示例：`npm test`、Playwright clipboard smoke、无 console/HTTP/资源错误。
 - [x] `npm pack` utility/core/私有 adapter，并在仓库外干净临时项目中安装待发布 `0.3.0` 核心 tarball，验证构建和浏览器运行时解析均不回落到 workspace。
 - [x] 构建 Chrome MV3 与 Firefox MV2；Firefox 仅有 WXT 的 data-collection reminder。

@@ -29,17 +29,17 @@
 
 ## Acceptance Criteria
 
-- [ ] `@figit/composed-dom` 的类型检查、浏览器测试、构建和定向 lint 通过，且运行时无第三方依赖。
-- [ ] light DOM 策略保持 `childNodes` 顺序；open composed 策略覆盖开放 Shadow Root、命名/默认 slot、fallback slot、嵌套 slot、文本节点和去重。
-- [ ] `@figit/dom-to-figma` 默认配置的既有测试与剪贴板快照保持不变，新增 composed 策略必须由调用方显式启用。
-- [ ] walker、文本位置计算和 auto-layout inference 使用同一遍历策略，不出现父子关系或坐标空间分歧。
-- [ ] `@figit/browser-capture-adapter` 不再从 `@figit/dom-to-figma` 导入 `getComposedChildren` 或 `getComposedChildNodes`。
-- [ ] 页面稳定化、字体扫描、换行处理和转换对同一 fixture 访问相同的 composed descendants。
-- [ ] Leibal 回归继续捕获 39 个开放 Shadow DOM card 的可见内容，不重新出现大面积空白或未分配 light-DOM 字面量。
-- [ ] Heho、thefrontpage、Siteleaf、发布包示例以及 Chrome MV3/Firefox MV2 构建继续通过。
-- [ ] 依赖图不存在循环，核心包默认消费者不需要安装扩展 runtime 或 capture adapter。
-- [ ] 私有 adapter 以 tarball 安装到不含 monorepo 解析路径的临时项目后，能与声明支持的精确核心版本完成构建和浏览器 smoke，不再依赖 `file:` junction 作为发布兼容证据。
-- [ ] README 和 changelog 明确 semver、浏览器运行条件、closed Shadow Root 限制和升级验证方式。
+- [x] `@figit/composed-dom` 的类型检查、浏览器测试、构建和定向 lint 通过，且运行时无第三方依赖。
+- [x] light DOM 策略保持 `childNodes` 顺序；open composed 策略覆盖开放 Shadow Root、命名/默认 slot、fallback slot、嵌套 slot、文本节点和去重。
+- [x] `@figit/dom-to-figma` 默认配置的既有测试与剪贴板快照保持不变，新增 composed 策略必须由调用方显式启用。
+- [x] walker、文本位置计算和 auto-layout inference 使用同一遍历策略，不出现父子关系或坐标空间分歧。
+- [x] `@figit/browser-capture-adapter` 不再从 `@figit/dom-to-figma` 导入 `getComposedChildren` 或 `getComposedChildNodes`。
+- [x] 页面稳定化、字体扫描、换行处理和转换对同一 fixture 访问相同的 composed descendants。
+- [x] Leibal 回归继续捕获 39 个开放 Shadow DOM card 的可见内容，不重新出现大面积空白或未分配 light-DOM 字面量。
+- [x] Heho、thefrontpage、Siteleaf、发布包示例以及 Chrome MV3/Firefox MV2 构建继续通过。
+- [x] 依赖图不存在循环，核心包默认消费者不需要安装扩展 runtime 或 capture adapter。
+- [x] 私有 adapter 以 tarball 安装到不含 monorepo 解析路径的临时项目后，能与声明支持的精确核心版本完成构建和浏览器 smoke，不再依赖 `file:` junction 作为发布兼容证据。
+- [x] README 和 changelog 明确 semver、浏览器运行条件、closed Shadow Root 限制和升级验证方式。
 
 ## Out of Scope
 
