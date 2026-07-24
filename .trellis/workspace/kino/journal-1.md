@@ -209,3 +209,38 @@ Added glyph-coverage-aware font resolution, a fixed local Noto Sans TC fallback 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Export aggregated Figma typography spec
+
+**Date**: 2026-07-24
+**Task**: Export aggregated Figma typography spec
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+Added lossless typography inspection, aggregated resolution/core/rare report projection, independent Review clipboard command, browser decoding tests, and verified a real editable Figma paste.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3d6e9b7` | (see git log) |
+| `ab034f0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

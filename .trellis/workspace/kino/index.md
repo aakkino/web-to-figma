@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 6
+- **Total Sessions**: 7
 - **Last Active**: 2026-07-24
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~211 | Active |
+| `journal-1.md` | ~246 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 7 | 2026-07-24 | Export aggregated Figma typography spec | `3d6e9b7`, `ab034f0` | `main` |
 | 6 | 2026-07-24 | Glyph-aware fixed CJK font fallback | `ea9956a` | `main` |
 | 5 | 2026-07-24 | 完成浏览器扩展捕获工作区 | `f6acba7` | `main` |
 | 4 | 2026-07-24 | 完成分阶段资源管线与转换桥接 | `4da4c51` | `main` |
