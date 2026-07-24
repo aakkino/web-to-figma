@@ -1,0 +1,31 @@
+{
+  "id": "dom-to-figma-image-fit",
+  "name": "dom-to-figma-image-fit",
+  "title": "修正 DOM-to-Figma 图片适配语义",
+  "description": "Preserve CSS object-fit and object-position semantics when @figit/dom-to-figma emits Figma image paints.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": "packages/dom-to-figma",
+  "package": "dom-to-figma",
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-07-24",
+  "completedAt": "2026-07-25",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+    "packages/dom-to-figma/src/converter/types/paint.ts",
+    "packages/dom-to-figma/src/figma.image.browser.test.ts",
+    "internal/browser-capture-adapter/src/import-boundary.test.ts"
+  ],
+  "notes": "",
+  "meta": {}
+}
