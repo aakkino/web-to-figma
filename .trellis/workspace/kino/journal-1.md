@@ -141,3 +141,37 @@ Added @figit/composed-dom, injected optional core traversal, migrated capture ad
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: 完成浏览器扩展捕获工作区
+
+**Date**: 2026-07-24
+**Task**: 完成浏览器扩展捕获工作区
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+完成页面内捕获工作区、设置持久化、工具栏 action 路由、捕获进度与恢复状态、剪贴板输出接入；用户已完成人工测试。已创建固定字体回退 planning 任务，未开始实现。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f6acba7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
