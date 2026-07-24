@@ -175,6 +175,121 @@ return {
 };
 ~~~
 
+## Scenario: Independent Typography Spec Clipboard
+
+### 1. Scope / Trigger
+
+- Trigger: Review offers a separate typography-spec clipboard command for the
+  already analyzed target.
+- Scope: adapter typography inspection, content-side report DOM, independent
+  workspace state, conversion, clipboard write, and temporary DOM cleanup.
+
+### 2. Signatures
+
+~~~ts
+interface BrowserCaptureAdapter {
+  inspectTypography(
+    target: CaptureInput,
+    options?: { signal?: AbortSignal }
+  ): Promise<TypographyInspection>;
+}
+
+interface FontSpecPort {
+  copy(
+    target: CaptureInput,
+    settings: CaptureSettings
+  ): Promise<{ status: "success" | "failed"; message: string }>;
+}
+~~~
+
+### 3. Contracts
+
+- The input is exactly `CaptureAnalysis.plan.target.input`; do not widen an
+  element selection to `document` or recreate the picker target.
+- Identity includes the ordered computed family stack, weight, style, font
+  size, line height, letter spacing, and resolved diagnostic. Text color does
+  not participate.
+- `usageCount` counts visible, non-empty text nodes. Source code points may be
+  aggregated inside the adapter for glyph preflight but must be removed before
+  returning `TypographyInspection`.
+- The result may contain source/resolved font metadata and safe attempt codes.
+  It must not contain page text, full URLs, CSS rules, font URLs, or font bytes.
+- Attribution is only `document.title + location.hostname`; path, query, hash,
+  protocol, and port are forbidden.
+- Inspection remains lossless, but report rendering uses three stable
+  projections: font resolution by source style plus resolved diagnostic, core
+  style by source style plus font size and diagnostic when total usage is at
+  least two, and compact rare style when total usage is one. Preserve every
+  line-height/letter-spacing variant and do not apply a Top-N cutoff.
+- Render each projection as a separate vertical `section`. Do not flatten ten
+  or more report rows under one Auto Layout parent: clipboard sibling positions
+  are strings and two-digit positions can be pasted in lexical order.
+- Report DOM lives in an off-screen shadow root, is the only capture root, and
+  is removed in `finally`. The ordinary capture phase, prepared output, and
+  output state remain unchanged.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior |
+| --- | --- |
+| Target disconnected | Return a retryable failed result and remain in Review. |
+| No visible text | Generate a valid Typography frame with an empty state. |
+| Exact font | Show source and resolved font with `Exact`. |
+| Fallback font | Show both source and actual resolved font with `Fallback`. |
+| Unresolved font | Show `Missing` / `Unavailable`; never invent a family. |
+| Same source style and resolved result across sizes/metrics | Show one font mapping and reference it by a stable id from style rows. |
+| Same style and size across line-height/letter-spacing values | Show one core row with every metric variant and summed usage. |
+| More than nine report rows | Keep rows inside per-section containers so Figma paste order remains stable. |
+| Conversion or clipboard failure | Remove temporary DOM and keep Review retryable. |
+| Copy already running | Reject duplicate start and disable ordinary Start capture. |
+
+### 5. Good / Base / Bad Cases
+
+- Good: a picked element with quoted family `"A, Display", Inter, sans-serif`
+  produces an ordered three-family token and a separate editable Figma frame
+  with deduplicated font references, core styles, and compact rare variants.
+- Base: selecting `body` inventories the visible page text without changing the
+  existing full-page capture session.
+- Bad: scan `document.body` for every selection, include page samples in the
+  report, render one full specimen/mapping per raw token, flatten all rows under
+  one parent, append the report to normal capture output, or leave its host
+  mounted after a rejected clipboard write.
+
+### 6. Tests Required
+
+- Adapter browser tests assert quoted comma parsing, composed Shadow DOM,
+  extension UI exclusion, visibility, full-token de-duplication, stable order,
+  usage counts, exact/fallback/failed mapping, and absence of text/code points.
+- Extension DOM tests assert title + hostname without path/query/hash, fixed
+  specimen text, lossless metric projection, core/rare thresholds, semantic
+  section containers, empty state, a single report root, and host cleanup on
+  success and failure.
+- Controller tests assert target identity passthrough, mutual exclusion,
+  retryable failure, and unchanged capture/prepared/output state.
+- Chrome MV3 and Firefox MV2 builds plus adapter/core/extension type and test
+  gates remain required. Live Figma paste is the final editable-node smoke.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+const families = getComputedStyle(element).fontFamily.split(",");
+const inventory = deriveFontsFromConvertedFigmaNodes(result);
+~~~
+
+#### Correct
+
+~~~ts
+const inspection = await adapter.inspectTypography(
+  state.capture.analysis.plan.target.input
+);
+const report = buildTypographyReport(target.ownerDocument, inspection);
+~~~
+
+Parse the CSS family list with quote/escape awareness and keep computed usage
+plus resolver diagnostics as the only inventory source.
+
 ## Image Loading
 
 `createBackgroundImageLoader` first delegates to
