@@ -1,0 +1,8 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Check package and repository rules."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check bridge/event propagation and replacement boundary."}
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Check public core package against all selected guides."}
+{"file":".trellis/spec/dom-to-figma/frontend/layout-and-parity.md","reason":"Check placeholder geometry and default payload parity."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Check core browser and public-package validation."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Check scheme, credentials, cancellation and stale-message behavior."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Check Chromium/Firefox integration gates."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Ensure the implementation closes rather than disguises current gaps."}

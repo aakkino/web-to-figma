@@ -1,0 +1,13 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Required conventions before adapter/core/extension edits."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"The task adds shared scheduling, error and capability abstractions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Capture events and bridge contracts have multiple consumers."}
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Core public API pre-development checklist."}
+{"file":".trellis/spec/dom-to-figma/frontend/architecture.md","reason":"Published package boundaries and public exports."}
+{"file":".trellis/spec/dom-to-figma/frontend/converter-guidelines.md","reason":"Image loader/cache/walk and node converter rules."}
+{"file":".trellis/spec/dom-to-figma/frontend/type-safety.md","reason":"Public union/export changes must remain exhaustive and safe."}
+{"file":".trellis/spec/dom-to-figma/frontend/layout-and-parity.md","reason":"Transparent placeholders must preserve geometry and Auto Layout semantics."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Core browser, parity and package compatibility gates."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Abortable privileged resource transport must preserve security constraints."}
+{"file":".trellis/spec/extension/frontend/loaders-and-conversion.md","reason":"Existing extension resource loader/converter lifetime conventions."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Current image/font timing, coupling and API gap evidence."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"WebExtension messaging/runtime constraints relevant to cancellation."}
