@@ -175,3 +175,37 @@ Added @figit/composed-dom, injected optional core traversal, migrated capture ad
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Glyph-aware fixed CJK font fallback
+
+**Date**: 2026-07-24
+**Task**: Glyph-aware fixed CJK font fallback
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+Added glyph-coverage-aware font resolution, a fixed local Noto Sans TC fallback with real family metadata, and consumer-visible Figma payload alignment across adapter, extension, and core.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ea9956a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
