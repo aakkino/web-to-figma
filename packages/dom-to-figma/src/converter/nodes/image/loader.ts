@@ -30,6 +30,9 @@ export type ImageBlobInfo = {
   hash: Array<number>;
   /** Bytes ready for Figma blob registration (PNG/JPEG/GIF). */
   bytes: Array<number>;
+  /** Intrinsic dimensions of the Figma-ready image bytes. */
+  width?: number;
+  height?: number;
 };
 
 const FIGMA_SUPPORTED_FORMATS = [
@@ -77,10 +80,75 @@ export async function processImageFile(
   throwIfAborted(signal);
 
   const hash = await sha1(finalBytes);
+  const dimensions = readImageDimensions(finalBytes);
   return {
     hash,
     bytes: Array.from(new Uint8Array(finalBytes)),
+    ...dimensions,
   };
+}
+
+function readImageDimensions(buffer: ArrayBuffer): {
+  width: number;
+  height: number;
+} {
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  if (
+    bytes.length >= 24 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return {
+      width: view.getUint32(16, false),
+      height: view.getUint32(20, false),
+    };
+  }
+  if (
+    bytes.length >= 10 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46
+  ) {
+    return {
+      width: view.getUint16(6, true),
+      height: view.getUint16(8, true),
+    };
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 8 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = bytes[offset + 1] ?? 0;
+      const length = view.getUint16(offset + 2, false);
+      if (isJpegStartOfFrame(marker)) {
+        return {
+          width: view.getUint16(offset + 7, false),
+          height: view.getUint16(offset + 5, false),
+        };
+      }
+      if (length < 2) {
+        break;
+      }
+      offset += 2 + length;
+    }
+  }
+  throw new Error("Unsupported Figma-ready image dimensions");
+}
+
+function isJpegStartOfFrame(marker: number): boolean {
+  return (
+    marker >= 0xc0 &&
+    marker <= 0xcf &&
+    marker !== 0xc4 &&
+    marker !== 0xc8 &&
+    marker !== 0xcc
+  );
 }
 
 function isFigmaSupportedFormat(mimeType: string): boolean {

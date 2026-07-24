@@ -9,6 +9,9 @@ const RED_PNG_BYTE_COUNT = 69;
 const RED_PNG_SHA1_HEX = "2732f12a8f18d27cf0fa78ef41091bfa1ccec9ce";
 const HEX_RADIX = 16;
 const HEX_BYTE_WIDTH = 2;
+const ASYMMETRIC_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="90" height="46" viewBox="0 0 90 46"><rect width="90" height="46" fill="#fff"/><rect width="18" height="46" fill="#d22"/><circle cx="72" cy="23" r="14" fill="#25c"/></svg>';
+const ASYMMETRIC_SVG_DATA_URL = `data:image/svg+xml,${encodeURIComponent(ASYMMETRIC_SVG)}`;
 
 const mountElement = (html: string): Promise<HTMLElement> => {
   const wrapper = document.createElement("div");
@@ -192,7 +195,127 @@ describe("image rendering with inline PNG", () => {
     expect(imageNode.fillPaints).toBeUndefined();
     expect(result.document.blobs).toHaveLength(0);
   });
+
+  it("emits consumer-visible paint semantics for every object-fit mode", async () => {
+    const element = await mountElement(`
+      <div style="width:900px;height:700px">
+        <img data-case="fill" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:200px;height:100px;object-fit:fill">
+        <img data-case="contain" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:200px;height:100px;object-fit:contain;object-position:center">
+        <img data-case="cover" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:100px;height:100px;object-fit:cover;object-position:center">
+        <img data-case="none" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:200px;height:100px;object-fit:none;object-position:right bottom">
+        <img data-case="scale-down" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:200px;height:100px;object-fit:scale-down;object-position:left top">
+        <img data-case="cover-positioned" src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:100px;height:100px;object-fit:cover;object-position:right top">
+      </div>
+    `);
+
+    const result = await createFigmaConverter().convert({
+      element,
+      width: 900,
+      height: 700,
+    });
+    const paints = imagePaints(result.document.nodeChanges);
+
+    expect(paints).toHaveLength(6);
+    expect(paints[0]).toMatchObject({
+      imageScaleMode: "STRETCH",
+      transform: { m00: 1, m02: 0, m11: 1, m12: 0 },
+      originalImageWidth: 90,
+      originalImageHeight: 46,
+    });
+    expect(paints[1]).toMatchObject({ imageScaleMode: "FIT" });
+    expect(paints[2]).toMatchObject({ imageScaleMode: "FILL" });
+    expect(paints[3]?.imageScaleMode).toBe("STRETCH");
+    expect(paints[3]?.transform?.m00).toBeCloseTo(200 / 90);
+    expect(paints[3]?.transform?.m02).toBeCloseTo(-110 / 90);
+    expect(paints[3]?.transform?.m11).toBeCloseTo(100 / 46);
+    expect(paints[3]?.transform?.m12).toBeCloseTo(-54 / 46);
+    expect(paints[4]).toMatchObject({
+      imageScaleMode: "STRETCH",
+      transform: { m00: 200 / 90, m02: 0, m11: 100 / 46, m12: 0 },
+    });
+    expect(paints[5]?.imageScaleMode).toBe("STRETCH");
+    expect(paints[5]?.transform?.m00).toBeCloseTo(46 / 90);
+    expect(paints[5]?.transform?.m02).toBeCloseTo(1 - 46 / 90);
+  });
+
+  it("keeps a 90 by 46 contain image complete and left-aligned in a 273 by 52 box", async () => {
+    const element = await mountElement(
+      `<div style="width:320px;height:100px"><img src="${ASYMMETRIC_SVG_DATA_URL}" style="display:block;width:273px;height:52px;object-fit:contain;object-position:left center"></div>`
+    );
+
+    const result = await createFigmaConverter().convert({
+      element,
+      width: 320,
+      height: 100,
+    });
+    const paint = imagePaints(result.document.nodeChanges)[0];
+
+    expect(paint).toMatchObject({
+      imageScaleMode: "STRETCH",
+      originalImageWidth: 90,
+      originalImageHeight: 46,
+    });
+    expect(paint?.transform?.m00).toBeCloseTo(273 / (90 * (52 / 46)));
+    expect(paint?.transform?.m02).toBe(0);
+    expect(paint?.transform?.m11).toBeCloseTo(1);
+    expect(paint?.transform?.m12).toBe(0);
+  });
+
+  it("deduplicates one source while preserving per-node direct and staged presentation", async () => {
+    const element = await mountElement(`
+      <div style="width:500px;height:200px">
+        <img src="https://example.test/asymmetric.svg" style="display:block;width:200px;height:100px;object-fit:contain;object-position:left center">
+        <img src="https://example.test/asymmetric.svg" style="display:block;width:100px;height:100px;object-fit:cover;object-position:right center">
+      </div>
+    `);
+    const images = Array.from(element.querySelectorAll("img"));
+    const bytes = new TextEncoder().encode(ASYMMETRIC_SVG).buffer;
+    let directLoads = 0;
+    const directLoader: ImageLoader = () => {
+      directLoads += 1;
+      return Promise.resolve({ bytes, mimeType: "image/svg+xml" });
+    };
+    const direct = await createFigmaConverter({
+      imageLoader: directLoader,
+    }).convert({ element, width: 500, height: 200 });
+
+    let stagedLoads = 0;
+    const stagedLoader: ImageLoader = () => {
+      stagedLoads += 1;
+      return Promise.resolve({ bytes, mimeType: "image/svg+xml" });
+    };
+    const imagePreparation = createImagePreparation(stagedLoader);
+    for (const image of images) {
+      await imagePreparation.prepare({ src: image.src, element: image });
+    }
+    const loadsBeforeConversion = stagedLoads;
+    const staged = await createFigmaConverter({
+      imageLoader: stagedLoader,
+      imagePreparation,
+    }).convert({ element, width: 500, height: 200 });
+
+    expect(directLoads).toBe(1);
+    expect(stagedLoads).toBe(1);
+    expect(stagedLoads).toBe(loadsBeforeConversion);
+    expect(imagePaints(staged.document.nodeChanges)).toEqual(
+      imagePaints(direct.document.nodeChanges)
+    );
+    expect(staged.document.blobs).toHaveLength(1);
+  });
 });
+
+function imagePaints(
+  nodeChanges: Awaited<
+    ReturnType<ReturnType<typeof createFigmaConverter>["convert"]>
+  >["document"]["nodeChanges"]
+) {
+  return nodeChanges.flatMap((change) => {
+    if (change.type !== "ROUNDED_RECTANGLE" || change.name !== "Image") {
+      return [];
+    }
+    return change.fillPaints?.filter((paint) => paint.type === "IMAGE") ?? [];
+  });
+}
 
 function decodeDataUrl(dataUrl: string): ArrayBuffer {
   const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);

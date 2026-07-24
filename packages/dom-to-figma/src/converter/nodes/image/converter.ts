@@ -10,6 +10,7 @@ import type {
   FigmaNodeChange,
   FigmaRoundedRectangleNodeChange,
 } from "../../types";
+import { resolveImagePresentation } from "./presentation";
 
 type Params = {
   guid: FigmaGuid;
@@ -28,7 +29,11 @@ export async function elementToImageNodeChange(
     options;
 
   const rect = element.getBoundingClientRect();
-  const computedStyle = window.getComputedStyle(element);
+  const view = element.ownerDocument.defaultView;
+  if (!view) {
+    throw new Error("Image element has no owning window");
+  }
+  const computedStyle = view.getComputedStyle(element);
 
   const width = Math.ceil(rect.width);
   const height = Math.ceil(rect.height);
@@ -46,6 +51,19 @@ export async function elementToImageNodeChange(
   const resolution: ImageResolution = await imageCache.get(element);
   const image = resolution.kind === "image" ? resolution.image : undefined;
   const blobIndex = image ? registerBlob({ bytes: image.bytes }) : -1;
+  const intrinsicWidth = image?.width ?? element.naturalWidth;
+  const intrinsicHeight = image?.height ?? element.naturalHeight;
+  const presentation = image
+    ? resolveImagePresentation({
+        fit: computedStyle.objectFit,
+        position: computedStyle.objectPosition,
+        box: { width, height },
+        intrinsic: {
+          width: intrinsicWidth,
+          height: intrinsicHeight,
+        },
+      })
+    : undefined;
 
   const nodeChange: FigmaNodeChange = {
     /* General Info */
@@ -88,19 +106,14 @@ export async function elementToImageNodeChange(
               opacity: 1.0,
               visible: true,
               blendMode: "NORMAL" as const,
-              transform: {
-                m00: 1.0,
-                m01: 0.0,
-                m02: 0.0,
-                m10: 0.0,
-                m11: 1.0,
-                m12: 0.0,
-              },
+              transform: presentation?.transform,
               image: {
                 hash: image.hash,
                 dataBlob: blobIndex,
               },
-              imageScaleMode: "FILL" as const,
+              imageScaleMode: presentation?.imageScaleMode,
+              originalImageWidth: intrinsicWidth || undefined,
+              originalImageHeight: intrinsicHeight || undefined,
             },
           ],
         }

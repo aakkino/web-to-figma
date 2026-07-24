@@ -21,13 +21,14 @@ afterEach(() => {
 
 describe("processImageFile SHA-1 hashing", () => {
   it("hashes a PNG via crypto.subtle when it is available", async () => {
-    const { hash, bytes } = await processImageFile({
+    const { hash, bytes, width, height } = await processImageFile({
       bytes: pngBytes(),
       mimeType: "image/png",
     });
 
     expect(toHex(hash)).toBe(RED_PNG_SHA1_HEX);
     expect(bytes).toHaveLength(69);
+    expect({ width, height }).toEqual({ width: 1, height: 1 });
   });
 
   it("hashes identically when crypto.subtle is absent (non-secure context)", async () => {
@@ -41,5 +42,33 @@ describe("processImageFile SHA-1 hashing", () => {
     });
 
     expect(toHex(hash)).toBe(RED_PNG_SHA1_HEX);
+  });
+
+  it("reads intrinsic dimensions from supported GIF and JPEG bytes", async () => {
+    const gif = new Uint8Array([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x5a, 0x00, 0x2e, 0x00,
+    ]).buffer;
+    const jpeg = new Uint8Array([
+      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x2e, 0x00, 0x5a, 0x03,
+      0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+    ]).buffer;
+
+    const gifInfo = await processImageFile({
+      bytes: gif,
+      mimeType: "image/gif",
+    });
+    const jpegInfo = await processImageFile({
+      bytes: jpeg,
+      mimeType: "image/jpeg",
+    });
+
+    expect({ width: gifInfo.width, height: gifInfo.height }).toEqual({
+      width: 90,
+      height: 46,
+    });
+    expect({ width: jpegInfo.width, height: jpegInfo.height }).toEqual({
+      width: 90,
+      height: 46,
+    });
   });
 });
