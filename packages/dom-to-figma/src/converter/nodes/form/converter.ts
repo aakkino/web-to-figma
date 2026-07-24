@@ -1,4 +1,4 @@
-import type { Position } from "../../dom";
+import type { DomTraversalStrategy, Position } from "../../dom";
 import { getElementSize } from "../../dom";
 import type { FontCache } from "../../font-cache";
 import type {
@@ -22,6 +22,7 @@ type FormElementParams = {
   };
   fontCache: FontCache;
   createGuid: () => FigmaGuid;
+  domTraversal: DomTraversalStrategy;
 };
 
 /**
@@ -172,6 +173,7 @@ export async function elementToFormNodeChange(
     inheritedProperties,
     fontCache,
     createGuid,
+    domTraversal,
   } = params;
 
   const placeholderText = element.getAttribute("placeholder")?.trim();
@@ -187,6 +189,7 @@ export async function elementToFormNodeChange(
     parentGuid,
     childIndex,
     position,
+    domTraversal,
   });
 
   nodeChanges.push(frameResult.nodeChange);

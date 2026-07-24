@@ -1,6 +1,7 @@
+import type { DomTraversalStrategy } from "../dom";
 import {
-  getComposedChildNodes,
   isElementNode,
+  lightDomTraversal,
   sortNodesByStackingOrder,
 } from "../dom";
 
@@ -65,6 +66,7 @@ type StackSizingValue = "FIXED" | "RESIZE_TO_FIT";
 
 /** Max deviation (px) between reconstructed and measured child positions. */
 const GEOMETRY_TOLERANCE = 0.6;
+const TEXT_NODE = 3;
 
 const JUSTIFY_MAP: Record<string, StackJustifyValue> = {
   normal: "MIN",
@@ -121,7 +123,10 @@ const BLOCK_LEVEL_DISPLAYS = new Set([
  * flow items, `order`, z-index reordering, baseline alignment, floats,
  * inline flow.
  */
-export function inferAutoLayout(element: Element): InferredAutoLayout | null {
+export function inferAutoLayout(
+  element: Element,
+  domTraversal: DomTraversalStrategy = lightDomTraversal
+): InferredAutoLayout | null {
   const style = window.getComputedStyle(element);
   const display = style.display;
   const isFlex = display === "flex" || display === "inline-flex";
@@ -131,7 +136,7 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
     return null;
   }
 
-  const collected = collectChildren(element);
+  const collected = collectChildren(element, domTraversal);
   if (!collected || collected.flow.length === 0) {
     return null;
   }
@@ -143,11 +148,13 @@ export function inferAutoLayout(element: Element): InferredAutoLayout | null {
   // from layout on both sides and stacking order only affects z, which the
   // walker preserves.
   const flowSet = new Set<Node>(flow);
-  const composedChildren = getComposedChildNodes(element);
-  const domFlow = composedChildren.filter((n) => flowSet.has(n));
-  const stackedFlow = sortNodesByStackingOrder(composedChildren).filter((n) =>
-    flowSet.has(n)
-  );
+  const domChildren = domTraversal.children(element);
+  const domFlow = domChildren
+    .map(({ node }) => node)
+    .filter((node) => flowSet.has(node));
+  const stackedFlow = sortNodesByStackingOrder(
+    domChildren.map(({ node }) => node)
+  ).filter((node) => flowSet.has(node));
   if (domFlow.some((node, i) => node !== stackedFlow[i])) {
     return null;
   }
@@ -788,21 +795,23 @@ function isContentDrivenSize(
  * items, `order`).
  */
 function collectChildren(
-  element: Element
+  element: Element,
+  domTraversal: DomTraversalStrategy
 ): { flow: Array<Element>; absolute: Array<Element> } | null {
-  const composedChildren = getComposedChildNodes(element);
+  const domChildren = domTraversal.children(element);
 
   // Non-empty direct text nodes become anonymous flow items we can't map to
   // a converted node yet.
-  for (const node of composedChildren) {
-    if (node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim()) {
+  for (const { node } of domChildren) {
+    if (node.nodeType === TEXT_NODE && (node.textContent ?? "").trim()) {
       return null;
     }
   }
 
   const flow: Array<Element> = [];
   const absolute: Array<Element> = [];
-  for (const child of composedChildren) {
+  for (const { node } of domChildren) {
+    const child = node;
     if (!isElementNode(child)) {
       continue;
     }

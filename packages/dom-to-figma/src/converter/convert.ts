@@ -1,5 +1,5 @@
 import type { ElementKind } from "./classify";
-import type { Position } from "./dom";
+import type { DomTraversalStrategy, Position } from "./dom";
 import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
 import type { InferredChildStack } from "./layout/infer";
@@ -30,6 +30,7 @@ export type ConvertContext = {
   position: Position;
   inheritedProperties: InheritedProperties;
   layout?: ConverterLayout;
+  domTraversal: DomTraversalStrategy;
   /** True when the direct parent frame became an inferred auto-layout stack. */
   parentIsAutoLayout?: boolean;
   /** This node's fill/stretch overrides from the parent stack's inference. */
@@ -94,6 +95,7 @@ export async function convertElement(
     fontCache,
     imageCache,
     createGuid,
+    domTraversal,
   } = ctx;
 
   switch (kind) {
@@ -125,6 +127,7 @@ export async function convertElement(
         rootFill,
         createGuid,
         registerBlob,
+        domTraversal,
       });
       const borderChildren = frameResult.borderChildren ?? [];
       return {
@@ -215,6 +218,7 @@ export async function convertElement(
             inheritedProperties,
             fontCache,
             createGuid,
+            domTraversal,
           }),
           childStackSpec
         ),

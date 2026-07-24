@@ -45,6 +45,23 @@ Pass `layout: "absolute"` to disable inference and position every frame absolute
 const figma = createFigmaConverter({ layout: "absolute" });
 ```
 
+## DOM traversal
+
+The converter uses ordinary light-DOM `childNodes` by default, preserving the
+historical behavior for existing consumers. Open Shadow DOM and slot projection
+are opt-in through the independent `@figit/composed-dom` package:
+
+```ts
+import { openComposedDomTree } from "@figit/composed-dom";
+
+const figma = createFigmaConverter({ domTraversal: openComposedDomTree });
+```
+
+The same strategy drives child walking and auto-layout inference. The utility
+only exposes open roots; closed roots and cross-origin iframe contents remain
+unavailable. `openComposedDomTree` is currently validated as a `0.1.x` package;
+slot ordering and `composedParent` semantics are the compatibility contract.
+
 ## Multi-frame canvas
 
 Pass `frames` instead of a single `element` to copy several DOM trees onto one Figma canvas:

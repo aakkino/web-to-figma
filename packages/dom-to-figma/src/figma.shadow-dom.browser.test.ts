@@ -1,3 +1,4 @@
+import { openComposedDomTree } from "@figit/composed-dom";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   createTestFontLoader,
@@ -50,10 +51,35 @@ async function mountShadowHost(): Promise<HTMLElement> {
 }
 
 describe("Shadow DOM conversion", () => {
+  it("keeps light DOM as the default traversal", async () => {
+    const element = await mountShadowHost();
+    const result = await createFigmaConverter({
+      fontLoader: createTestFontLoader(),
+    }).convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const imageNodes = result.document.nodeChanges.filter(
+      (change) =>
+        change.type === "ROUNDED_RECTANGLE" &&
+        change.fillPaints?.some((paint) => paint.type === "IMAGE")
+    );
+    const textCharacters = result.document.nodeChanges
+      .filter((change) => change.type === "TEXT")
+      .map((change) => change.characters)
+      .join(" ");
+
+    expect(imageNodes).toHaveLength(0);
+    expect(textCharacters).toContain('bottom-title-name="date"');
+  });
+
   it("walks open shadow roots and projects assigned slot content", async () => {
     const element = await mountShadowHost();
     const result = await createFigmaConverter({
       fontLoader: createTestFontLoader(),
+      domTraversal: openComposedDomTree,
     }).convert({
       element,
       width: FRAME_WIDTH,

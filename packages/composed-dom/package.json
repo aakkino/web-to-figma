@@ -1,10 +1,23 @@
 {
-  "name": "@figit/browser-capture-adapter",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@figit/composed-dom",
+  "version": "0.1.0",
+  "description": "Browser DOM tree strategies for light and open composed trees.",
+  "license": "MIT",
+  "author": "Figit <https://figit.design>",
+  "homepage": "https://github.com/figitdesign/web-to-figma#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/figitdesign/web-to-figma.git",
+    "directory": "packages/composed-dom"
+  },
   "type": "module",
-  "description": "Shared browser capture preparation for DOM-to-Figma consumers.",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
+    "access": "public",
+    "provenance": true,
     "exports": {
       ".": {
         "types": "./dist/index.d.mts",
@@ -24,27 +37,19 @@
   "types": "./src/index.ts",
   "files": [
     "dist",
-    "src",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsdown",
+    "dev": "tsdown --watch",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "check-types": "tsc --noEmit",
-    "lint": "biome check",
-    "prepare": "tsdown"
-  },
-  "peerDependencies": {
-    "@figit/dom-to-figma": ">=0.3.0 <0.4.0"
-  },
-  "dependencies": {
-    "@figit/composed-dom": "workspace:*",
-    "fontkit": "^2.0.4"
+    "lint": "biome check"
   },
   "devDependencies": {
-    "@figit/dom-to-figma": "workspace:*",
-    "@types/fontkit": "^2.0.9",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "^4.1.5",
     "playwright": "^1.50.0",

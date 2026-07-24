@@ -5,6 +5,25 @@ public `@figit/dom-to-figma` API. It stabilizes a live page, resolves usable
 font bytes, records browser CJK line boundaries, and restores temporary page
 state before returning a conversion result.
 
+The adapter depends on `@figit/composed-dom` and selects
+`openComposedDomTree` by default. The same strategy is used for image waiting,
+font requests, CJK line-break preparation, and the converter call. Pass
+`domTraversal: lightDomTree` when a caller needs ordinary light-DOM semantics;
+do not mix a preparation strategy with a different converter strategy. When
+passing a pre-built `converter`, construct it with the same strategy yourself;
+the adapter cannot rewrite an existing converter's configuration.
+
+Compatibility matrix:
+
+| Utility | Core converter | Adapter |
+| --- | --- | --- |
+| `@figit/composed-dom` `0.1.x` | `@figit/dom-to-figma` `>=0.3.0 <0.4.0` | private workspace package |
+
+The utility and core package can be upgraded independently only when the
+`DomTreeChild` / `composedParent` contract remains compatible. Closed Shadow
+DOM, cross-origin iframe contents, and mutation observation are outside the
+support boundary.
+
 The adapter keeps text editable. When the original font bytes cannot be read,
 it tries the configured bundled and fallback loaders, then reports the
 requested and resolved font in `diagnostics`. Use `fontFailure: "strict"` when

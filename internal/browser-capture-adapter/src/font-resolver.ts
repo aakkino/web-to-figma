@@ -1,8 +1,7 @@
+import type { DomTreeStrategy } from "@figit/composed-dom";
+import { openComposedDomTree } from "@figit/composed-dom";
 import type { FontFile, FontLoader, FontProperties } from "@figit/dom-to-figma";
-import {
-  createFontsourceLoader,
-  getComposedChildNodes,
-} from "@figit/dom-to-figma";
+import { createFontsourceLoader } from "@figit/dom-to-figma";
 import { create as createFont } from "fontkit";
 
 import type {
@@ -128,8 +127,8 @@ export function createFontResolver(
       pageEntries = collectPageFontFaces(document);
       diagnostics.clear();
     },
-    collectRequests(root) {
-      return collectFontRequests(root);
+    collectRequests(root, domTraversal = openComposedDomTree) {
+      return collectFontRequests(root, domTraversal);
     },
     async preflight(requests, failureMode): Promise<FontPreflightResult> {
       const uniqueRequests = dedupeRequests(requests);
@@ -705,7 +704,10 @@ function findBundledCandidates(
     }));
 }
 
-function collectFontRequests(root: Element): Array<FontProperties> {
+function collectFontRequests(
+  root: Element,
+  domTraversal: DomTreeStrategy
+): Array<FontProperties> {
   const requests: Array<FontProperties> = [];
   const seen = new Set<string>();
   const document = root.ownerDocument;
@@ -713,15 +715,12 @@ function collectFontRequests(root: Element): Array<FontProperties> {
     if (node.nodeType === TEXT_NODE) {
       addFontRequest(node as Text, document, seen, requests);
     }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const child of getComposedChildNodes(node as Element)) {
-        visit(child);
-      }
-    }
   };
 
   visit(root);
+  for (const { node } of domTraversal.walk(root)) {
+    visit(node);
+  }
   return requests;
 }
 

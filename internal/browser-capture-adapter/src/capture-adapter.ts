@@ -1,3 +1,4 @@
+import { openComposedDomTree } from "@figit/composed-dom";
 import type {
   ConvertInput,
   ConvertResult,
@@ -48,7 +49,9 @@ export function createBrowserCaptureAdapter(
 ): BrowserCaptureAdapter {
   const fontResolver =
     options.fontResolver ?? createFontResolver(options.fonts ?? {});
-  const converter = options.converter ?? createConverter(options, fontResolver);
+  const domTraversal = options.domTraversal ?? openComposedDomTree;
+  const converter =
+    options.converter ?? createConverter(options, fontResolver, domTraversal);
   const settleTimeoutMs = options.settleTimeoutMs ?? DEFAULT_SETTLE_TIMEOUT_MS;
   const motion = options.motion ?? DEFAULT_MOTION;
   const lineBreaks = options.lineBreaks ?? DEFAULT_LINE_BREAKS;
@@ -88,12 +91,17 @@ export function createBrowserCaptureAdapter(
 
       diagnostics.settle = await waitForPageToSettle(root, {
         timeoutMs: settleTimeoutMs,
+        domTraversal,
       });
       fontResolver.beginCapture(root.ownerDocument);
-      const fontRequests = fontResolver.collectRequests(root);
+      const fontRequests = fontResolver.collectRequests(root, domTraversal);
       await fontResolver.preflight(fontRequests, fontFailure);
 
-      const lineBreakPreparation = prepareCjkLineBreaks(root, lineBreaks);
+      const lineBreakPreparation = prepareCjkLineBreaks(
+        root,
+        lineBreaks,
+        domTraversal
+      );
       diagnostics.lineBreaks = lineBreakPreparation.diagnostics;
       cleanup.push(() => {
         lineBreakPreparation.restore();
@@ -137,11 +145,13 @@ export function createBrowserCaptureAdapter(
 
 function createConverter(
   options: BrowserCaptureAdapterOptions,
-  fontResolver: FontResolver
+  fontResolver: FontResolver,
+  domTraversal: NonNullable<BrowserCaptureAdapterOptions["domTraversal"]>
 ): FigmaConverter {
   return createFigmaConverter({
     ...options.converterConfig,
     fontLoader: options.converterConfig?.fontLoader ?? fontResolver.loader,
+    domTraversal,
   });
 }
 

@@ -1,5 +1,10 @@
-import type { Position } from "../../dom";
-import { isElementNode, isTextEmpty, isTextNode } from "../../dom";
+import type { DomTraversalStrategy, Position } from "../../dom";
+import {
+  isElementNode,
+  isTextEmpty,
+  isTextNode,
+  lightDomTraversal,
+} from "../../dom";
 import type { InferredChildStack } from "../../layout/infer";
 import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
@@ -207,6 +212,7 @@ type Params = {
   /** Needed only to decompose a per-side-colored border into child vectors. */
   createGuid?: () => FigmaGuid;
   registerBlob?: (blob: FigmaBlob) => number;
+  domTraversal?: DomTraversalStrategy;
 };
 
 type FrameResult = {
@@ -239,12 +245,16 @@ export function elementToFrameNodeChange(
     rootFill,
     createGuid,
     registerBlob,
+    domTraversal,
   } = options;
 
   // Inferred auto-layout, spread onto the node change last so it overrides
   // `stackMode: "NONE"` and the CSS-padding fields (inference folds borders
   // into padding). `null` means "keep absolute positioning" — always safe.
-  const inferred = layout === "auto" ? inferAutoLayout(element) : null;
+  const inferred =
+    layout === "auto"
+      ? inferAutoLayout(element, domTraversal ?? lightDomTraversal)
+      : null;
 
   const rect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);

@@ -151,6 +151,9 @@ importers:
 
   internal/browser-capture-adapter:
     dependencies:
+      '@figit/composed-dom':
+        specifier: workspace:*
+        version: link:../../packages/composed-dom
       fontkit:
         specifier: ^2.0.4
         version: 2.0.4
@@ -266,6 +269,27 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
+  packages/composed-dom:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.6.0
+      '@vitest/browser-playwright':
+        specifier: ^4.1.5
+        version: 4.1.5(msw@2.14.3(@types/node@25.6.0)(typescript@6.0.3))(playwright@1.59.1)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(vitest@4.1.5)
+      playwright:
+        specifier: ^1.50.0
+        version: 1.59.1
+      tsdown:
+        specifier: ^0.21.0
+        version: 0.21.10(oxc-resolver@11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0))(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.5(@types/node@25.6.0)(@vitest/browser-playwright@4.1.5)(happy-dom@20.9.0)(msw@2.14.3(@types/node@25.6.0)(typescript@6.0.3))(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+
   packages/dom-to-figma:
     dependencies:
       '@figit/fig-kiwi':
@@ -278,6 +302,9 @@ importers:
         specifier: ^2.0.4
         version: 2.0.4
     devDependencies:
+      '@figit/composed-dom':
+        specifier: workspace:*
+        version: link:../composed-dom
       '@types/fontkit':
         specifier: ^2.0.9
         version: 2.0.9

@@ -65,12 +65,14 @@ page match must never prevent the fallback loader from running.
 message and converts base64 back to an ArrayBuffer. Keep MIME type with the
 bytes; downstream image processing needs both.
 
-The converter walks the browser's composed tree for open Shadow DOM roots: a
-host's shadow children replace its light-DOM children, and `<slot>` nodes are
-replaced by their assigned nodes. The same composed-tree traversal is used by
-the settle gate, font request collection, and temporary CJK line-break pass so
-resources and text inside web components are ready before conversion. Closed
-shadow roots remain inaccessible by browser security rules.
+The adapter selects `openComposedDomTree` from `@figit/composed-dom` by default
+and passes that same strategy into the converter. Open Shadow DOM roots replace
+a host's light-DOM children, and `<slot>` nodes are replaced by their assigned
+nodes. The same strategy is used by the settle gate, font request collection,
+and temporary CJK line-break pass so resources and text inside web components
+are ready before conversion. Direct `@figit/dom-to-figma` consumers remain on
+light DOM unless they explicitly provide a strategy. Closed shadow roots remain
+inaccessible by browser security rules.
 
 ## Temporary DOM Changes
 

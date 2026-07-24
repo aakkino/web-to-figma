@@ -1,4 +1,5 @@
-import { getComposedChildNodes } from "@figit/dom-to-figma";
+import type { DomTreeStrategy } from "@figit/composed-dom";
+import { openComposedDomTree } from "@figit/composed-dom";
 import type { LineBreakDiagnostics, LineBreakMode } from "./types";
 
 const TEXT_NODE = 3;
@@ -18,7 +19,8 @@ export type LineBreakPreparation = {
 
 export function prepareCjkLineBreaks(
   root: Element,
-  mode: LineBreakMode = "auto"
+  mode: LineBreakMode = "auto",
+  domTraversal: DomTreeStrategy = openComposedDomTree
 ): LineBreakPreparation {
   const diagnostics: LineBreakDiagnostics = {
     mode,
@@ -38,19 +40,16 @@ export function prepareCjkLineBreaks(
   }
 
   const document = root.ownerDocument;
-  const visit = (node: Node): void => {
+  const prepare = (node: Node): void => {
     if (node.nodeType === TEXT_NODE) {
       prepareTextNode(node as Text, document, restores, diagnostics);
     }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const child of getComposedChildNodes(node as Element)) {
-        visit(child);
-      }
-    }
   };
 
-  visit(root);
+  prepare(root);
+  for (const { node } of domTraversal.walk(root)) {
+    prepare(node);
+  }
 
   return {
     diagnostics,

@@ -8,12 +8,33 @@ export type Size = {
   height: number;
 };
 
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
+export type DomTraversalChild = {
+  readonly node: Node;
+  readonly composedParent: Element;
+};
+
+export type DomTraversalStrategy = {
+  readonly children: (parent: Element) => ReadonlyArray<DomTraversalChild>;
+};
+
+export const lightDomTraversal: DomTraversalStrategy = {
+  children(parent) {
+    return Array.from(parent.childNodes, (node) => ({
+      node,
+      composedParent: parent,
+    }));
+  },
+};
+
 export function isTextNode(node: Node): node is Text {
-  return node.nodeType === Node.TEXT_NODE;
+  return node.nodeType === TEXT_NODE;
 }
 
 export function isElementNode(node: Node): node is Element {
-  return node.nodeType === Node.ELEMENT_NODE;
+  return node.nodeType === ELEMENT_NODE;
 }
 
 export function isTextEmpty(text: Text): boolean {
@@ -22,52 +43,6 @@ export function isTextEmpty(text: Text): boolean {
 
 export function isSvgElement(element: Element): boolean {
   return element.tagName.toLowerCase() === "svg";
-}
-
-export type ComposedChild = {
-  node: Node;
-  /**
-   * The element whose coordinate space owns this child. Shadow-root children
-   * and slotted light-DOM nodes have a DOM parent that is not their visual
-   * Figma parent, so the walker supplies this override when measuring them.
-   */
-  positionParent?: Element;
-};
-
-/**
- * Return the direct children of the browser's composed tree for an element.
- * Open shadow roots replace the host's light-DOM children; slot elements are
- * replaced by their assigned nodes, matching what the user actually sees.
- */
-export function getComposedChildren(element: Element): Array<ComposedChild> {
-  const source = element.shadowRoot
-    ? Array.from(element.shadowRoot.childNodes).map((node) => ({
-        node,
-        positionParent: element,
-      }))
-    : Array.from(element.childNodes).map((node) => ({ node }));
-
-  return source.flatMap(expandSlot);
-}
-
-export function getComposedChildNodes(element: Element): Array<Node> {
-  return getComposedChildren(element).map(({ node }) => node);
-}
-
-function expandSlot(entry: ComposedChild): Array<ComposedChild> {
-  const { node } = entry;
-  if (!isElementNode(node) || node.localName.toLowerCase() !== "slot") {
-    return [entry];
-  }
-
-  const slot = node as HTMLSlotElement;
-  const assigned =
-    typeof slot.assignedNodes === "function"
-      ? Array.from(slot.assignedNodes({ flatten: true }))
-      : [];
-  const nodes = assigned.length > 0 ? assigned : Array.from(slot.childNodes);
-  const positionParent = slot.parentElement ?? entry.positionParent;
-  return nodes.flatMap((child) => expandSlot({ node: child, positionParent }));
 }
 
 /**
@@ -100,7 +75,7 @@ export function getElementSize(element: Element): Size {
 }
 
 function getTextRect(textNode: Text) {
-  const range = document.createRange();
+  const range = textNode.ownerDocument.createRange();
   range.selectNodeContents(textNode);
   return range.getBoundingClientRect();
 }

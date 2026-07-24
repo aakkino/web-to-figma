@@ -4,6 +4,8 @@ import {
   toClipboardItem,
 } from "@figit/fig-kiwi";
 import { BlobManager } from "./converter/blob-manager";
+import type { DomTraversalStrategy } from "./converter/dom";
+import { lightDomTraversal } from "./converter/dom";
 import { createFontCache } from "./converter/font-cache";
 import { createImageCache } from "./converter/image-cache";
 import type { ImageLoader } from "./converter/nodes/image/loader";
@@ -26,10 +28,9 @@ import { walkRoot } from "./converter/walk";
 
 export type { ElementKind } from "./converter/classify";
 export { defaultClassify } from "./converter/classify";
-export type { ComposedChild } from "./converter/dom";
-export {
-  getComposedChildNodes,
-  getComposedChildren,
+export type {
+  DomTraversalChild,
+  DomTraversalStrategy,
 } from "./converter/dom";
 export type {
   ImageFile,
@@ -69,15 +70,20 @@ export type FigmaConverterConfig = {
    * whenever the layout can be reproduced exactly, falling back to absolute
    * positioning per node when it can't. `"absolute"` positions every frame
    * absolutely, disabling auto-layout inference entirely.
-   */
+    */
   layout?: ConverterLayout;
   /**
    * When `true`, `convert()` also returns a {@link ConvertTrace} mapping every
    * emitted node back to its source DOM element. Off by default and adds no
    * cost when disabled; does not change the payload bytes. Intended for the
    * visual-parity harness, not production copies.
-   */
+  */
   trace?: boolean;
+  /**
+   * Optional DOM tree strategy. The default is light DOM; consumers that need
+   * open Shadow DOM and slot projection must opt in explicitly.
+   */
+  domTraversal?: DomTraversalStrategy;
 };
 
 export type SingleFrameInput = {
@@ -125,6 +131,7 @@ export function createFigmaConverter(
   const { classify } = config;
   const layout = config.layout ?? "auto";
   const traceEnabled = config.trace ?? false;
+  const domTraversal = config.domTraversal ?? lightDomTraversal;
 
   const fontCache = createFontCache(fontLoader);
   const imageCache = createImageCache(imageLoader);
@@ -147,6 +154,7 @@ export function createFigmaConverter(
     const walkContext: WalkContext = {
       classify,
       layout,
+      domTraversal,
       createGuid,
       registerBlob: (blob) => blobManager.registerBlob(blob),
       fontCache,

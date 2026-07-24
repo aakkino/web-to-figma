@@ -1,3 +1,4 @@
+import type { DomTreeStrategy } from "@figit/composed-dom";
 import type {
   ConvertInput,
   ConvertResult,
@@ -7,6 +8,7 @@ import type {
   FontProperties,
 } from "@figit/dom-to-figma";
 
+export type { DomTreeStrategy } from "@figit/composed-dom";
 export type {
   ConvertInput,
   ConvertResult,
@@ -79,7 +81,10 @@ export type FontPreflightResult = {
 export type FontResolver = {
   loader: FontLoader;
   beginCapture(document: Document): void;
-  collectRequests(root: Element): Array<FontProperties>;
+  collectRequests(
+    root: Element,
+    domTraversal?: DomTreeStrategy
+  ): Array<FontProperties>;
   preflight(
     requests: ReadonlyArray<FontProperties>,
     failureMode: FontFailureMode
@@ -107,6 +112,7 @@ export type PageSettleDiagnostics = {
 
 export type PageSettleOptions = {
   timeoutMs?: number;
+  domTraversal?: DomTreeStrategy;
 };
 
 export type MotionMode = "freeze" | "live";
@@ -159,6 +165,8 @@ export type BrowserCaptureAdapterOptions = {
   motion?: MotionMode;
   lineBreaks?: LineBreakMode;
   fontFailure?: FontFailureMode;
+  /** Traversal shared by page preparation and the converter. */
+  domTraversal?: DomTreeStrategy;
 };
 
 export type BrowserCaptureAdapter = {

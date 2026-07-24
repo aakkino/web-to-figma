@@ -1,4 +1,5 @@
-import { getComposedChildNodes } from "@figit/dom-to-figma";
+import type { DomTreeStrategy } from "@figit/composed-dom";
+import { openComposedDomTree } from "@figit/composed-dom";
 import type { PageSettleDiagnostics, PageSettleOptions } from "./types";
 
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -23,7 +24,10 @@ export async function waitForPageToSettle(
 
   const document = root.ownerDocument;
   const view = document.defaultView;
-  const images = collectImages(root);
+  const images = collectImages(
+    root,
+    options.domTraversal ?? openComposedDomTree
+  );
   const errors: Array<string> = [];
   const controller = new AbortController();
   let timedOut = false;
@@ -102,21 +106,24 @@ export async function waitForPageToSettle(
   };
 }
 
-function collectImages(root: Element): Array<HTMLImageElement> {
+function collectImages(
+  root: Element,
+  domTraversal: DomTreeStrategy
+): Array<HTMLImageElement> {
   const images: Array<HTMLImageElement> = [];
-  const visit = (element: Element) => {
-    if (element.localName.toLowerCase() === "img") {
-      images.push(element as HTMLImageElement);
-      return;
-    }
-    for (const node of getComposedChildNodes(element)) {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        visit(node as Element);
-      }
+  const addIfImage = (node: Node): void => {
+    if (
+      node.nodeType === 1 &&
+      (node as Element).localName.toLowerCase() === "img"
+    ) {
+      images.push(node as HTMLImageElement);
     }
   };
 
-  visit(root);
+  addIfImage(root);
+  for (const { node } of domTraversal.walk(root)) {
+    addIfImage(node);
+  }
   return [...new Set(images)];
 }
 

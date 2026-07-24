@@ -26,6 +26,7 @@ export type {
   CaptureElementInput,
   CaptureInput,
   CaptureResult,
+  DomTreeStrategy,
   FontDiagnostic,
   FontDiagnosticSource,
   FontDiagnosticStatus,
