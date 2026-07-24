@@ -107,3 +107,37 @@ Added @figit/composed-dom, injected optional core traversal, migrated capture ad
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: 完成分阶段资源管线与转换桥接
+
+**Date**: 2026-07-24
+**Task**: 完成分阶段资源管线与转换桥接
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+完成 staged-resource-pipeline：实现图片资源盘点、四路调度、预算/超时/重试/取消、字体阶段、占位图、dom-to-figma 可选预处理桥接及扩展资源代理；补充跨层测试、规范文档和 changeset。pnpm check-types、pnpm test、Chromium/Firefox 构建、任务校验、git diff --check 与人工浏览器烟测均完成。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4da4c51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
