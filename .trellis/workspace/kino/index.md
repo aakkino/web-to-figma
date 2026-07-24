@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 2
+- **Total Sessions**: 3
 - **Last Active**: 2026-07-24
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~76 | Active |
+| `journal-1.md` | ~109 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 3 | 2026-07-24 | Extract composed DOM traversal utility | `e8b46a4` | `main` |
 | 2 | 2026-07-24 | Browser capture adapter milestone | `f9ecdea`, `af1bec8`, `58a51f3`, `3950296` | `main` |
 | 1 | 2026-07-21 | Bootstrap Trellis Project Specs | `3b557fa` | `main` |
 <!-- @@@/auto:session-history -->
