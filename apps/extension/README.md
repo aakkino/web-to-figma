@@ -12,11 +12,11 @@ published `@figit/dom-to-figma` API.
 - Failed cross-origin font requests use the existing typed `fetchFont` message
   and background worker. The worker accepts only HTTP(S), omits credentials,
   and returns base64 bytes through the shared protocol.
-- Common Traditional Chinese system-font aliases (`PingFang TC`, `Heiti TC`,
-  `Microsoft JhengHei`, and related names) have a local Noto Sans TC fallback
-  catalog with the nearest available weight. This keeps CJK glyph data valid
-  when the operating-system font cannot be extracted; page-declared web fonts
-  still take precedence.
+- Common web and Traditional Chinese system-font aliases (`Inter`,
+  `ui-sans-serif`, `PingFang TC`, `Heiti TC`, `Microsoft JhengHei`, and related
+  names) have a local Noto Sans TC fallback catalog with the nearest available
+  weight. This keeps CJK glyph data valid when the operating-system font cannot
+  be extracted; page-declared web fonts still take precedence.
 - An unmatched family uses the bundled Noto Sans Arabic 400 font as a stable
   Latin/Arabic/number fallback. The payload still requests the original family
   so Figma can use it when the destination has it; the bundled bytes only feed

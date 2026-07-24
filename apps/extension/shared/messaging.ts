@@ -31,6 +31,8 @@ export type ResourceCancelResult = {
 };
 
 export type ProtocolMap = {
+  /** Ask the content workspace to open or restore itself. */
+  openWorkspace: () => { opened: boolean };
   /** Fetch an image as base64 + mime, bypassing the page's CORS posture. */
   fetchImage(request: ResourceRequest): FetchUrlResult;
   /** Fetch a font file as base64 + mime. */

@@ -182,7 +182,7 @@ function Hint() {
       className="pointer-events-none fixed top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-xs shadow-md"
       role="status"
     >
-      <span>Click to copy this element to Figma</span>
+      <span>Click to select this element</span>
       <span className="text-primary-foreground/70">·</span>
       <span className="text-primary-foreground/70">Esc to cancel</span>
     </div>

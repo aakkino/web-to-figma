@@ -8,6 +8,9 @@ export default defineConfig({
     name: "Copy to Figma",
     description:
       "Copy any website to Figma. One click, paste in Figma. No plugin needed.",
+    action: {
+      default_title: "Open capture workspace",
+    },
     permissions: ["activeTab", "clipboardWrite", "scripting", "storage"],
     host_permissions: ["<all_urls>"],
     web_accessible_resources: [

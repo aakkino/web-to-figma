@@ -32,9 +32,10 @@ createBrowserCaptureAdapter({
 
 The resolver scans readable `@font-face` rules, then tries the injected
 HTTP(S) transport, explicit bundled fonts, and a fallback loader. The
-extension supplies local Noto Sans TC weights for CJK aliases and a local
-Noto Sans Arabic 400 file for unmatched Latin/Arabic families; callers that do
-not supply a catalog use the generic Fontsource loader. It reports the
+extension supplies local Noto Sans TC weights for common web and CJK aliases
+(including `Inter` and `ui-sans-serif`) and a local Noto Sans Arabic 400 file
+for unmatched Latin/Arabic families; callers that do not supply a catalog use
+the generic Fontsource loader. It reports the
 requested and resolved family/weight/italic for every unique request.
 `fontFailure: "strict"` rejects before conversion when a request is not exact;
 fallback mode continues with a diagnostic.
@@ -57,6 +58,22 @@ the page fetch fails, or the requested family/style cannot be matched.
 Keep the global font URL regex cloned per parse because `RegExp.exec` mutates
 state. Accept only formats/font extensions that fontkit can parse. A best-effort
 page match must never prevent the fallback loader from running.
+
+### Common Mistake: Cataloging Only System Font Names
+
+**Symptom**: A page with Chinese text and a common web font such as `Inter`
+captures images and layout correctly, but text nodes paste with missing glyphs.
+
+**Cause**: The computed first family is not necessarily a system font. If that
+family misses the local CJK catalog, the generic Latin/Arabic fallback can
+produce valid font bytes that still have no CJK glyph coverage.
+
+**Fix**: Keep common web families that can lead a CJK-capable stack (including
+`Inter` and `ui-sans-serif`) in the local CJK alias catalog. Page-declared
+`@font-face` bytes still win before this catalog is consulted.
+
+**Prevention**: Every new fallback alias must be checked with a mixed Latin and
+CJK text fixture, and the built extension artifact must contain the alias.
 
 ## Image Loading
 

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
-    "test": "vitest run shared/resource-proxy.test.ts",
+    "test": "vitest run shared/resource-proxy.test.ts shared/capture-settings.test.ts entrypoints/content/workspace-controller.test.ts",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",

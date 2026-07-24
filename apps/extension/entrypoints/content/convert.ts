@@ -1,21 +1,25 @@
 import type {
-  BrowserCaptureAdapter,
   BundledFont,
   CaptureClassifier,
+  CaptureElementInput,
+  CaptureEngine,
   FontLoader,
 } from "@figit/browser-capture-adapter";
 import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
-import { toast } from "sonner";
 import { browser } from "#imports";
 
-import { toErrorMessage } from "../../shared/errors";
+import type { CaptureSettings } from "../../shared/capture-settings";
 import {
   createBackgroundFontTransport,
   createBackgroundImageLoader,
 } from "../../shared/loaders";
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
+import type {
+  OutputPort,
+  OutputRunResult,
+  OutputSinkResult,
+} from "./workspace-controller";
 
-const COPY_TOAST_ID = "copy-to-figma";
 const RGBA_COLOR_PATTERN = /^rgba?\(([^)]+)\)$/;
 const RGBA_COMPONENT_COUNT = 4;
 const GENERIC_FALLBACK_FAMILY = "Noto Sans Arabic";
@@ -39,20 +43,16 @@ const CJK_FONT_PATHS = {
   [CJK_WEIGHT_BOLD]: "/fonts/noto-sans-tc-composite-700.ttf",
 } as const;
 const CJK_FONT_ALIASES = [
+  "Inter",
+  "ui-sans-serif",
   "PingFang TC",
-  "黑體-繁",
   "Heiti TC",
   "Noto Sans TC",
-  "微軟正黑體",
   "Microsoft JhengHei",
   "Source Han Sans TC",
-  "思源黑體",
   "Noto Sans CJK TC",
   "Noto Sans SC",
   "Source Han Sans CN",
-  "思源黑体",
-  "Noto Sans Simplified Chinese",
-  "Google Sans Text",
   "Roboto",
   "Arial",
   "Helvetica Neue",
@@ -63,32 +63,86 @@ const CJK_FONT_ALIASES = [
   "sans-serif",
 ];
 const NOOP = () => {
-  // intentional: default cleanup callback when nothing was set up
+  // intentional: default cleanup callback when no inherited background exists
 };
 
 const bundledCjkFontCache = new Map<CjkFallbackWeight, Promise<ArrayBuffer>>();
 let genericFallbackFontCache: Promise<ArrayBuffer> | null = null;
 
-const getAdapter: () => BrowserCaptureAdapter = (() => {
-  let instance: BrowserCaptureAdapter | null = null;
-  return () => {
-    if (!instance) {
-      instance = createBrowserCaptureAdapter({
-        fonts: {
-          bundledFonts: createBundledCjkFonts(),
-          fallbackLoader: createGenericFallbackLoader(),
-          fallbackIsLocal: true,
-          transport: createBackgroundFontTransport(),
-        },
-        bridgeOptions: {
-          imageLoader: createBackgroundImageLoader(),
-          classify: skipExtensionUiClassify,
-        },
-      });
-    }
-    return instance;
+export function createExtensionCaptureEngine(
+  settings: CaptureSettings
+): CaptureEngine {
+  return createBrowserCaptureAdapter({
+    settleTimeoutMs: settings.advanced.settleTimeoutMs,
+    motion: settings.advanced.motion,
+    lineBreaks: settings.advanced.lineBreaks,
+    fontFailure: settings.font.mode,
+    fonts: {
+      bundledFonts: createBundledCjkFonts(),
+      fallbackLoader: createGenericFallbackLoader(),
+      fallbackIsLocal: true,
+      transport: createBackgroundFontTransport(),
+    },
+    bridgeOptions: {
+      imageLoader: createBackgroundImageLoader(),
+      classify: skipExtensionUiClassify,
+      layout: settings.advanced.layout,
+    },
+  });
+}
+
+export function createClipboardOutputPort(): OutputPort {
+  return {
+    capabilities: { clipboard: true, file: false },
+    async execute(capture, outputs): Promise<OutputRunResult> {
+      const results: Array<OutputSinkResult> = [];
+      if (outputs.clipboard) {
+        results.push(await writeClipboardAsync(capture.clipboardHtml));
+      }
+      if (outputs.file) {
+        results.push(unavailableFileResult());
+      }
+      return { results };
+    },
+    retry(capture, sink): Promise<OutputSinkResult> {
+      if (sink === "clipboard") {
+        return writeClipboardAsync(capture.clipboardHtml);
+      }
+      return Promise.resolve(unavailableFileResult());
+    },
+    open(): Promise<null> {
+      return Promise.reject(
+        new Error("Capture package opening is not available yet.")
+      );
+    },
   };
-})();
+}
+
+export function createElementCaptureTarget(element: HTMLElement): {
+  input: CaptureElementInput;
+  restore: () => void;
+} {
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    throw new Error("Selected element has no size to capture.");
+  }
+  return {
+    input: {
+      element,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      name: deriveElementFrameName(element),
+    },
+    restore: applyInheritedBackgroundIfNeeded(element),
+  };
+}
+
+export function createPageCaptureTarget(): CaptureElementInput {
+  return {
+    element: document.body,
+    name: derivePageFrameName(),
+  };
+}
 
 function createBundledCjkFonts(): ReadonlyArray<BundledFont> {
   return CJK_FALLBACK_WEIGHTS.map((weight) => ({
@@ -169,8 +223,6 @@ const skipExtensionUiClassify: CaptureClassifier = (element, defaultKind) => {
   ) {
     return "skip";
   }
-  // Cross-origin iframes can't be inspected from the parent context (security
-  // error on `contentDocument`), so the converter has nothing to walk.
   if (element instanceof HTMLIFrameElement && !isSameOriginIframe(element)) {
     return "skip";
   }
@@ -185,77 +237,59 @@ function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
   }
 }
 
-export function copyWholePage(): void {
-  // Measure after the adapter's settle gate so late layout and horizontal
-  // overflow are included in the page frame.
-  runConversion({
-    element: document.body,
-    name: derivePageFrameName(),
-  });
-}
-
-export function copyElement(element: HTMLElement): void {
-  const rect = element.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) {
-    toast.error("Selected element has no size to copy.", { id: COPY_TOAST_ID });
-    return;
+function clipboardAvailability(): OutputSinkResult {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+    return {
+      sink: "clipboard",
+      status: "failed",
+      code: "clipboard-unavailable",
+      message: "Clipboard output is unavailable on this page.",
+    };
   }
-  const restoreBackground = applyInheritedBackgroundIfNeeded(element);
-  runConversion(
-    {
-      element,
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
-      name: deriveElementFrameName(element),
-    },
-    restoreBackground
-  );
+  return {
+    sink: "clipboard",
+    status: "success",
+    message: "Clipboard output queued.",
+  };
 }
 
-type ConversionInput = {
-  element: Element;
-  width?: number;
-  height?: number;
-  name: string;
-};
-
-function runConversion(
-  input: ConversionInput,
-  onComplete: () => void = NOOP
-): void {
-  // toast.promise shows a loading toast, then swaps it in place to a success
-  // or error toast — the same { id } guarantees no stacking.
-  toast.promise(convertAndCopy(input).finally(onComplete), {
-    id: COPY_TOAST_ID,
-    loading: "Copying to Figma…",
-    success: "Copied. Paste in Figma with ⌘V / Ctrl+V.",
-    error: (error) => `Copy failed: ${toErrorMessage(error, "unknown error")}`,
-  });
+async function writeClipboardAsync(
+  clipboardHtml: string
+): Promise<OutputSinkResult> {
+  const availability = clipboardAvailability();
+  if (availability.status === "failed") {
+    return availability;
+  }
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([clipboardHtml], { type: "text/html" }),
+      }),
+    ]);
+    return availability;
+  } catch {
+    return {
+      sink: "clipboard",
+      status: "failed",
+      code: "clipboard-write-failed",
+      message: "Clipboard write was rejected by the browser.",
+    };
+  }
 }
 
-async function convertAndCopy(input: ConversionInput): Promise<void> {
-  const result = await getAdapter().capture(input);
-  await navigator.clipboard.write([createClipboardItem(result.clipboardHtml)]);
-}
-
-function createClipboardItem(clipboardHtml: string): ClipboardItem {
-  return new ClipboardItem({
-    "text/html": new Blob([clipboardHtml], { type: "text/html" }),
-  });
+function unavailableFileResult(): OutputSinkResult {
+  return {
+    sink: "file",
+    status: "failed",
+    code: "file-output-unavailable",
+    message: "Local capture packages are not available in this build yet.",
+  };
 }
 
 /**
- * If the picked element has no background of its own, walk up the parent
- * chain to find the first opaque ancestor and apply its color inline for
- * the duration of the conversion. The page already shows that color through
- * the transparent element, so the assignment doesn't change a single
- * rendered pixel — but it gives dom-to-figma the right fill for the
- * extracted Figma frame, which would otherwise sit on a transparent
- * canvas. Returns a no-op when no inheritance is needed.
- *
- * Limitations: only solid colors are carried over. Background images,
- * gradients, and semi-transparent stacks on parents are dropped — composing
- * those into a single fill would require sampling rendered pixels.
+ * Keep an inherited opaque background on a picked element until the engine
+ * finishes. The assignment preserves the page's rendered pixels while giving
+ * the extracted frame an explicit background.
  */
 function applyInheritedBackgroundIfNeeded(element: HTMLElement): () => void {
   if (!isTransparentColor(getComputedStyle(element).backgroundColor)) {
@@ -292,11 +326,10 @@ function isTransparentColor(color: string): boolean {
   if (!match) {
     return false;
   }
-  const parts = match[1].split(",").map((s) => s.trim());
-  if (parts.length !== RGBA_COMPONENT_COUNT) {
-    return false;
-  }
-  return Number.parseFloat(parts[3]) === 0;
+  const parts = match[1].split(",").map((part) => part.trim());
+  return (
+    parts.length === RGBA_COMPONENT_COUNT && Number.parseFloat(parts[3]) === 0
+  );
 }
 
 function deriveElementFrameName(element: HTMLElement): string {

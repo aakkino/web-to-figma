@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Repository-wide package, dependency and validation conventions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Parent integration changes events, artifacts and consumers across adapter, extension and core."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Extension runtime pre-development checklist and routed guides."}
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Published converter public API and compatibility checklist."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Evidence-backed map of current flow, coupling and missing staged capabilities."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Official browser constraints for action routing, clipboard and Blob/download behavior."}

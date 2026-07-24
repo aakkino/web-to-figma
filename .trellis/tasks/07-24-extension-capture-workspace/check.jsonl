@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Check repository conventions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check controller/engine/output integration paths."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Check all relevant extension runtime rules."}
+{"file":".trellis/spec/extension/frontend/components-and-state.md","reason":"Check React/listener/picker state ownership."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Check toolbar routing and permissions/security."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Check browser and build gates."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Verify action/popup behavior against official constraints."}

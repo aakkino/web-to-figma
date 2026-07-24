@@ -1,0 +1,9 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Required repository conventions before extension edits."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Workspace consumes engine events and output ports across layers."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Extension runtime pre-development checklist."}
+{"file":".trellis/spec/extension/frontend/architecture.md","reason":"Entrypoint and runtime-context ownership."}
+{"file":".trellis/spec/extension/frontend/components-and-state.md","reason":"React state, picker and listener lifecycle conventions."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Toolbar/background/content messaging and restricted-page behavior."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Extension test/build/browser smoke requirements."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Current popup/content/picker flow and coupling baseline."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Official action click and restricted runtime constraints."}

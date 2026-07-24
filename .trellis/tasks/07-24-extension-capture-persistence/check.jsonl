@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Check repository-wide quality and dependency boundaries."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check end-to-end propagation of commands, events and artifacts."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Check extension type/build/manual browser gates."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Check core unit/browser/public-package compatibility when the hook changes."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Compare final behavior against the known baseline and identified gaps."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Verify browser behavior claims against official constraints."}
