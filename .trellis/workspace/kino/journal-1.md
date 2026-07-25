@@ -321,3 +321,42 @@ Preserved browser-enforced pre/nowrap single-line text during Figma remeasuremen
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Controlled fork versioning
+
+**Date**: 2026-07-25
+**Task**: Controlled fork versioning
+**Package**: extension
+**Branch**: `chore/archive-controlled-fork-versioning`
+
+### Summary
+
+Created and protected the aakkino product fork, established immutable baseline tags, documented selective upstream intake, enabled repeatable fork CI, fixed two pre-existing formatting blockers, and verified worktree preservation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7cbaeba` | (see git log) |
+| `6f94661` | (see git log) |
+| `a23f6e6` | (see git log) |
+| `7d71fc7` | (see git log) |
+| `ee651c2` | (see git log) |
+| `896bec2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
