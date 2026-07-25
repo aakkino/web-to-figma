@@ -208,6 +208,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "width": 240,
   },
   {
+    "height": 220,
+    "id": "img/img-02-object-fit",
+    "width": 520,
+  },
+  {
     "height": 160,
     "id": "pos/pos-03-z-index",
     "width": 240,
@@ -221,6 +226,11 @@ exports[`discoverScenes() > produces a stable id/size manifest 1`] = `
     "height": 160,
     "id": "svg/svg-01-shapes",
     "width": 240,
+  },
+  {
+    "height": 120,
+    "id": "txt/txt-01-single-line-button",
+    "width": 320,
   },
 ]
 `;

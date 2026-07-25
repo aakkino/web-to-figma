@@ -7,6 +7,7 @@ import {
   loadTestFontIntoBrowser,
   TEST_FONT_FAMILY,
 } from "./__fixtures__/loaders";
+import type { FigmaNodeChange, FigmaTextNodeChange } from "./converter/types";
 import { createFigmaConverter } from "./figma";
 
 const FRAME_WIDTH = 320;
@@ -17,6 +18,16 @@ const mountElement = (html: string): HTMLElement => {
   wrapper.innerHTML = html;
   document.body.appendChild(wrapper);
   return wrapper.firstElementChild as HTMLElement;
+};
+
+const findTextChange = (
+  changes: ReadonlyArray<FigmaNodeChange>
+): FigmaTextNodeChange => {
+  const textChange = changes.find((change) => change.type === "TEXT");
+  if (textChange?.type !== "TEXT") {
+    throw new Error("expected TEXT node");
+  }
+  return textChange;
 };
 
 beforeAll(async () => {
@@ -100,7 +111,7 @@ describe("text rendering with bundled font", () => {
     expect(baseline?.endCharacter).toBe(3);
   });
 
-  it("emits the fixed Figma wire fields on every TEXT node", async () => {
+  it("emits fixed Figma wire fields and keeps normal text fixed width", async () => {
     // Pin the constants we send unconditionally on the wire. These match
     // what Figma writes itself when copying a TEXT node — see the
     // text-correctness-fixes changeset for the full rationale.
@@ -122,10 +133,8 @@ describe("text rendering with bundled font", () => {
       throw new Error("expected TEXT node");
     }
 
-    // We deliberately leave textAutoResize unset — see the converter for
-    // the rationale. Emitting WIDTH_AND_HEIGHT here would un-wrap
-    // multi-line text on Figma's re-derivation pass and clip against
-    // the parent frame.
+    // A normal single line can still depend on its fixed box at another
+    // viewport, so only explicit pre/nowrap text opts into auto width.
     expect(textChange.textAutoResize).toBeUndefined();
     // Pinned to match Figma's own clipboard output.
     expect(textChange.textBidiVersion).toBe(1);
@@ -196,6 +205,133 @@ describe("text rendering with bundled font", () => {
       throw new Error("expected TEXT node");
     }
     expect(textChange.fontName?.style).toBe("Bold");
+  });
+});
+
+describe("single-line text auto resize", () => {
+  for (const whiteSpace of ["pre", "nowrap"] as const) {
+    it(`emits WIDTH_AND_HEIGHT for browser-single-line ${whiteSpace} text`, async () => {
+      const element = mountElement(
+        `<div style="font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:16px;line-height:20px;white-space:${whiteSpace}">Join beta</div>`
+      );
+      const range = element.ownerDocument.createRange();
+      range.selectNodeContents(element);
+      expect(range.getClientRects()).toHaveLength(1);
+
+      const figma = createFigmaConverter({
+        fontLoader: createTestFontLoader(),
+      });
+      const result = await figma.convert({
+        element,
+        width: FRAME_WIDTH,
+        height: FRAME_HEIGHT,
+      });
+
+      expect(findTextChange(result.document.nodeChanges).textAutoResize).toBe(
+        "WIDTH_AND_HEIGHT"
+      );
+    });
+  }
+
+  it("preserves Portal-style button geometry while making its label auto width", async () => {
+    const element = mountElement(
+      `<div style="width:141.078px;height:48px;padding:0 36px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;background:rgb(0,0,0)">
+        <span style="font-family:'${ALT_TEST_FONT_FAMILY}',sans-serif;font-size:16px;font-weight:600;line-height:20.8px;white-space:pre;color:rgb(255,255,255)">Join beta</span>
+      </div>`
+    );
+    const label = element.querySelector("span");
+    if (!label) {
+      throw new Error("expected label");
+    }
+    const labelRect = label.getBoundingClientRect();
+
+    const figma = createFigmaConverter({ fontLoader: createInterFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+    const changes = result.document.nodeChanges;
+    const buttonChange = changes.find((change) => change.guid.localID === 3);
+    const textChange = findTextChange(changes);
+
+    expect(element.getBoundingClientRect().width).toBeCloseTo(141.078, 1);
+    expect(buttonChange?.size).toEqual({ x: 142, y: 48 });
+    expect(buttonChange).toMatchObject({
+      stackMode: "HORIZONTAL",
+      stackPrimaryAlignItems: "CENTER",
+      stackCounterAlignItems: "CENTER",
+    });
+    expect(textChange).toMatchObject({
+      characters: "Join beta",
+      fontSize: 16,
+      lineHeight: { value: 20.8, units: "PIXELS" },
+      textAutoResize: "WIDTH_AND_HEIGHT",
+    });
+    expect(textChange.fontName?.family).toBe(ALT_TEST_FONT_FAMILY);
+    expect(textChange.transform?.m02).toBeCloseTo(labelRect.left, 3);
+    expect(textChange.transform?.m12).toBeCloseTo(labelRect.top, 3);
+    const textStackFields = textChange as FigmaTextNodeChange & {
+      stackChildPrimaryGrow?: number;
+      stackChildAlignSelf?: string;
+    };
+    expect(textStackFields.stackChildPrimaryGrow).toBeUndefined();
+    expect(textStackFields.stackChildAlignSelf).toBe("AUTO");
+  });
+
+  it("measures text through the element's iframe realm", async () => {
+    const iframe = document.createElement("iframe");
+    iframe.srcdoc = `<div style="font-size:16px;line-height:20px;white-space:nowrap">Join beta</div>`;
+    document.body.appendChild(iframe);
+    await new Promise<void>((resolve) => {
+      iframe.addEventListener("load", () => resolve(), { once: true });
+    });
+    const iframeWindow = iframe.contentWindow;
+    const element = iframe.contentDocument?.querySelector("div");
+    if (!(iframeWindow && element)) {
+      throw new Error("expected iframe text element");
+    }
+    expect(element.ownerDocument.defaultView).not.toBe(window);
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    expect(findTextChange(result.document.nodeChanges).textAutoResize).toBe(
+      "WIDTH_AND_HEIGHT"
+    );
+  });
+
+  it.each([
+    ["normal single line", "white-space:normal", "Join beta"],
+    ["explicit pre newline", "white-space:pre", "Join beta\nNow"],
+    [
+      "browser-wrapped text",
+      "width:40px;white-space:pre-wrap",
+      "Join beta now",
+    ],
+    [
+      "ellipsis text",
+      "width:40px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis",
+      "Join beta now",
+    ],
+  ])("keeps %s fixed width", async (_name, style, text) => {
+    const element = mountElement(
+      `<div style="${style};font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:16px;line-height:20px">${text}</div>`
+    );
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    expect(
+      findTextChange(result.document.nodeChanges).textAutoResize
+    ).toBeUndefined();
   });
 });
 

@@ -197,6 +197,7 @@ export async function convertElement(
               registerBlob,
               inheritedProperties,
               fontCache,
+              parentIsAutoLayout,
             }),
           ],
           childStackSpec

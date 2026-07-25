@@ -43,6 +43,8 @@ const fontWeightToWidthBufferMap: Record<number, number> = {
   900: 5,
 };
 
+const EXPLICIT_LINE_BREAK_PATTERN = /[\r\n\u2028\u2029]/u;
+
 function getWidthBuffer(fontWeight: number, fontSize: number) {
   const fontWeightBuffer = fontWeightToWidthBufferMap[fontWeight] ?? 0;
   return fontSize > 60 ? fontWeightBuffer + 1 : fontWeightBuffer;
@@ -88,7 +90,11 @@ function applyCssTextTransform(text: string, transform: string): string {
 // Each visual line produces at least one client rect; we group by `top`
 // (tolerating sub-pixel jitter) to count distinct lines.
 function isTextOnSingleLine(node: Node) {
-  const range = document.createRange();
+  const ownerDocument = node.ownerDocument;
+  if (!ownerDocument) {
+    throw new Error("Node document not found");
+  }
+  const range = ownerDocument.createRange();
   range.selectNodeContents(node);
 
   const rects = Array.from(range.getClientRects()).filter(
@@ -107,6 +113,24 @@ function isTextOnSingleLine(node: Node) {
   return lineTops.length <= 1;
 }
 
+function shouldAutoResizeSingleLineText(input: {
+  isSingleLine: boolean;
+  whiteSpace: string;
+  textOverflow: string;
+  text: string;
+}): boolean {
+  const preservesSingleLine =
+    input.whiteSpace === "pre" || input.whiteSpace === "nowrap";
+  const hasExplicitLineBreak = EXPLICIT_LINE_BREAK_PATTERN.test(input.text);
+
+  return (
+    input.isSingleLine &&
+    preservesSingleLine &&
+    !hasExplicitLineBreak &&
+    input.textOverflow !== "ellipsis"
+  );
+}
+
 type Params = {
   guid: FigmaGuid;
   parentGuid: FigmaGuid;
@@ -119,6 +143,7 @@ type Params = {
     textGradient?: Array<FigmaPaint>;
   };
   fontCache: FontCache;
+  parentIsAutoLayout?: boolean;
 };
 
 export async function nodeToTextNodeChange(
@@ -135,6 +160,7 @@ export async function nodeToTextNodeChange(
     inheritedProperties,
     textContent,
     fontCache,
+    parentIsAutoLayout,
   } = options;
   const isTextNodeValue = isTextNode(node);
 
@@ -145,7 +171,11 @@ export async function nodeToTextNodeChange(
     throw new Error("Element not found");
   }
 
-  const computedStyle = window.getComputedStyle(element);
+  const ownerWindow = element.ownerDocument.defaultView;
+  if (!ownerWindow) {
+    throw new Error("Element window not found");
+  }
+  const computedStyle = ownerWindow.getComputedStyle(element);
 
   const defaultTextContent = node.textContent?.trim() ?? "";
   const rawText = textContent ?? defaultTextContent;
@@ -194,7 +224,7 @@ export async function nodeToTextNodeChange(
   if (textDecoration === "none") {
     let parentElement = element.parentElement;
     while (parentElement) {
-      const parentStyle = window.getComputedStyle(parentElement);
+      const parentStyle = ownerWindow.getComputedStyle(parentElement);
       const parentDecoration = parentStyle.textDecorationLine || "none";
 
       if (parentDecoration !== "none") {
@@ -227,6 +257,12 @@ export async function nodeToTextNodeChange(
   // wrap it in `derivedTextData` either — OpenType.js's metrics differ slightly
   // from the browser's and can spuriously break a line that fits in the DOM.
   const isSingleLine = isTextOnSingleLine(node);
+  const autoResizeSingleLineText = shouldAutoResizeSingleLineText({
+    isSingleLine,
+    whiteSpace: computedStyle.whiteSpace,
+    textOverflow: computedStyle.textOverflow,
+    text: node.textContent ?? rawText,
+  });
 
   const letterSpacing =
     computedStyle.letterSpacing !== "normal"
@@ -541,13 +577,17 @@ export async function nodeToTextNodeChange(
     textUserLayoutVersion: 4,
     textExplicitLayoutVersion: 1,
     textBidiVersion: 1,
-    // Note: we deliberately do not emit `textAutoResize`. The right value
-    // depends on whether the source DOM wrapped (`HEIGHT` — lock width,
-    // grow height) or rendered on a single line (`WIDTH_AND_HEIGHT` is
-    // safe). Emitting `WIDTH_AND_HEIGHT` unconditionally causes Figma to
-    // un-wrap multi-line text on re-derivation and clip it against the
-    // parent frame. Leaving the field unset gives Figma its default (NONE),
-    // which preserves whatever we measured.
+    // Explicitly single-line CSS can safely let Figma remeasure width. Other
+    // text keeps Figma's fixed-box default so paragraphs, line breaks, and
+    // truncation retain the browser geometry we measured.
+    ...(autoResizeSingleLineText && {
+      textAutoResize: "WIDTH_AND_HEIGHT",
+    }),
+    // Figma normalizes WIDTH_AND_HEIGHT to fixed-width/auto-height when the
+    // text child inherits STRETCH from an Auto Layout parent. AUTO maps to
+    // Plugin API INHERIT and lets both text axes remain hug-sized.
+    ...(autoResizeSingleLineText &&
+      parentIsAutoLayout && { stackChildAlignSelf: "AUTO" }),
     autoRename: true,
   };
 

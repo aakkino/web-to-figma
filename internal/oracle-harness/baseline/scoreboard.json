@@ -522,6 +522,12 @@
         "findings": 0,
         "maxDeltaPx": 0
       }
+    },
+    "txt/txt-01-single-line-button": {
+      "tier0": {
+        "findings": 1,
+        "maxDeltaPx": 2
+      }
     }
   }
 }
