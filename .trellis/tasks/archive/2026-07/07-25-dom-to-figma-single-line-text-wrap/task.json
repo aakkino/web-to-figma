@@ -1,0 +1,30 @@
+{
+  "id": "dom-to-figma-single-line-text-wrap",
+  "name": "dom-to-figma-single-line-text-wrap",
+  "title": "修复 Figma 单行文本意外换行",
+  "description": "Preserve browser-enforced single-line pre/nowrap text when Figma remeasures pasted TEXT nodes.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": "packages/dom-to-figma",
+  "package": "dom-to-figma",
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-07-25",
+  "completedAt": "2026-07-25",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+    "packages/dom-to-figma/src/figma.text.browser.test.ts",
+    "packages/dom-to-figma/src/figma.autolayout.browser.test.ts"
+  ],
+  "notes": "",
+  "meta": {}
+}
