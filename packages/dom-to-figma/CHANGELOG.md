@@ -1,5 +1,60 @@
 # @figit/dom-to-figma
 
+## 0.3.0
+
+### Minor Changes
+
+- [`e8b46a4`](https://github.com/figitdesign/web-to-figma/commit/e8b46a486eef608a62c66ff8a6cef69e7536bc23) Thanks [@aakkino](https://github.com/aakkino)! - Add the versioned browser DOM traversal utility and an opt-in `domTraversal`
+  strategy to the converter. Existing core consumers remain on light DOM, while
+  the private capture adapter uses open composed DOM consistently for preparation
+  and conversion.
+
+- [`4da4c51`](https://github.com/figitdesign/web-to-figma/commit/4da4c51267abf635ee021091adf65d514667eb56) Thanks [@aakkino](https://github.com/aakkino)! - Add an optional staged image preparation capability with abort support, cache
+  reuse, final-byte accounting, and explicit transparent placeholder resolutions.
+  Existing converter callers keep the default image loading and payload behavior.
+
+### Patch Changes
+
+- [`0149d62`](https://github.com/figitdesign/web-to-figma/commit/0149d6299e5d55d20ef42a42fb06fd031549fb3f) Thanks [@aakkino](https://github.com/aakkino)! - Preserve CSS `object-fit` and `object-position` semantics when emitting Figma image paints.
+
+- [`af1bec8`](https://github.com/figitdesign/web-to-figma/commit/af1bec8346932a723071305ee1686c2c67d185ae) Thanks [@aakkino](https://github.com/aakkino)! - Capture open Shadow DOM and slotted content, and load responsive images from
+  their browser-resolved source.
+
+- [`ea9956a`](https://github.com/figitdesign/web-to-figma/commit/ea9956ae79fc3c1876b4f0eae95910b8ffcf1f9e) Thanks [@aakkino](https://github.com/aakkino)! - Expose text-run code points to font loaders and emit resolved font families in
+  Figma text payloads, keeping declared fonts consistent with fallback glyph and
+  metric data.
+
+- [#24](https://github.com/figitdesign/web-to-figma/pull/24) [`87db0f2`](https://github.com/figitdesign/web-to-figma/commit/87db0f2a05865c6067b4a703efa8ccac02eeb004) Thanks [@niko047](https://github.com/niko047)! - Render per-side border colors instead of collapsing them to one. A Figma frame
+  carries a single stroke color, so a box with four different solid border colors
+  (`border-top-color` … `border-left-color`) previously painted the whole border
+  with the top color. When the visible sides are all `solid` but disagree on
+  color, the border is now decomposed into one filled VECTOR trapezoid per side —
+  reproducing CSS's 45° mitered corners exactly — and the frame's own stroke is
+  dropped. Uniform borders (and per-side widths with a shared color) keep the
+  single-stroke fast path, and dashed/dotted/double sides are left untouched.
+
+- [#25](https://github.com/figitdesign/web-to-figma/pull/25) [`ac830db`](https://github.com/figitdesign/web-to-figma/commit/ac830db5b89d2e8e7eede86f9419303988ae1938) Thanks [@niko047](https://github.com/niko047)! - Render pure-ring box-shadows (`0 0 0 <spread>`) as an OUTSIDE stroke. Figma does
+  not draw a zero-offset, zero-blur, positive-spread `DROP_SHADOW`, so a CSS ring
+  was disappearing. Such shadows now become an OUTSIDE frame stroke whose weight is
+  the spread and whose paint is the shadow color, so the ring follows the corner
+  radius and no longer changes the node size. Shadows with any blur or offset stay
+  `DROP_SHADOW`, and elements with a real CSS border keep their border stroke (the
+  ring falls back to the drop-shadow effect there).
+
+- [`ab0f56e`](https://github.com/figitdesign/web-to-figma/commit/ab0f56ea49ac34389cb7bc33a4987ac1a8d0b9e5) Thanks [@aakkino](https://github.com/aakkino)! - Keep browser-enforced single-line `pre` and `nowrap` text on one line when Figma remeasures pasted text.
+
+- [#23](https://github.com/figitdesign/web-to-figma/pull/23) [`051ba3b`](https://github.com/figitdesign/web-to-figma/commit/051ba3b9e73d4b0c8001c7f80953265ea683ca75) Thanks [@niko047](https://github.com/niko047)! - Fix the horizontal position of non-centered text. The width buffer that absorbs
+  browser/OpenType.js measurement differences was split evenly around the text box
+  (`x - widthBuffer / 2`), which assumed centered text and shifted every
+  left-aligned run half a buffer to the left of the browser position (and
+  right-aligned runs half a buffer right). The buffer now goes on the edge the
+  text grows away from — trailing for left, split for center, leading for right —
+  so the glyph origin lands where the browser put it. The box keeps its buffered
+  width (load-bearing: it stops Figma re-wrapping the fixed-width box). Confirmed
+  against Figma, which previously normalized our shifted boxes back on paste (a
+  tier-1 round-trip mismatch) and now round-trips them losslessly; on the local
+  corpus this clears every `geometry.x` text finding (e.g. `text-in-box` 28 → 14).
+
 ## Next
 
 ### Minor Changes

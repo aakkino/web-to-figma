@@ -1,6 +1,6 @@
 {
   "name": "@figit/composed-dom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser DOM tree strategies for light and open composed trees.",
   "license": "MIT",
   "author": "Figit <https://figit.design>",
