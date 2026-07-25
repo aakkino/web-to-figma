@@ -113,7 +113,7 @@ Added @figit/composed-dom, injected optional core traversal, migrated capture ad
 
 **Date**: 2026-07-24
 **Task**: 完成分阶段资源管线与转换桥接
-**Package**: extension
+**Package**: dom-to-figma
 **Branch**: `main`
 
 ### Summary
@@ -122,7 +122,10 @@ Added @figit/composed-dom, injected optional core traversal, migrated capture ad
 
 ### Main Changes
 
-(Add details)
+- Emit `WIDTH_AND_HEIGHT` only for browser-confirmed single-line `pre`/`nowrap` text.
+- Preserve Auto Layout text sizing with `stackChildAlignSelf: AUTO`.
+- Add browser regressions, a text oracle scene, patch changeset, and rendering contract.
+- Verify the rebuilt extension against live Figma nodes through figma-cli-go.
 
 ### Git Commits
 
@@ -271,6 +274,45 @@ Preserved CSS object-fit and object-position in Figma image paints, added intrin
 ### Testing
 
 - [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 9: Preserve single-line text in Figma
+
+**Date**: 2026-07-25
+**Task**: Preserve single-line text in Figma
+**Package**: extension
+**Branch**: `main`
+
+### Summary
+
+Preserved browser-enforced pre/nowrap single-line text during Figma remeasurement, added Auto Layout child alignment handling, regression coverage, oracle baseline, release changeset, and live figma-cli-go verification.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ab0f56e` | fix(dom-to-figma): preserve nowrap text in Figma |
+| `e25fece` | docs(spec): document single-line text sizing contract |
+
+### Testing
+
+- [OK] Core: 18 files / 159 tests; type-check and build passed
+- [OK] Adapter: 12 files / 46 tests passed
+- [OK] Extension: 7 files / 33 tests; type-check and Chrome MV3 build passed
+- [OK] Oracle parity: 46 scenes passed
+- [OK] Live Figma: `Join beta` rendered at `69.07 x 21` on one line
 
 ### Status
 
