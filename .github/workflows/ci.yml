@@ -21,7 +21,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm lint -- --diagnostic-level=error --max-diagnostics=none
 
       - name: Typecheck
         run: pnpm check-types
