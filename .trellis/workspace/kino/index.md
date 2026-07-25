@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
+- **Total Sessions**: 10
 - **Last Active**: 2026-07-25
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~316 | Active |
+| `journal-1.md` | ~362 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 10 | 2026-07-25 | Controlled fork versioning | `7cbaeba`, `6f94661`, `a23f6e6`, `7d71fc7`, `ee651c2`, `896bec2` | `chore/archive-controlled-fork-versioning` |
 | 9 | 2026-07-25 | Preserve single-line text in Figma | `ab0f56e`, `e25fece` | `main` |
 | 8 | 2026-07-25 | DOM-to-Figma image fit semantics | `0149d62`, `5ea3317` | `main` |
 | 7 | 2026-07-24 | Export aggregated Figma typography spec | `3d6e9b7`, `ab034f0` | `main` |
