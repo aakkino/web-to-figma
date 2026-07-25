@@ -216,6 +216,104 @@ Apply the same rule to paint fallbacks: preserve the established frame
 stroke/effect path when decomposition or promotion preconditions are not fully
 met. Never trade a known limitation for a visually incorrect approximation.
 
+## Scenario: Browser-Enforced Single-Line Text
+
+### 1. Scope / Trigger
+
+Read and preserve this scenario when changing text range measurement, CSS
+`white-space` handling, `textAutoResize`, or Figma text-box sizing. It prevents
+Figma's font remeasurement from wrapping browser-enforced single-line labels.
+
+### 2. Signatures
+
+The public converter and Kiwi schema remain unchanged. The internal decision
+uses browser evidence and emits an existing TEXT field:
+
+~~~ts
+function shouldAutoResizeSingleLineText(input: {
+  isSingleLine: boolean;
+  whiteSpace: string;
+  textOverflow: string;
+  text: string;
+}): boolean;
+
+type EligibleTextChange = {
+  textAutoResize: "WIDTH_AND_HEIGHT";
+  stackChildAlignSelf?: "AUTO";
+};
+~~~
+
+### 3. Contracts
+
+- Emit `WIDTH_AND_HEIGHT` only when Range client rects form one visual line,
+  computed `white-space` is exactly `pre` or `nowrap`, the source contains no
+  explicit line break, and `text-overflow` is not `ellipsis`.
+- `white-space: normal` remains fixed even when it happens to fit on one line in
+  the current viewport. Explicit/visual multiline and truncated text also keep
+  the field absent, preserving Figma's `NONE` default.
+- Create ranges from `node.ownerDocument` and read styles through
+  `element.ownerDocument.defaultView`; iframe nodes must not use the main realm.
+- When an eligible TEXT element is a child of inferred Auto Layout, also emit
+  `stackChildAlignSelf: "AUTO"` (Plugin API `INHERIT`). Otherwise Figma combines
+  inherited stretch with auto resize as horizontal FILL plus vertical HUG and
+  the label still wraps.
+- Preserve measured size, width buffer, transform, baselines, glyph data,
+  alignment, and parent geometry. Only the eligible Auto Layout child alignment
+  changes from inherited stretch to `AUTO`.
+
+### 4. Validation & Error Matrix
+
+| Input | Required result | Forbidden result |
+| --- | --- | --- |
+| One visual line + `pre` | `WIDTH_AND_HEIGHT` | Fixed box that Figma re-wraps |
+| One visual line + `nowrap` | `WIDTH_AND_HEIGHT` | Width derived from a different realm |
+| Eligible child of Auto Layout | `WIDTH_AND_HEIGHT` + child `AUTO` | Horizontal FILL + vertical HUG |
+| One visual line + `normal` | Field absent | Losing responsive fixed-width intent |
+| Explicit or visual multiline | Field absent | Figma unwrapping the paragraph |
+| `text-overflow: ellipsis` | Field absent | Expanding truncated content |
+
+An element without an owning window is an impossible browser-runtime invariant
+and throws locally; the walker retains its existing per-node best-effort catch.
+
+### 5. Good / Base / Bad Cases
+
+- Good: `Join beta` in a `white-space: pre` button emits
+  `WIDTH_AND_HEIGHT`, while the button remains its measured size.
+- Base: an ordinary single-line heading with `white-space: normal` remains a
+  fixed text box.
+- Bad: all one-line ranges become auto width, ellipsis expands, or a multiline
+  `pre` block becomes one Figma line.
+
+### 6. Tests Required
+
+- Browser tests assert the final TEXT payload for `pre`/`nowrap` positives and
+  normal, explicit-newline, visual-multiline, and ellipsis negatives.
+- The Portal-style button fixture asserts characters, typography, text
+  position, parent size/alignment, and `stackChildAlignSelf: "AUTO"`.
+- Keep a minimal `txt` oracle scene and run package test/type/build plus
+  `pnpm oracle:parity`.
+- Keep a core patch changeset; no Kiwi or adapter bump is required.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+textAutoResize: isSingleLine ? "WIDTH_AND_HEIGHT" : undefined;
+~~~
+
+#### Correct
+
+~~~ts
+...(isSingleLine &&
+  (whiteSpace === "pre" || whiteSpace === "nowrap") &&
+  textOverflow !== "ellipsis" &&
+  !/[\r\n\u2028\u2029]/u.test(text) && {
+    textAutoResize: "WIDTH_AND_HEIGHT",
+    ...(parentIsAutoLayout && { stackChildAlignSelf: "AUTO" }),
+  });
+~~~
+
 ## Scenario: Replaced-Image Fit And Position
 
 ### 1. Scope / Trigger
@@ -352,6 +450,9 @@ const paint = {
 - `packages/dom-to-figma/src/figma.layout.browser.test.ts`
 - `packages/dom-to-figma/src/figma.border.browser.test.ts`
 - `packages/dom-to-figma/src/figma.shadow.browser.test.ts`
+- `packages/dom-to-figma/src/figma.text.browser.test.ts`
+- `packages/dom-to-figma/scripts/oracle-scenes/txt/txt-01-single-line-button.html`
+- `.changeset/single-line-text-auto-resize.md`
 - `.changeset/calm-images-fit.md`
 - `packages/dom-to-figma/src/converter/nodes/image/presentation.ts`
 - `packages/dom-to-figma/src/figma.image.browser.test.ts`
