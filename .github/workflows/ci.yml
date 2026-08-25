@@ -55,7 +55,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Enforce registered core deltas
-        run: pnpm upstream-core-delta:check -- --report .artifacts/upstream-core-delta.json
+        run: pnpm upstream-core-delta:check --report .artifacts/upstream-core-delta.json
 
       - name: Upload core delta report
         if: always()
@@ -77,7 +77,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Verify pinned latest release and report delta
-        run: pnpm upstream-core-delta:stable -- --verify-latest --report .artifacts/stable-upstream.json
+        run: pnpm upstream-core-delta:stable --verify-latest --report .artifacts/stable-upstream.json
 
       - name: Build adapter compatibility artifacts
         run: pnpm --filter @figit/composed-dom build && pnpm --filter @figit/browser-capture-adapter build
@@ -111,7 +111,7 @@ jobs:
           git fetch --no-tags upstream main
 
       - name: Verify reviewed upstream main snapshot
-        run: pnpm upstream-core-delta:main -- --report .artifacts/upstream-main.json
+        run: pnpm upstream-core-delta:main --report .artifacts/upstream-main.json
 
       - name: Upload upstream main report
         if: always()
