@@ -79,6 +79,12 @@ jobs:
       - name: Verify pinned latest release and report delta
         run: pnpm upstream-core-delta:stable -- --verify-latest --report .artifacts/stable-upstream.json
 
+      - name: Build adapter compatibility artifacts
+        run: pnpm --filter @figit/composed-dom build && pnpm --filter @figit/browser-capture-adapter build
+
+      - name: Test adapter against latest stable release
+        run: pnpm upstream-adapter:stable
+
       - name: Upload stable upstream report
         if: always()
         uses: actions/upload-artifact@v4

@@ -27,6 +27,7 @@
     "upstream-core-delta:update": "node scripts/check-upstream-core-delta.mjs --update-fingerprints",
     "upstream-core-delta:stable": "node scripts/check-upstream-core-delta.mjs --target stable",
     "upstream-core-delta:main": "node scripts/check-upstream-core-delta.mjs --target upstream-main",
+    "upstream-adapter:stable": "node scripts/check-vanilla-upstream-adapter.mjs",
     "test:upstream-core-delta": "node --test scripts/check-upstream-core-delta.test.mjs"
   },
   "devDependencies": {

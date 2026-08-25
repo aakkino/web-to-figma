@@ -36,7 +36,7 @@
     "prepare": "tsdown"
   },
   "peerDependencies": {
-    "@figit/dom-to-figma": ">=0.3.0 <0.4.0"
+    "@figit/dom-to-figma": ">=0.2.0 <0.4.0"
   },
   "dependencies": {
     "@figit/composed-dom": "workspace:*",
