@@ -216,6 +216,101 @@ Apply the same rule to paint fallbacks: preserve the established frame
 stroke/effect path when decomposition or promotion preconditions are not fully
 met. Never trade a known limitation for a visually incorrect approximation.
 
+## Scenario: Glyph-Aware Font Loading
+
+### 1. Scope / Trigger
+
+Read and preserve this scenario when changing `FontLoader`, font request cache
+identity, text transformation, loaded-font metadata, or emitted Figma font
+fields. The converter owns glyph demand and payload consistency; consumers own
+font catalogs, network access, fallback order, and diagnostics.
+
+### 2. Signatures
+
+~~~ts
+type FontProperties = {
+  family: string;
+  weight: number;
+  italic: boolean;
+  codePoints?: ReadonlyArray<number>;
+};
+
+type FontFile = {
+  bytes: ArrayBuffer;
+  resolvedFamily?: string;
+  resolvedWeight?: number;
+  resolvedItalic?: boolean;
+};
+~~~
+
+`codePoints` is an optional capability hint. Existing loaders may ignore it.
+
+### 3. Contracts
+
+- Collect code points from the transformed text run with Unicode code-point
+  iteration, not UTF-16 code units. Sort, deduplicate, and omit whitespace.
+- Never pass source text through the loader request, cache key, or diagnostics.
+- Include normalized code-point demand in the long-lived font-cache identity.
+  Equivalent sets deduplicate regardless of order; different sets resolve
+  independently so a Latin-only result is not reused for later CJK text.
+- Parse and measure exactly the bytes returned by the loader. When the loader
+  reports resolved family, weight, or italic values, use them consistently for
+  top-level `fontName`, derived font metadata, style naming, and synthesized
+  PostScript metadata.
+- Keep catalog selection, glyph-coverage policy, transport, product fallback
+  order, and failure diagnostics outside the converter core.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior |
+| --- | --- |
+| Loader ignores `codePoints` | Conversion remains source- and runtime-compatible. |
+| Same glyph set arrives in another order | Reuse the cached resolution. |
+| Same style requests a different glyph set | Resolve a separate cache entry. |
+| Loader substitutes family/style/weight | Emit the resolved metadata that matches returned bytes. |
+| Loader returns a font collection | Reject the local load; collections remain unsupported. |
+| Font load rejects | Remove the failed in-flight cache entry so a later request may retry. |
+
+### 5. Good / Base / Bad Cases
+
+- Good: transformed mixed text produces a sorted Latin/CJK/non-BMP request,
+  the consumer selects covering bytes, and the payload declares that resolved
+  font.
+- Base: a legacy loader accepts family/weight/italic, ignores the optional
+  field, and converts text exactly as before.
+- Bad: cache only by requested family/style, expose source text, or declare the
+  requested family while glyphs and metrics came from substituted bytes.
+
+### 6. Tests Required
+
+- Pure tests assert sorting, deduplication, whitespace omission, and non-BMP
+  handling without source-text retention.
+- Cache tests assert order-independent reuse, glyph-demand separation, and a
+  loader that ignores the optional field.
+- Browser payload tests assert transformed-text requests and consistent
+  resolved family/style/PostScript metadata.
+- Consumer resolver tests own actual glyph-coverage selection and fallback
+  diagnostics; run core, adapter, extension, and oracle parity gates.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+const loaded = await fontCache.get(requestedFont);
+return { fontName: { family: requestedFont.family } };
+~~~
+
+#### Correct
+
+~~~ts
+const loaded = await fontCache.get({
+  ...requestedFont,
+  codePoints: collectFontCodePoints(transformedText),
+});
+return { fontName: { family: loaded.actualFamily } };
+~~~
+
 ## Scenario: Browser-Enforced Single-Line Text
 
 ### 1. Scope / Trigger
