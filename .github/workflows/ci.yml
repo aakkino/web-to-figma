@@ -44,6 +44,78 @@ jobs:
       - name: Test
         run: pnpm test
 
+  upstream-core-delta:
+    name: Upstream core delta governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Enforce registered core deltas
+        run: pnpm upstream-core-delta:check -- --report .artifacts/upstream-core-delta.json
+
+      - name: Upload core delta report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-core-delta
+          path: .artifacts/upstream-core-delta.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  stable-upstream-compatibility:
+    name: Latest stable upstream compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Verify pinned latest release and report delta
+        run: pnpm upstream-core-delta:stable -- --verify-latest --report .artifacts/stable-upstream.json
+
+      - name: Upload stable upstream report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-upstream-compatibility
+          path: .artifacts/stable-upstream.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  upstream-main-compatibility:
+    name: Upstream main compatibility
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !startsWith(github.head_ref, 'sync/upstream-') }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Fetch upstream main read-only
+        run: |
+          git remote add upstream https://github.com/figitdesign/web-to-figma.git
+          git fetch --no-tags upstream main
+
+      - name: Verify reviewed upstream main snapshot
+        run: pnpm upstream-core-delta:main -- --report .artifacts/upstream-main.json
+
+      - name: Upload upstream main report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-main-compatibility
+          path: .artifacts/upstream-main.json
+          if-no-files-found: warn
+          retention-days: 14
+
   parity:
     name: Tier-0 parity ratchet
     runs-on: ubuntu-latest

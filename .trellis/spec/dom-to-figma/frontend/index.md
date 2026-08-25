@@ -12,6 +12,7 @@ measured DOM-to-Figma conversion with a browser clipboard result.
 | [Converter Guidelines](./converter-guidelines.md) | Walking, classification, node converters, loaders |
 | [Layout And Parity](./layout-and-parity.md) | Auto-layout inference, fallback rules, geometry evidence |
 | [Rendering Contracts](./rendering-contracts.md) | Text buffering, border decomposition, shadow promotion, release provenance |
+| [Upstream Compatibility Governance](./upstream-compatibility.md) | Core delta registry, fingerprints, budgets, and compatibility targets |
 | [Type Safety](./type-safety.md) | Figma data types, unions, public boundaries |
 | [Testing](./testing-guidelines.md) | Unit, browser, oracle, and release checks |
 
@@ -25,5 +26,7 @@ measured DOM-to-Figma conversion with a browser clipboard result.
    measurement, transforms, or stack fields.
 5. Read Type Safety before changing `figma.ts` exports or
    `converter/types/`.
-6. Read Testing before implementation so the test environment matches the API
+6. Read Upstream Compatibility Governance before editing runtime source or
+   refreshing an upstream target.
+7. Read Testing before implementation so the test environment matches the API
    being exercised.

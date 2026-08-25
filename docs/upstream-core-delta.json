@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "coreRoot": "packages/dom-to-figma/src",
+  "targets": {
+    "governance": {
+      "ref": "fork-base/ac830db",
+      "commit": "ac830db5b89d2e8e7eede86f9419303988ae1938"
+    },
+    "stable": {
+      "package": "@figit/dom-to-figma",
+      "version": "0.2.4",
+      "ref": "@figit/dom-to-figma@0.2.4",
+      "commit": "859efea8d7f8330783c6c4e3e520fd673e877336"
+    },
+    "upstreamMain": {
+      "ref": "upstream/main",
+      "commit": "859efea8d7f8330783c6c4e3e520fd673e877336",
+      "resolvedAt": "2026-08-25"
+    }
+  },
+  "budget": {
+    "baselineSourceFiles": 20,
+    "baselineRuntimeFiles": 15,
+    "runtimeFileLimit": 15,
+    "runtimeMilestones": [10, 5, 0]
+  },
+  "sharedPaths": [
+    {
+      "path": "packages/dom-to-figma/src/converter/convert.ts",
+      "capabilities": ["composed-dom-traversal", "nowrap-text-sizing"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/dom.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/image-cache.ts",
+      "capabilities": ["responsive-shadow-dom", "staged-image-preparation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/layout/infer.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+      "capabilities": ["staged-image-preparation", "image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+      "capabilities": [
+        "responsive-shadow-dom",
+        "staged-image-preparation",
+        "image-presentation"
+      ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+      "capabilities": ["glyph-aware-font-fallback", "nowrap-text-sizing"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/walk.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.ts",
+      "capabilities": [
+        "responsive-shadow-dom",
+        "composed-dom-traversal",
+        "staged-image-preparation"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "responsive-shadow-dom",
+      "capability": "Responsive geometry and open Shadow DOM conversion",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["af1bec8346932a723071305ee1686c2c67d185ae"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "split-draft-pending",
+      "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
+      "patchFingerprint": "sha256:7734f22a0a50b2f846996e83097f987df6b3269a09794c703c53d101978406db"
+    },
+    {
+      "id": "composed-dom-traversal",
+      "capability": "Injectable composed DOM traversal",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["e8b46a486eef608a62c66ff8a6cef69e7536bc23"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
+      "patchFingerprint": "sha256:9686d79585ac76e1df2ba418e672c7268e5c21ca865d73aae2874bccfbeee45c"
+    },
+    {
+      "id": "staged-image-preparation",
+      "capability": "Staged image preparation and placeholders",
+      "classification": "generic-mechanism-with-adapter-policy",
+      "originCommits": ["4da4c51267abf635ee021091adf65d514667eb56"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/image-preparation.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.image.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "adapter-fallback-required-before-pr",
+      "removeWhen": "adapter fallback is proven and the selected upstream baseline exposes equivalent generic preparation hooks",
+      "patchFingerprint": "sha256:cff97f846d593d099c6750d64166e2ee4309ad6c43596c14e95cfcc27284cdf5"
+    },
+    {
+      "id": "glyph-aware-font-fallback",
+      "capability": "Glyph-aware CJK font fallback",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["ea9956ae79fc3c1876b4f0eae95910b8ffcf1f9e"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/font-cache.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.text.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "selected upstream baseline covers glyph availability and CJK fallback without text parity regressions",
+      "patchFingerprint": "sha256:f27ee96cfa27121fa347632308d324f11c88022b28af78beb30527e9658c0db3"
+    },
+    {
+      "id": "image-presentation",
+      "capability": "Image object-fit and object-position presentation",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["0149d6299e5d55d20ef42a42fb06fd031549fb3f"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.test.ts",
+        "packages/dom-to-figma/src/figma.image.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "partial-upstream-main-object-fit",
+      "removeWhen": "selected upstream baseline preserves cover, contain, fill, and object-position behavior with parity",
+      "patchFingerprint": "sha256:5f72021d87f9d3de7f19c09406038a822ead5379e27a1792e106c64a39773f90"
+    },
+    {
+      "id": "nowrap-text-sizing",
+      "capability": "Non-wrapping single-line text sizing",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["ab0f56ea49ac34389cb7bc33a4987ac1a8d0b9e5"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.text.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "selected upstream baseline preserves measured nowrap width and single-line height with parity",
+      "patchFingerprint": "sha256:b7eb5de984b6f276b28dc1f35557aff7906efd540f88951d8eda65b71e10ce92"
+    }
+  ]
+}

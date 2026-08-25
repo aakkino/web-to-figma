@@ -36,3 +36,6 @@ __screenshots__
 # Root-anchored: src/__fixtures__/oracle/ must stay tracked.
 /oracle/
 .oracle-build/
+
+# Local and CI reports
+.artifacts/
