@@ -125,7 +125,8 @@ const BLOCK_LEVEL_DISPLAYS = new Set([
  */
 export function inferAutoLayout(
   element: Element,
-  domTraversal: DomTraversalStrategy = lightDomTraversal
+  domTraversal: DomTraversalStrategy = lightDomTraversal,
+  composedParent?: Element
 ): InferredAutoLayout | null {
   const style = window.getComputedStyle(element);
   const display = style.display;
@@ -177,6 +178,7 @@ export function inferAutoLayout(
     flow,
     childRects,
     parentSize,
+    composedParent,
   };
   let inferred: StackInference | null = null;
   if (isFlex) {
@@ -215,6 +217,7 @@ export function inferAutoLayout(
 
 type StackInferenceInput = {
   element: Element;
+  composedParent?: Element;
   style: CSSStyleDeclaration;
   flow: ReadonlyArray<Element>;
   childRects: ReadonlyArray<Rect>;
@@ -292,6 +295,7 @@ function inferFlexStack(input: StackInferenceInput): StackInference | null {
     children: flow,
     childRects,
     isRow,
+    composedParent: input.composedParent,
   });
 
   return {
@@ -437,7 +441,7 @@ function inferWrapStack(
     rowHeights.reduce((n, h) => n + h, 0) +
     counterSpacing * (rows.length - 1);
   if (
-    isContentDrivenSize(element, style, "height") &&
+    isContentDrivenSize(element, style, "height", input.composedParent) &&
     Math.abs(parentSize.height - contentHeight) <= GEOMETRY_TOLERANCE
   ) {
     spec.stackCounterSizing = "RESIZE_TO_FIT";
@@ -510,6 +514,7 @@ function inferBlockStack(input: StackInferenceInput): StackInference | null {
       children: flow,
       childRects,
       isRow: false,
+      composedParent: input.composedParent,
     });
 
     // Block children with `width: auto` fill the content box — exactly
@@ -570,8 +575,18 @@ function applySizingModes(options: {
   children: ReadonlyArray<Element>;
   childRects: ReadonlyArray<Rect>;
   isRow: boolean;
+  composedParent?: Element;
 }) {
-  const { element, style, spec, parent, children, childRects, isRow } = options;
+  const {
+    element,
+    style,
+    spec,
+    parent,
+    children,
+    childRects,
+    isRow,
+    composedParent,
+  } = options;
   const spacing = spec.stackSpacing;
   const count = childRects.length;
   const primaryContent =
@@ -589,12 +604,14 @@ function applySizingModes(options: {
   const primaryDriven = isContentDrivenSize(
     element,
     style,
-    isRow ? "width" : "height"
+    isRow ? "width" : "height",
+    composedParent
   );
   const crossDriven = isContentDrivenSize(
     element,
     style,
-    isRow ? "height" : "width"
+    isRow ? "height" : "width",
+    composedParent
   );
   const primarySize = isRow ? parent.width : parent.height;
   const crossSize = isRow ? parent.height : parent.width;
@@ -752,13 +769,14 @@ function hasContentSizedKeyword(
 function isContentDrivenSize(
   element: Element,
   style: CSSStyleDeclaration,
-  property: "width" | "height"
+  property: "width" | "height",
+  composedParent?: Element
 ): boolean {
   if (!hasContentSizedKeyword(element, property)) {
     return false;
   }
 
-  const parent = element.parentElement;
+  const parent = composedParent ?? element.parentElement;
   const parentStyle = parent ? window.getComputedStyle(parent) : null;
   const parentIsFlex = parentStyle?.display.includes("flex") ?? false;
 

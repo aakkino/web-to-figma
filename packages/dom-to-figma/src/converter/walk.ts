@@ -85,10 +85,20 @@ export async function walkRoot(
   ctx: WalkContext,
   rootSize?: { width: number; height: number }
 ) {
-  await walkNode(root, parentGuid, 0, EMPTY_INHERITED, ctx, {
-    isAutoLayout: false,
-    rootFill: rootSize,
-  });
+  await walkNode(
+    root,
+    parentGuid,
+    0,
+    EMPTY_INHERITED,
+    ctx,
+    {
+      isAutoLayout: false,
+      rootFill: rootSize,
+    },
+    "",
+    undefined,
+    new Set<Node>()
+  );
 }
 
 type ParentStackInfo = {
@@ -135,9 +145,15 @@ async function walkNode(
   ctx: WalkContext,
   parentStack: ParentStackInfo = NO_PARENT_STACK,
   parentDomPath = "",
-  composedParent?: Element
+  composedParent?: Element,
+  seenNodes?: Set<Node>
 ): Promise<number> {
   try {
+    if (seenNodes?.has(node)) {
+      return 0;
+    }
+    seenNodes?.add(node);
+
     if (isTextNode(node)) {
       return await renderTextNode(
         node,
@@ -157,7 +173,7 @@ async function walkNode(
       return 0;
     }
 
-    const defaultKind = defaultClassify(node);
+    const defaultKind = classifyForTraversal(node, ctx.domTraversal);
     const kind = ctx.classify ? ctx.classify(node, defaultKind) : defaultKind;
 
     if (kind === "skip") {
@@ -169,10 +185,8 @@ async function walkNode(
     // are positioned against the element's parent, which is also their
     // parent in the emitted tree.
     if (kind === "text" && (node.parentElement || composedParent)) {
-      const only =
-        node.childNodes.length === 1 && node.firstChild
-          ? node.firstChild
-          : null;
+      const children = ctx.domTraversal.children(node);
+      const only = children.length === 1 ? children[0]?.node : null;
       const textParent = composedParent ?? node.parentElement;
       if (only && isTextNode(only) && textParent) {
         const segments = splitMidLineWrappedText(only, {
@@ -205,6 +219,11 @@ async function walkNode(
       parentGuid,
       childIndex,
       position,
+      composedParent,
+      textContent:
+        kind === "text" && !ctx.classify
+          ? traversalTextContent(node, ctx.domTraversal)
+          : undefined,
       inheritedProperties,
       layout: ctx.layout,
       parentIsAutoLayout: parentStack.isAutoLayout,
@@ -232,7 +251,8 @@ async function walkNode(
           reverse: result.reverseChildren,
         },
         domPath,
-        result.reservedChildCount ?? 0
+        result.reservedChildCount ?? 0,
+        seenNodes
       );
     }
 
@@ -243,6 +263,32 @@ async function walkNode(
   }
 }
 
+function classifyForTraversal(
+  element: Element,
+  domTraversal: DomTraversalStrategy
+): ElementKind {
+  const defaultKind = defaultClassify(element);
+  if (
+    defaultKind === "text" &&
+    domTraversal.children(element).some(({ node }) => isElementNode(node))
+  ) {
+    return "frame";
+  }
+  return defaultKind;
+}
+
+function traversalTextContent(
+  element: Element,
+  domTraversal: DomTraversalStrategy
+): string {
+  return domTraversal
+    .children(element)
+    .filter(({ node }) => isTextNode(node))
+    .map(({ node }) => node.textContent ?? "")
+    .join("")
+    .trim();
+}
+
 async function walkChildren(
   element: Element,
   parentGuid: FigmaGuid,
@@ -250,7 +296,8 @@ async function walkChildren(
   ctx: WalkContext,
   parentStack: ParentStackInfo = NO_PARENT_STACK,
   parentDomPath = "",
-  startChildIndex = 0
+  startChildIndex = 0,
+  seenNodes?: Set<Node>
 ) {
   const sortedChildren = sortDomChildren(ctx.domTraversal.children(element));
   if (parentStack.reverse) {
@@ -272,7 +319,8 @@ async function walkChildren(
       ctx,
       parentStack,
       parentDomPath,
-      child.composedParent
+      child.composedParent,
+      seenNodes
     );
   }
 }
@@ -341,6 +389,7 @@ async function renderTextNode(
     registerBlob: ctx.registerBlob,
     inheritedProperties,
     fontCache: ctx.fontCache,
+    styleElement: textParent,
   });
 
   ctx.appendChanges([change]);
@@ -378,6 +427,7 @@ async function emitTextSegments(
       registerBlob: ctx.registerBlob,
       inheritedProperties,
       fontCache: ctx.fontCache,
+      styleElement: segmentOrigin ?? undefined,
     });
     ctx.appendChanges([change]);
     // All line segments of one text node share its owner path; distinct guids.

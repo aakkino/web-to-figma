@@ -16,6 +16,7 @@ type FormElementParams = {
   parentGuid: FigmaGuid;
   childIndex: number;
   position: Position;
+  composedParent?: Element;
   registerBlob: (blob: FigmaBlob) => number;
   inheritedProperties?: {
     textGradient?: Array<FigmaPaint>;
@@ -169,6 +170,7 @@ export async function elementToFormNodeChange(
     parentGuid,
     childIndex,
     position,
+    composedParent,
     registerBlob,
     inheritedProperties,
     fontCache,
@@ -189,6 +191,7 @@ export async function elementToFormNodeChange(
     parentGuid,
     childIndex,
     position,
+    composedParent,
     domTraversal,
   });
 

@@ -144,6 +144,7 @@ type Params = {
   };
   fontCache: FontCache;
   parentIsAutoLayout?: boolean;
+  styleElement?: Element;
 };
 
 export async function nodeToTextNodeChange(
@@ -161,11 +162,12 @@ export async function nodeToTextNodeChange(
     textContent,
     fontCache,
     parentIsAutoLayout,
+    styleElement,
   } = options;
   const isTextNodeValue = isTextNode(node);
 
   // If the node is a text node, use the parent element for getting the computed style, otherwise use the node itself
-  const element = isTextNodeValue ? node.parentElement : node;
+  const element = styleElement ?? (isTextNodeValue ? node.parentElement : node);
 
   if (!element) {
     throw new Error("Element not found");

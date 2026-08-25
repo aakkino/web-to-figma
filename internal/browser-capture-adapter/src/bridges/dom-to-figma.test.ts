@@ -1,3 +1,4 @@
+import type { DomTreeStrategy } from "@figit/composed-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -36,6 +37,7 @@ type TestConverterConfig = {
   imageLoader(request: ImageRequest): Promise<ImageFile>;
   imagePreparation?: TestPreparation;
   classify?: CaptureClassifier;
+  domTraversal?: DomTreeStrategy;
 };
 
 function createCoreFixture(createImagePreparation?: () => TestPreparation) {
@@ -92,6 +94,18 @@ function deferred<T>() {
 }
 
 describe("dom-to-figma capability boundary", () => {
+  it("passes the selected DOM traversal strategy to the converter", () => {
+    const fixture = createCoreFixture();
+    const domTraversal: DomTreeStrategy = {
+      children: () => [],
+      walk: () => [],
+    };
+
+    createDomToFigmaBridgeForModule(fixture.core, { domTraversal });
+
+    expect(fixture.getConfig().domTraversal).toBe(domTraversal);
+  });
+
   it("uses adapter staging when the optional preparation export is absent", async () => {
     const fixture = createCoreFixture();
     const loader = vi.fn(async () => imageFile(7));

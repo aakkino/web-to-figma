@@ -11,6 +11,7 @@ import { createFigmaConverter } from "./figma";
 const FRAME_WIDTH = 320;
 const FRAME_HEIGHT = 180;
 const SHADOW_PADDING = 12;
+const RAW_TEXT_HEIGHT = 40;
 
 beforeAll(async () => {
   await loadTestFontIntoBrowser();
@@ -105,9 +106,43 @@ describe("Shadow DOM conversion", () => {
     const imageParent = changes.find(
       (change) => change.guid.localID === image?.parentIndex?.guid.localID
     );
+    const shadowLayout = changes.find(
+      (change) =>
+        change.guid.localID === imageParent?.parentIndex?.guid.localID &&
+        change.type === "FRAME"
+    );
     expect(image?.transform?.m02).toBe(0);
     expect(image?.transform?.m12).toBe(0);
     expect(imageParent?.transform?.m02).toBe(SHADOW_PADDING);
     expect(imageParent?.transform?.m12).toBe(SHADOW_PADDING);
+    expect(
+      shadowLayout?.type === "FRAME" ? shadowLayout.stackMode : undefined
+    ).toBe("HORIZONTAL");
+  });
+
+  it("styles raw slotted text from its composed parent", async () => {
+    const host = document.createElement("article");
+    host.style.cssText = `width:${FRAME_WIDTH}px;height:${RAW_TEXT_HEIGHT}px;color:rgb(0,0,255);font-family:${TEST_FONT_FAMILY}`;
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML =
+      '<div style="color:rgb(255,0,0);font-size:16px"><slot></slot></div>';
+    host.append(document.createTextNode("raw slotted text"));
+    document.body.append(host);
+
+    const result = await createFigmaConverter({
+      fontLoader: createTestFontLoader(),
+      domTraversal: openComposedDomTree,
+    }).convert({
+      element: host,
+      width: FRAME_WIDTH,
+      height: RAW_TEXT_HEIGHT,
+    });
+
+    const text = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    const solid = text?.fillPaints?.find((paint) => paint.type === "SOLID");
+    expect(solid?.type === "SOLID" ? solid.color.r : undefined).toBeCloseTo(1);
+    expect(solid?.type === "SOLID" ? solid.color.b : undefined).toBeCloseTo(0);
   });
 });

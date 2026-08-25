@@ -82,7 +82,17 @@ createFigmaConverter({
   children when nothing is assigned. It deduplicates nodes and guards slot
   recursion; `walk(root)` yields descendants, not `root` itself.
 - `composedParent` is the flattened visual parent used for relative geometry;
-  it may differ from `node.parentElement` for shadow and slotted nodes.
+  it may differ from `node.parentElement` for shadow and slotted nodes. Thread
+  it through frame constraints/fill sizing, auto-layout sizing, and raw text
+  styling; falling back to `parentElement` before checking it mixes trees.
+- Classification is conservative under an injected strategy: a light-DOM text
+  leaf whose strategy exposes element children becomes a frame so those
+  children are not lost. Default-classified text reads its direct content from
+  the selected strategy; an explicit caller `classify` override retains the
+  historical `element.textContent` behavior.
+- Each root conversion owns a seen-node set. A node repeated by one child list
+  or reached through multiple projections is emitted only on its first visit;
+  later visits do not consume a child index.
 - The adapter defaults to `openComposedDomTree` and passes the same strategy to
   page settling, font requests, CJK line breaks, and the converter. A caller
   selecting `lightDomTree` must use it for the whole capture. If a caller
@@ -101,6 +111,9 @@ createFigmaConverter({
 | No `domTraversal` in core config | Walk light DOM exactly as before. |
 | Open shadow root or assigned slot | Visit projected nodes once, in composed order, with a usable `composedParent`. |
 | Empty/default/fallback slot | Use fallback children; do not emit the slot element itself. |
+| Strategy repeats a node or produces a projection cycle | Emit each node once and terminate traversal without an index gap. |
+| Light classification says text but strategy exposes elements | Convert a frame and walk the strategy children instead of dropping them. |
+| Raw slotted text has a different light parent | Use the composed parent's computed style and relative coordinate space. |
 | Closed root or cross-origin iframe | Leave contents inaccessible; do not guess or throw solely for that boundary. |
 | Strategy used by preparation differs from converter | Reject this integration during review; adapter-created converters must receive the selected strategy. |
 | Packed adapter imported from a clean project | Resolve `dist/index.mjs` and declaration files, never `src/index.ts`. |
@@ -121,7 +134,9 @@ createFigmaConverter({
   nested open roots, duplicate assignment protection, text nodes, and iframe
   realms without main-window constructors.
 - Core browser tests assert default light behavior and explicit composed
-  behavior, including relative positions and auto-layout inference.
+  behavior, including fake-strategy classification, conversion-wide
+  deduplication, plain-text selection, custom-classifier compatibility,
+  relative positions, composed-parent text styling, and auto-layout inference.
 - Adapter tests assert one strategy reaches settle, font, line-break, and
   converter phases; the extension must pass both MV3 and MV2 builds.
 - Release smoke packs utility/core/adapter, installs them outside the workspace,
