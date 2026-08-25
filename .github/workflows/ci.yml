@@ -76,6 +76,11 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      - name: Fetch reviewed stable tag
+        run: |
+          stable_ref="$(node -p "JSON.parse(require('fs').readFileSync('docs/upstream-core-delta.json', 'utf8')).targets.stable.ref")"
+          git fetch --no-tags https://github.com/figitdesign/web-to-figma.git "refs/tags/${stable_ref}:refs/tags/${stable_ref}"
+
       - name: Verify pinned latest release and report delta
         run: pnpm upstream-core-delta:stable --verify-latest --report .artifacts/stable-upstream.json
 
