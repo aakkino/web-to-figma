@@ -45,12 +45,7 @@ export function resolveImagePresentation(input: {
   intrinsic: Size;
 }): ImagePresentation {
   const fit = normalizeFit(input.fit);
-  if (
-    input.box.width <= 0 ||
-    input.box.height <= 0 ||
-    input.intrinsic.width <= 0 ||
-    input.intrinsic.height <= 0
-  ) {
+  if (!(isValidSize(input.box) && isValidSize(input.intrinsic))) {
     return { imageScaleMode: "STRETCH", transform: IDENTITY_TRANSFORM };
   }
   const position = parseObjectPosition(input.position);
@@ -97,12 +92,7 @@ function normalizeFit(value: string): ImageFit {
 }
 
 function renderedImageSize(fit: ImageFit, box: Size, intrinsic: Size): Size {
-  if (
-    box.width <= 0 ||
-    box.height <= 0 ||
-    intrinsic.width <= 0 ||
-    intrinsic.height <= 0
-  ) {
+  if (!(isValidSize(box) && isValidSize(intrinsic))) {
     return box;
   }
 
@@ -139,6 +129,15 @@ function renderedImageSize(fit: ImageFit, box: Size, intrinsic: Size): Size {
     width: intrinsic.width * scale,
     height: intrinsic.height * scale,
   };
+}
+
+function isValidSize(size: Size): boolean {
+  return (
+    Number.isFinite(size.width) &&
+    Number.isFinite(size.height) &&
+    size.width > 0 &&
+    size.height > 0
+  );
 }
 
 function parseObjectPosition(value: string): {

@@ -34,23 +34,15 @@
       "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
     },
     {
-      "path": "packages/dom-to-figma/src/converter/image-cache.ts",
-      "capabilities": ["responsive-shadow-dom", "staged-image-preparation"]
-    },
-    {
       "path": "packages/dom-to-figma/src/converter/layout/infer.ts",
       "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
-    },
-    {
-      "path": "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
-      "capabilities": ["staged-image-preparation", "image-presentation"]
     },
     {
       "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
       "capabilities": [
         "responsive-shadow-dom",
-        "staged-image-preparation",
-        "image-presentation"
+        "image-presentation",
+        "image-loader-cancellation"
       ]
     },
     {
@@ -67,11 +59,7 @@
     },
     {
       "path": "packages/dom-to-figma/src/figma.ts",
-      "capabilities": [
-        "responsive-shadow-dom",
-        "composed-dom-traversal",
-        "staged-image-preparation"
-      ]
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
     }
   ],
   "capabilities": [
@@ -93,7 +81,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "split-draft-pending",
       "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
-      "patchFingerprint": "sha256:a75e453c23d0e2a2a37f067e5b62b1c12a32b67600d38a2ce03439d3d625ea66"
+      "patchFingerprint": "sha256:1254ea8fce9a0f211fec0ab2f1b513b5169b7431def4e8e7e0ed5fa92115516a"
     },
     {
       "id": "composed-dom-traversal",
@@ -118,26 +106,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "pr-draft-pending",
       "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
-      "patchFingerprint": "sha256:e5101018673fb105d017ec4fd7aa5c72f5a7ece777551c7d4d7e416b5447a658"
-    },
-    {
-      "id": "staged-image-preparation",
-      "capability": "Staged image preparation and placeholders",
-      "classification": "generic-mechanism-with-adapter-policy",
-      "originCommits": ["4da4c51267abf635ee021091adf65d514667eb56"],
-      "paths": [
-        "packages/dom-to-figma/src/converter/image-cache.ts",
-        "packages/dom-to-figma/src/converter/image-preparation.ts",
-        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
-        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
-        "packages/dom-to-figma/src/figma.ts"
-      ],
-      "tests": ["packages/dom-to-figma/src/figma.image.browser.test.ts"],
-      "owner": "abskino",
-      "reviewBy": "2026-10-31",
-      "upstreamState": "adapter-fallback-required-before-pr",
-      "removeWhen": "adapter fallback is proven and the selected upstream baseline exposes equivalent generic preparation hooks",
-      "patchFingerprint": "sha256:cff97f846d593d099c6750d64166e2ee4309ad6c43596c14e95cfcc27284cdf5"
+      "patchFingerprint": "sha256:dcb5695384813b80126b049a0f0797fc14b7563967ae46ce4d47775446410735"
     },
     {
       "id": "glyph-aware-font-fallback",
@@ -179,7 +148,22 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "partial-upstream-main-object-fit",
       "removeWhen": "selected upstream baseline preserves cover, contain, fill, and object-position behavior with parity",
-      "patchFingerprint": "sha256:5f72021d87f9d3de7f19c09406038a822ead5379e27a1792e106c64a39773f90"
+      "patchFingerprint": "sha256:428dfa851a1f52c382bbea97b33303cd01383128bc1227ec135d2d416c9d2726"
+    },
+    {
+      "id": "image-loader-cancellation",
+      "capability": "Abortable image fetch and format normalization",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["4da4c51267abf635ee021091adf65d514667eb56"],
+      "paths": ["packages/dom-to-figma/src/converter/nodes/image/loader.ts"],
+      "tests": [
+        "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "the selected upstream baseline propagates AbortSignal through image fetch and decode cleanup",
+      "patchFingerprint": "sha256:fa79cf5a8d6b5d591013e0883b6d07dc149df26e369393921529f97aca6b312b"
     },
     {
       "id": "nowrap-text-sizing",

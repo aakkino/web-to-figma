@@ -8,7 +8,6 @@ import type { DomTraversalStrategy } from "./converter/dom";
 import { lightDomTraversal } from "./converter/dom";
 import { createFontCache } from "./converter/font-cache";
 import { createImageCache } from "./converter/image-cache";
-import type { ImagePreparation } from "./converter/image-preparation";
 import type { ImageLoader } from "./converter/nodes/image/loader";
 import { createDirectImageLoader } from "./converter/nodes/image/loader";
 import {
@@ -33,13 +32,6 @@ export type {
   DomTraversalChild,
   DomTraversalStrategy,
 } from "./converter/dom";
-export type {
-  ImagePlaceholderReason,
-  ImagePreparation,
-  ImageResolution,
-  PreparedImage,
-} from "./converter/image-preparation";
-export { createImagePreparation } from "./converter/image-preparation";
 export type {
   ImageFile,
   ImageLoader,
@@ -71,8 +63,6 @@ export type FigmaConverterConfig = {
   fontLoader?: FontLoader;
   /** Defaults to `createDirectImageLoader()` (single direct `fetch(src)`). */
   imageLoader?: ImageLoader;
-  /** Optional staged preparation capability. Omitted for legacy behavior. */
-  imagePreparation?: ImagePreparation;
   /** Override the default DOM-element classification. */
   classify?: Classify;
   /**
@@ -138,14 +128,13 @@ export function createFigmaConverter(
 ): FigmaConverter {
   const fontLoader = config.fontLoader ?? createFontsourceLoader();
   const imageLoader = config.imageLoader ?? createDirectImageLoader();
-  const imagePreparation = config.imagePreparation;
   const { classify } = config;
   const layout = config.layout ?? "auto";
   const traceEnabled = config.trace ?? false;
   const domTraversal = config.domTraversal ?? lightDomTraversal;
 
   const fontCache = createFontCache(fontLoader);
-  const imageCache = createImageCache(imageLoader, imagePreparation);
+  const imageCache = createImageCache(imageLoader);
 
   const convert = async (input: ConvertInput): Promise<ConvertResult> => {
     const nodeChanges: Array<FigmaNodeChange> = [];
@@ -207,7 +196,6 @@ export function createFigmaConverter(
     clearCache() {
       fontCache.clear();
       imageCache.clear();
-      imagePreparation?.clear();
     },
   };
 }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { TINY_RED_PNG_DATA_URL } from "./__fixtures__/loaders";
 import type { ImageLoader } from "./figma";
-import { createFigmaConverter, createImagePreparation } from "./figma";
+import { createFigmaConverter } from "./figma";
 
 const FRAME_WIDTH = 320;
 const FRAME_HEIGHT = 200;
@@ -98,104 +98,6 @@ describe("image rendering with inline PNG", () => {
     expect(imageNode?.size).toEqual({ x: 50, y: 30 });
   });
 
-  it("reuses a fully prepared image and does not load it during conversion", async () => {
-    const element = await mountElement(
-      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px"><img src="${TINY_RED_PNG_DATA_URL}" width="40" height="40" alt="red"></div>`
-    );
-    const image = element.querySelector("img");
-    if (!image) {
-      throw new Error("image not found");
-    }
-    const bytes = decodeDataUrl(TINY_RED_PNG_DATA_URL);
-    let loadCount = 0;
-    const imageLoader: ImageLoader = () => {
-      loadCount += 1;
-      return Promise.resolve({ bytes, mimeType: "image/png" });
-    };
-    const imagePreparation = createImagePreparation(imageLoader);
-    await imagePreparation.prepare({
-      src: image.currentSrc || image.src,
-      element: image,
-    });
-    const figma = createFigmaConverter({ imageLoader, imagePreparation });
-
-    await figma.convert({
-      element,
-      width: FRAME_WIDTH,
-      height: FRAME_HEIGHT,
-    });
-
-    expect(loadCount).toBe(1);
-  });
-
-  it("uses the frozen element mapping when an image source changes late", async () => {
-    const element = await mountElement(
-      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px"><img src="${TINY_RED_PNG_DATA_URL}" width="40" height="40" alt="red"></div>`
-    );
-    const image = element.querySelector("img");
-    if (!image) {
-      throw new Error("image not found");
-    }
-    const imagePreparation = createImagePreparation(async () => ({
-      bytes: decodeDataUrl(TINY_RED_PNG_DATA_URL),
-      mimeType: "image/png",
-    }));
-    await imagePreparation.prepare({
-      src: image.currentSrc || image.src,
-      element: image,
-    });
-    image.src = "https://example.test/late-change.png";
-
-    const result = await createFigmaConverter({ imagePreparation }).convert({
-      element,
-      width: FRAME_WIDTH,
-      height: FRAME_HEIGHT,
-    });
-
-    expect(
-      result.document.nodeChanges.some(
-        (change) =>
-          change.type === "ROUNDED_RECTANGLE" && change.name === "Image"
-      )
-    ).toBe(true);
-    expect(result.document.blobs).toHaveLength(1);
-  });
-
-  it("renders a transparent named placeholder without registering a blob", async () => {
-    const element = await mountElement(
-      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px"><img src="${TINY_RED_PNG_DATA_URL}" width="50" height="30" alt="red"></div>`
-    );
-    const image = element.querySelector("img");
-    if (!image) {
-      throw new Error("image not found");
-    }
-    const imageLoader: ImageLoader = () =>
-      Promise.reject(new Error("placeholder must not load"));
-    const imagePreparation = createImagePreparation(imageLoader);
-    imagePreparation.setPlaceholder(
-      { src: image.currentSrc || image.src },
-      "user-skipped"
-    );
-    const figma = createFigmaConverter({ imageLoader, imagePreparation });
-    const result = await figma.convert({
-      element,
-      width: FRAME_WIDTH,
-      height: FRAME_HEIGHT,
-    });
-
-    const imageNode = result.document.nodeChanges.find(
-      (change) =>
-        change.type === "ROUNDED_RECTANGLE" && change.name === "Image (skipped)"
-    );
-    expect(imageNode?.type).toBe("ROUNDED_RECTANGLE");
-    if (imageNode?.type !== "ROUNDED_RECTANGLE") {
-      return;
-    }
-    expect(imageNode?.size).toEqual({ x: 50, y: 30 });
-    expect(imageNode.fillPaints).toBeUndefined();
-    expect(result.document.blobs).toHaveLength(0);
-  });
-
   it("emits consumer-visible paint semantics for every object-fit mode", async () => {
     const element = await mountElement(`
       <div style="width:900px;height:700px">
@@ -261,14 +163,13 @@ describe("image rendering with inline PNG", () => {
     expect(paint?.transform?.m12).toBe(0);
   });
 
-  it("deduplicates one source while preserving per-node direct and staged presentation", async () => {
+  it("deduplicates one source while preserving per-node presentation", async () => {
     const element = await mountElement(`
       <div style="width:500px;height:200px">
         <img src="https://example.test/asymmetric.svg" style="display:block;width:200px;height:100px;object-fit:contain;object-position:left center">
         <img src="https://example.test/asymmetric.svg" style="display:block;width:100px;height:100px;object-fit:cover;object-position:right center">
       </div>
     `);
-    const images = Array.from(element.querySelectorAll("img"));
     const bytes = new TextEncoder().encode(ASYMMETRIC_SVG).buffer;
     let directLoads = 0;
     const directLoader: ImageLoader = () => {
@@ -279,28 +180,9 @@ describe("image rendering with inline PNG", () => {
       imageLoader: directLoader,
     }).convert({ element, width: 500, height: 200 });
 
-    let stagedLoads = 0;
-    const stagedLoader: ImageLoader = () => {
-      stagedLoads += 1;
-      return Promise.resolve({ bytes, mimeType: "image/svg+xml" });
-    };
-    const imagePreparation = createImagePreparation(stagedLoader);
-    for (const image of images) {
-      await imagePreparation.prepare({ src: image.src, element: image });
-    }
-    const loadsBeforeConversion = stagedLoads;
-    const staged = await createFigmaConverter({
-      imageLoader: stagedLoader,
-      imagePreparation,
-    }).convert({ element, width: 500, height: 200 });
-
     expect(directLoads).toBe(1);
-    expect(stagedLoads).toBe(1);
-    expect(stagedLoads).toBe(loadsBeforeConversion);
-    expect(imagePaints(staged.document.nodeChanges)).toEqual(
-      imagePaints(direct.document.nodeChanges)
-    );
-    expect(staged.document.blobs).toHaveLength(1);
+    expect(imagePaints(direct.document.nodeChanges)).toHaveLength(2);
+    expect(direct.document.blobs).toHaveLength(1);
   });
 });
 
@@ -315,14 +197,4 @@ function imagePaints(
     }
     return change.fillPaints?.filter((paint) => paint.type === "IMAGE") ?? [];
   });
-}
-
-function decodeDataUrl(dataUrl: string): ArrayBuffer {
-  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes.buffer;
 }

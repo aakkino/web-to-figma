@@ -1,6 +1,5 @@
 import type { Position } from "../../dom";
 import type { ImageCache } from "../../image-cache";
-import type { ImageResolution } from "../../image-preparation";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { parseOpacity } from "../../styles/opacity";
 import { cssBoxShadowToFigmaEffects } from "../../styles/shadow";
@@ -48,22 +47,19 @@ export async function elementToImageNodeChange(
     height,
   });
 
-  const resolution: ImageResolution = await imageCache.get(element);
-  const image = resolution.kind === "image" ? resolution.image : undefined;
-  const blobIndex = image ? registerBlob({ bytes: image.bytes }) : -1;
-  const intrinsicWidth = image?.width ?? element.naturalWidth;
-  const intrinsicHeight = image?.height ?? element.naturalHeight;
-  const presentation = image
-    ? resolveImagePresentation({
-        fit: computedStyle.objectFit,
-        position: computedStyle.objectPosition,
-        box: { width, height },
-        intrinsic: {
-          width: intrinsicWidth,
-          height: intrinsicHeight,
-        },
-      })
-    : undefined;
+  const image = await imageCache.get(element);
+  const blobIndex = registerBlob({ bytes: image.bytes });
+  const intrinsicWidth = image.width ?? element.naturalWidth;
+  const intrinsicHeight = image.height ?? element.naturalHeight;
+  const presentation = resolveImagePresentation({
+    fit: computedStyle.objectFit,
+    position: computedStyle.objectPosition,
+    box: { width, height },
+    intrinsic: {
+      width: intrinsicWidth,
+      height: intrinsicHeight,
+    },
+  });
 
   const nodeChange: FigmaNodeChange = {
     /* General Info */
@@ -74,7 +70,7 @@ export async function elementToImageNodeChange(
       position: childIndex.toString(),
     },
     type: "ROUNDED_RECTANGLE",
-    name: image ? "Image" : "Image (skipped)",
+    name: "Image",
     visible: true,
     opacity,
 
@@ -98,26 +94,22 @@ export async function elementToImageNodeChange(
     ...borderProperties,
 
     /* Fill */
-    ...(image
-      ? {
-          fillPaints: [
-            {
-              type: "IMAGE" as const,
-              opacity: 1.0,
-              visible: true,
-              blendMode: "NORMAL" as const,
-              transform: presentation?.transform,
-              image: {
-                hash: image.hash,
-                dataBlob: blobIndex,
-              },
-              imageScaleMode: presentation?.imageScaleMode,
-              originalImageWidth: intrinsicWidth || undefined,
-              originalImageHeight: intrinsicHeight || undefined,
-            },
-          ],
-        }
-      : {}),
+    fillPaints: [
+      {
+        type: "IMAGE" as const,
+        opacity: 1.0,
+        visible: true,
+        blendMode: "NORMAL" as const,
+        transform: presentation.transform,
+        image: {
+          hash: image.hash,
+          dataBlob: blobIndex,
+        },
+        imageScaleMode: presentation.imageScaleMode,
+        originalImageWidth: intrinsicWidth || undefined,
+        originalImageHeight: intrinsicHeight || undefined,
+      },
+    ],
 
     /* Effects */
     effects,
