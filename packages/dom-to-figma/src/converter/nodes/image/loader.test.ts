@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { processImageFile } from "./loader";
+import { createDirectImageLoader, processImageFile } from "./loader";
 
 // The fixture PNG from __fixtures__/loaders.ts (1x1 red, 69 bytes) and its
 // known SHA-1 — the same digest asserted by the browser image test.
@@ -29,6 +29,18 @@ describe("processImageFile SHA-1 hashing", () => {
     expect(toHex(hash)).toBe(RED_PNG_SHA1_HEX);
     expect(bytes).toHaveLength(69);
     expect({ width, height }).toEqual({ width: 1, height: 1 });
+  });
+
+  it("rejects before processing when the request is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      processImageFile(
+        { bytes: pngBytes(), mimeType: "image/png" },
+        controller.signal
+      )
+    ).rejects.toThrow("Image processing aborted");
   });
 
   it("hashes identically when crypto.subtle is absent (non-secure context)", async () => {
@@ -69,6 +81,33 @@ describe("processImageFile SHA-1 hashing", () => {
     expect({ width: jpegInfo.width, height: jpegInfo.height }).toEqual({
       width: 90,
       height: 46,
+    });
+  });
+});
+
+describe("createDirectImageLoader", () => {
+  it("forwards the request signal to fetch", async () => {
+    const controller = new AbortController();
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        blob: () =>
+          Promise.resolve({
+            type: "image/png",
+            arrayBuffer: () => Promise.resolve(pngBytes()),
+          }),
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createDirectImageLoader()({
+      src: "https://example.test/image.png",
+      element: {} as HTMLImageElement,
+      signal: controller.signal,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://example.test/image.png", {
+      signal: controller.signal,
     });
   });
 });

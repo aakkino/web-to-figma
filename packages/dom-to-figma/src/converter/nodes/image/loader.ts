@@ -6,7 +6,7 @@
 export type ImageRequest = {
   src: string;
   element: HTMLImageElement;
-  /** Optional cancellation signal for staged resource preparation. */
+  /** Optional cancellation signal for fetch and format normalization. */
   signal?: AbortSignal;
 };
 
@@ -230,7 +230,7 @@ function throwIfAborted(signal: AbortSignal | undefined): void {
 }
 
 function createAbortError(): Error {
-  return new Error("Image preparation aborted");
+  return new Error("Image processing aborted");
 }
 
 function createCanvasFromImage(

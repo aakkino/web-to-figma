@@ -177,30 +177,6 @@ const myImageLoader: ImageLoader = async ({ src }) => {
 
 The package re-encodes WebP/AVIF/etc. to PNG internally, so the loader only needs to return raw bytes and a mime type.
 
-For staged capture flows, `createImagePreparation()` performs format conversion
-and hashing before `convert()` and lets the same prepared result be reused during
-the conversion walk. Pass the capability alongside the same `imageLoader`:
-
-```ts
-import {
-  createFigmaConverter,
-  createImagePreparation,
-} from "@figit/dom-to-figma";
-
-const imagePreparation = createImagePreparation(myImageLoader);
-await imagePreparation.prepare({ src: image.currentSrc || image.src, element: image });
-
-const figma = createFigmaConverter({
-  imageLoader: myImageLoader,
-  imagePreparation,
-});
-```
-
-During conversion, a source that was not prepared resolves to a transparent
-`Image (skipped)` placeholder instead of starting a late image request. Call
-`imagePreparation.setPlaceholder()` for an intentional skip or `clear()` when
-the capture session is discarded.
-
 ### Classification
 
 `classify` lets you override how DOM elements map to Figma node kinds. The default classifier returns `text`, `image`, `vector`, `frame`, `group`, `form-with-placeholder`, or `skip`:

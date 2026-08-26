@@ -129,13 +129,17 @@ describe("resolveImagePresentation", () => {
     expect(reordered.transform).toMatchObject({ m02: -1, m12: 0 });
   });
 
-  it("uses the browser fill default for unknown values and zero dimensions", () => {
+  it.each([
+    { width: 0, height: 0 },
+    { width: Number.NaN, height: 100 },
+    { width: 100, height: Number.POSITIVE_INFINITY },
+  ])("returns a finite identity for invalid dimensions: $width x $height", (box) => {
     expect(
       resolveImagePresentation({
         fit: "unexpected",
         position: "center",
-        box: { width: 0, height: 0 },
-        intrinsic: { width: 0, height: 0 },
+        box,
+        intrinsic: { width: 90, height: 46 },
       })
     ).toEqual({ imageScaleMode: "STRETCH", transform: IDENTITY });
   });
