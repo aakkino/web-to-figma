@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { lightDomTree } from "./light-dom";
 import { openComposedDomTree } from "./open-composed-dom";
 
@@ -8,6 +8,10 @@ const LIGHT_CHILD_NODE_TYPES = [
   Node.COMMENT_NODE,
   Node.ELEMENT_NODE,
 ];
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
 
 describe("DOM tree strategies", () => {
   it("keeps light DOM childNodes and composed parents", () => {
@@ -94,5 +98,49 @@ describe("DOM tree strategies", () => {
         .map(({ node }) => node.textContent)
     ).toEqual(["inside"]);
     expect(visits[0]?.composedParent).toBe(host);
+  });
+
+  it("deduplicates assigned nodes and stops recursive slot expansion", () => {
+    const parent = document.createElement("div");
+    const first = document.createElement("slot");
+    const second = document.createElement("slot");
+    const content = document.createElement("strong");
+    content.textContent = "once";
+    parent.append(first, second);
+    document.body.append(parent, content);
+
+    Object.defineProperty(first, "assignedNodes", {
+      configurable: true,
+      value: () => [content, content, second],
+    });
+    Object.defineProperty(second, "assignedNodes", {
+      configurable: true,
+      value: () => [first],
+    });
+
+    const children = openComposedDomTree.children(parent);
+    expect(children.map(({ node }) => node)).toEqual([content]);
+  });
+
+  it("uses fallback children and leaves closed roots opaque", () => {
+    const fallbackParent = document.createElement("div");
+    fallbackParent.innerHTML =
+      '<slot name="missing"><span id="fallback-only">fallback</span></slot>';
+    const closedHost = document.createElement("article");
+    closedHost.append(document.createElement("em"));
+    const closedRoot = closedHost.attachShadow({ mode: "closed" });
+    closedRoot.innerHTML = '<strong id="closed-content">closed</strong>';
+    document.body.append(fallbackParent, closedHost);
+
+    expect(
+      openComposedDomTree
+        .children(fallbackParent)
+        .map(({ node }) => (node as Element).id)
+    ).toEqual(["fallback-only"]);
+    expect(
+      [...openComposedDomTree.walk(closedHost)].some(
+        ({ node }) => (node as Element).id === "closed-content"
+      )
+    ).toBe(false);
   });
 });

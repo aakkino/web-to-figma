@@ -28,6 +28,8 @@ export type ConvertContext = {
   parentGuid: FigmaGuid;
   childIndex: number;
   position: Position;
+  composedParent?: Element;
+  textContent?: string;
   inheritedProperties: InheritedProperties;
   layout?: ConverterLayout;
   domTraversal: DomTraversalStrategy;
@@ -86,6 +88,8 @@ export async function convertElement(
     parentGuid,
     childIndex,
     position,
+    composedParent,
+    textContent,
     inheritedProperties,
     layout,
     parentIsAutoLayout,
@@ -121,6 +125,7 @@ export async function convertElement(
         parentGuid,
         childIndex,
         position,
+        composedParent,
         layout,
         parentIsAutoLayout,
         childStackSpec,
@@ -194,6 +199,7 @@ export async function convertElement(
               childIndex,
               position,
               size: exactSize,
+              textContent,
               registerBlob,
               inheritedProperties,
               fontCache,
@@ -215,6 +221,7 @@ export async function convertElement(
             parentGuid,
             childIndex,
             position,
+            composedParent,
             registerBlob,
             inheritedProperties,
             fontCache,

@@ -44,7 +44,8 @@ type PositioningResult = {
 function getPositioningInfo(
   element: Element,
   elementRect: DOMRect,
-  computedStyle: CSSStyleDeclaration
+  computedStyle: CSSStyleDeclaration,
+  composedParent?: Element
 ): PositioningResult {
   const position = computedStyle.position;
   const isPositioned = position === "fixed" || position === "absolute";
@@ -61,7 +62,7 @@ function getPositioningInfo(
   const view = element.ownerDocument?.defaultView ?? window;
   const containingRect = isFixed
     ? { top: 0, bottom: view.innerHeight, left: 0, right: view.innerWidth }
-    : element.parentElement?.getBoundingClientRect();
+    : (composedParent ?? element.parentElement)?.getBoundingClientRect();
 
   if (!containingRect) {
     return {};
@@ -86,7 +87,9 @@ function getPositioningInfo(
   // far edge of the parent frame so the MAX constraint pins it correctly.
   let positionOverride: Position | undefined;
   if (isFixed) {
-    const parentRect = element.parentElement?.getBoundingClientRect();
+    const parentRect = (
+      composedParent ?? element.parentElement
+    )?.getBoundingClientRect();
     if (parentRect) {
       const x =
         horizontalConstraint === "MAX"
@@ -122,7 +125,9 @@ function getPositioningInfo(
 function getTransformOverride(
   element: Element,
   rect: DOMRect,
-  computedStyle: CSSStyleDeclaration
+  computedStyle: CSSStyleDeclaration,
+  domTraversal: DomTraversalStrategy,
+  composedParent?: Element
 ): { size: FigmaSize; transform: FigmaTransform } | null {
   const value = computedStyle.transform;
   if (!value || value === "none") {
@@ -134,7 +139,7 @@ function getTransformOverride(
   if (!matrix.is2D || (a === 1 && b === 0 && c === 0 && d === 1)) {
     return null;
   }
-  for (const child of element.childNodes) {
+  for (const { node: child } of domTraversal.children(element)) {
     if (isElementNode(child) || (isTextNode(child) && !isTextEmpty(child))) {
       return null;
     }
@@ -145,7 +150,9 @@ function getTransformOverride(
   if (!(width && height)) {
     return null;
   }
-  const parentRect = element.parentElement?.getBoundingClientRect();
+  const parentRect = (
+    composedParent ?? element.parentElement
+  )?.getBoundingClientRect();
   const parentLeft = parentRect?.left ?? 0;
   const parentTop = parentRect?.top ?? 0;
   const centerX = rect.left + rect.width / 2 - parentLeft;
@@ -185,8 +192,12 @@ function withoutFrameStroke(props: BorderProperties): BorderProperties {
   return { ...rest, strokeWeight: 0, strokePaints: [] };
 }
 
-function getFillProperties(element: Element, rect: DOMRect) {
-  const parentElement = element.parentElement;
+function getFillProperties(
+  element: Element,
+  rect: DOMRect,
+  composedParent?: Element
+) {
+  const parentElement = composedParent ?? element.parentElement;
   const parentRect = parentElement?.getBoundingClientRect();
 
   return {
@@ -201,6 +212,7 @@ type Params = {
   parentGuid: FigmaGuid;
   childIndex: number;
   position: Position;
+  composedParent?: Element;
   layout?: ConverterLayout;
   /** True when the parent frame became an inferred auto-layout stack. */
   parentIsAutoLayout?: boolean;
@@ -239,6 +251,7 @@ export function elementToFrameNodeChange(
     parentGuid,
     childIndex,
     position,
+    composedParent,
     layout,
     parentIsAutoLayout,
     childStackSpec,
@@ -253,7 +266,11 @@ export function elementToFrameNodeChange(
   // into padding). `null` means "keep absolute positioning" — always safe.
   const inferred =
     layout === "auto"
-      ? inferAutoLayout(element, domTraversal ?? lightDomTraversal)
+      ? inferAutoLayout(
+          element,
+          domTraversal ?? lightDomTraversal,
+          composedParent
+        )
       : null;
 
   const rect = element.getBoundingClientRect();
@@ -324,9 +341,15 @@ export function elementToFrameNodeChange(
   ];
 
   const { horizontalConstraint, verticalConstraint, positionOverride } =
-    getPositioningInfo(element, rect, computedStyle);
+    getPositioningInfo(element, rect, computedStyle, composedParent);
   const finalPosition = positionOverride ?? position;
-  const transformOverride = getTransformOverride(element, rect, computedStyle);
+  const transformOverride = getTransformOverride(
+    element,
+    rect,
+    computedStyle,
+    domTraversal ?? lightDomTraversal,
+    composedParent
+  );
 
   // A frame carries a single stroke color, so four different border colors
   // collapse to one. When the sides disagree, decompose the border into a
@@ -350,7 +373,8 @@ export function elementToFrameNodeChange(
 
   const { fillsParentHeight, fillsParentWidth } = getFillProperties(
     element,
-    rect
+    rect,
+    composedParent
   );
 
   // Fill beats hug — but only when the fill actually resizes the node:
