@@ -72,3 +72,64 @@ checks to land an upstream sync.
 Package version and peer-range alignment is separate release work. Curation of
 untracked fixtures and generated browser artifacts is also separate; upstream
 intake must not silently add, remove, or regenerate those files.
+
+## Core Delta Registry
+
+`docs/upstream-core-delta.json` is the reviewed inventory of production-code
+differences under `packages/dom-to-figma/src`. The governance baseline is the
+immutable common commit `fork-base/ac830db`; compatibility targets are tracked
+separately so a new upstream release cannot silently redefine which fork
+patches are authorized.
+
+The initial inventory contains 20 changed source files: 15 runtime files and 5
+test files. Only runtime files count against the strict production budget.
+Tests, fixtures, and snapshots remain visible in the report and must be linked
+to a capability when they are evidence for a registered patch.
+
+Run the local gate before changing converter production code:
+
+```sh
+pnpm upstream-core-delta:check -- --report .artifacts/upstream-core-delta.json
+pnpm test:upstream-core-delta
+```
+
+The gate rejects an unregistered runtime path, a silently changed registered
+patch, an expired review date, an ambiguous path overlap, or a runtime file
+count above the current budget. Broad globs and directory-wide allowances are
+invalid. Test-only changes are reported but do not fail as unauthorized
+production differences.
+
+When an intentional core patch changes, update the relevant capability entry
+first: record the generic behavior, exact paths, originating commits, focused
+tests, owner, time-bounded review date, upstream state, and objective removal
+condition. After reviewing the new diff, regenerate deterministic fingerprints:
+
+```sh
+pnpm upstream-core-delta:update
+pnpm upstream-core-delta:check
+```
+
+The registry and fingerprint change belong in the same review as the code.
+Fingerprint regeneration is evidence of review, not an automatic exemption.
+An exception must name an approver, owner, and expiry date in the capability
+entry; permanent wildcards and behavior-removal budget fixes are prohibited.
+
+## Compatibility Targets
+
+The registry pins exact refs and resolved commits for three targets:
+
+| Target | Policy |
+| --- | --- |
+| Fork governance baseline | Blocking on every change |
+| Latest stable `@figit/dom-to-figma` release | Blocking; npm `latest` must equal the reviewed pinned version |
+| Resolved `upstream/main` | Advisory on ordinary changes; blocking on `sync/upstream-*` pull requests |
+
+Use `pnpm upstream-core-delta:stable` and
+`pnpm upstream-core-delta:main` to reproduce the inventory reports. Build the
+adapter and composed-DOM packages, then run `pnpm upstream-adapter:stable` to
+compile and execute a temporary consumer against the registry-pinned npm
+release rather than the workspace core. The temporary consumer is always
+removed after the check. A moving
+ref is never accepted by name alone: resolve it to a full commit, review the
+delta, then update the registry. These jobs inspect and report compatibility;
+they do not merge, rebase, push, or otherwise mutate the fork branch.

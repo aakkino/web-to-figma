@@ -8,7 +8,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "dev": "pnpm -r run dev",
-    "test": "pnpm -r run test",
+    "test": "pnpm test:upstream-core-delta && pnpm -r run test",
     "check-types": "pnpm -r run check-types",
     "lint": "biome check",
     "format": "biome check --write",
@@ -22,7 +22,13 @@
     "oracle:parity": "pnpm --filter @figit/oracle-harness run parity",
     "oracle:figma-run": "pnpm --filter @figit/oracle-harness run cli figma",
     "oracle:calibrate": "pnpm --filter @figit/oracle-harness run cli calibrate",
-    "oracle:loop": "bash scripts/oracle-loop.sh"
+    "oracle:loop": "bash scripts/oracle-loop.sh",
+    "upstream-core-delta:check": "node scripts/check-upstream-core-delta.mjs",
+    "upstream-core-delta:update": "node scripts/check-upstream-core-delta.mjs --update-fingerprints",
+    "upstream-core-delta:stable": "node scripts/check-upstream-core-delta.mjs --target stable",
+    "upstream-core-delta:main": "node scripts/check-upstream-core-delta.mjs --target upstream-main",
+    "upstream-adapter:stable": "node scripts/check-vanilla-upstream-adapter.mjs",
+    "test:upstream-core-delta": "node --test scripts/check-upstream-core-delta.test.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.14",

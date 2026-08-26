@@ -6,8 +6,9 @@ font bytes, records browser CJK line boundaries, and restores temporary page
 state before returning a conversion result.
 
 The adapter depends on `@figit/composed-dom` and selects
-`openComposedDomTree` by default. The same strategy is used for image waiting,
-font requests, CJK line-break preparation, and the converter call. Pass
+`openComposedDomTree` by default. Fork cores with `domTraversal` support use
+the same strategy for image waiting, font requests, CJK line-break preparation,
+and the converter call. Pass
 `domTraversal: lightDomTree` when a caller needs ordinary light-DOM semantics;
 do not mix a preparation strategy with a different converter strategy. When
 passing a pre-built `converter`, construct it with the same strategy yourself;
@@ -17,7 +18,37 @@ Compatibility matrix:
 
 | Utility | Core converter | Adapter |
 | --- | --- | --- |
-| `@figit/composed-dom` `0.1.x` | `@figit/dom-to-figma` `>=0.3.0 <0.4.0` | private workspace package |
+| `@figit/composed-dom` `0.1.x` | `@figit/dom-to-figma` `>=0.2.0 <0.4.0` | private workspace package |
+
+The bridge negotiates image preparation once when it is constructed. Fork
+cores that export a structurally compatible `createImagePreparation` keep the
+native staged path. Vanilla cores such as the pinned stable `0.2.1` use an
+adapter-owned cache: preparation loads each canonical `src` once, conversion
+reads only cached bytes, and skipped, failed, or unplanned images receive a
+transparent PNG through the public `imageLoader` hook. The capture scheduler
+continues to own the placeholder reason and safe diagnostics in both modes.
+
+The vanilla fallback reports the loader response byte length because the
+stable core performs format normalization and hashing during conversion. Its
+transparent placeholder preserves visible geometry but the stable payload
+names it `Image` and registers a tiny transparent blob; native fork cores emit
+`Image (skipped)` without a blob. Call `clearCache()` between sessions that
+must not reuse prepared bytes. A late preparation may resolve to its caller
+after clearing, but a generation check prevents it from repopulating the
+conversion cache.
+
+The minimum core must still export `createFigmaConverter`,
+`createDirectImageLoader`, and `createFontsourceLoader`, and support converter
+`imageLoader`, `classify`, `layout`, `convert().toClipboardHtml()`, and
+`clearCache()`. Missing one of these base capabilities throws
+`UnsupportedCaptureCapabilityError`; missing `createImagePreparation` alone
+does not. `assertStagedImageCapability` remains only as a deprecated migration
+helper.
+
+Vanilla `0.2.x` does not expose the fork's `domTraversal` hook, so its
+converter remains light-DOM-only even though adapter preparation can inspect
+open composed DOM. Use the vanilla compatibility path only for light-DOM
+captures until the traversal subtask supplies an equivalent upstream boundary.
 
 The utility and core package can be upgraded independently only when the
 `DomTreeChild` / `composedParent` contract remains compatible. Closed Shadow
