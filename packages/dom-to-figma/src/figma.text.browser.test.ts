@@ -338,7 +338,7 @@ describe("single-line text auto resize", () => {
 describe("text rendering with Inter", () => {
   it("emits a loader's resolved family and requests the text code points", async () => {
     const element = mountElement(
-      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${ALT_TEST_FONT_FAMILY}',sans-serif;font-size:16px">BAA</div>`
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${ALT_TEST_FONT_FAMILY}',sans-serif;font-size:16px;font-weight:700;font-style:italic;text-transform:uppercase">baa</div>`
     );
     const fixtureLoader = createTestFontLoader();
     const requests: Array<ReadonlyArray<number> | undefined> = [];
@@ -348,6 +348,8 @@ describe("text rendering with Inter", () => {
         return {
           ...(await fixtureLoader(request)),
           resolvedFamily: TEST_FONT_FAMILY,
+          resolvedWeight: 400,
+          resolvedItalic: false,
         };
       },
     });
@@ -366,6 +368,7 @@ describe("text rendering with Inter", () => {
     }
     expect(requests).toEqual([["A".codePointAt(0), "B".codePointAt(0)]]);
     expect(textChange.fontName?.family).toBe(TEST_FONT_FAMILY);
+    expect(textChange.fontName?.style).toBe("Regular");
     expect(textChange.fontName?.postscript).toBe("OpenSans-Regular");
     expect(textChange.derivedTextData?.fontMetaData?.[0]?.key.family).toBe(
       TEST_FONT_FAMILY
