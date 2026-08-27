@@ -12,11 +12,17 @@ import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
 } from "../../styles/blur";
-import type { BorderProperties } from "../../styles/border";
+import type { BorderProperties, DoubleBorderSpec } from "../../styles/border";
 import { parseBorderFromComputedStyle } from "../../styles/border";
 import { createSolidPaint, cssColorToFigmaColor } from "../../styles/color";
+import {
+  applyCssColorMatrixFilters,
+  hasColorMatrixFilter,
+} from "../../styles/filter-color";
 import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
+import type { OutlineSpec } from "../../styles/outline";
+import { parseOutlineFromComputedStyle } from "../../styles/outline";
 import {
   cssBoxShadowToFigmaEffects,
   isPureRingShadow,
@@ -221,7 +227,7 @@ type Params = {
   /** Set for the converted root element only: the size of the paste-template
    * frame (a VERTICAL stack) that this element is a fill child of. */
   rootFill?: { width: number; height: number };
-  /** Needed only to decompose a per-side-colored border into child vectors. */
+  /** Allocates guids/blobs for synthetic border children. */
   createGuid?: () => FigmaGuid;
   registerBlob?: (blob: FigmaBlob) => number;
   domTraversal?: DomTraversalStrategy;
@@ -240,7 +246,121 @@ type FrameResult = {
   childStackSpecs?: ReadonlyMap<Element, InferredChildStack>;
   /** Reversed flex direction: the walker emits children in visual order. */
   reverseChildren?: boolean;
+  /** Synthetic children emitted before real DOM children. */
+  syntheticChildren?: Array<FigmaFrameNodeChange>;
 };
+
+function buildDoubleBorderInnerLine(
+  guid: FigmaGuid,
+  parentGuid: FigmaGuid,
+  childIndex: number,
+  parentSize: FigmaSize,
+  parentCornerRadius: number | undefined,
+  spec: DoubleBorderSpec,
+  parentIsAutoLayout: boolean
+): FigmaFrameNodeChange {
+  const { inset, lineWeight, strokePaints } = spec;
+  const innerRadius =
+    parentCornerRadius && parentCornerRadius > inset
+      ? parentCornerRadius - inset
+      : 0;
+
+  return {
+    guid,
+    phase: "CREATED",
+    parentIndex: { guid: parentGuid, position: childIndex.toString() },
+    type: "FRAME",
+    name: "Border (inner)",
+    visible: true,
+    opacity: 1,
+    frameMaskDisabled: true,
+    size: {
+      x: Math.max(0, parentSize.x - inset * 2),
+      y: Math.max(0, parentSize.y - inset * 2),
+    },
+    transform: { m00: 1, m01: 0, m02: inset, m10: 0, m11: 1, m12: inset },
+    stackMode: "NONE",
+    ...(parentIsAutoLayout && { stackPositioning: "ABSOLUTE" }),
+    fillPaints: [],
+    strokeAlign: "INSIDE",
+    strokeJoin: "MITER",
+    strokeWeight: lineWeight,
+    strokePaints,
+    ...(innerRadius > 0 && { cornerRadius: innerRadius }),
+    effects: [],
+    stackHorizontalPadding: 0,
+    stackVerticalPadding: 0,
+    stackPaddingRight: 0,
+    stackPaddingBottom: 0,
+  };
+}
+
+function buildOutlineRing(
+  guid: FigmaGuid,
+  parentGuid: FigmaGuid,
+  childIndex: number,
+  parentSize: FigmaSize,
+  parentCornerRadius: number | undefined,
+  spec: OutlineSpec,
+  parentIsAutoLayout: boolean
+): FigmaFrameNodeChange {
+  const { width, offset, strokePaints, dashPattern, strokeCap } = spec;
+  const standoff = offset + width;
+  const outerRadius =
+    parentCornerRadius && parentCornerRadius > 0
+      ? parentCornerRadius + standoff
+      : 0;
+
+  return {
+    guid,
+    phase: "CREATED",
+    parentIndex: { guid: parentGuid, position: childIndex.toString() },
+    type: "FRAME",
+    name: "Outline",
+    visible: true,
+    opacity: 1,
+    frameMaskDisabled: true,
+    size: {
+      x: parentSize.x + standoff * 2,
+      y: parentSize.y + standoff * 2,
+    },
+    transform: {
+      m00: 1,
+      m01: 0,
+      m02: -standoff,
+      m10: 0,
+      m11: 1,
+      m12: -standoff,
+    },
+    stackMode: "NONE",
+    ...(parentIsAutoLayout && { stackPositioning: "ABSOLUTE" }),
+    fillPaints: [],
+    strokeAlign: "INSIDE",
+    strokeJoin: "MITER",
+    strokeWeight: width,
+    strokePaints,
+    ...(dashPattern && { dashPattern }),
+    ...(strokeCap && { strokeCap }),
+    ...(outerRadius > 0 && { cornerRadius: outerRadius }),
+    effects: [],
+    stackHorizontalPadding: 0,
+    stackVerticalPadding: 0,
+    stackPaddingRight: 0,
+    stackPaddingBottom: 0,
+  };
+}
+
+function isComposedVisualLeaf(
+  element: Element,
+  domTraversal: DomTraversalStrategy
+): boolean {
+  for (const { node } of domTraversal.children(element)) {
+    if (isElementNode(node) || (isTextNode(node) && !isTextEmpty(node))) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export function elementToFrameNodeChange(
   element: Element,
@@ -276,10 +396,8 @@ export function elementToFrameNodeChange(
   const rect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);
 
-  // Inside auto-layout stacks the box edges drive sibling positions, so
-  // ceiling fractional sizes would accumulate as visible drift there.
-  const width = parentIsAutoLayout ? rect.width : Math.ceil(rect.width);
-  const height = parentIsAutoLayout ? rect.height : Math.ceil(rect.height);
+  const width = rect.width;
+  const height = rect.height;
 
   const backgroundImage = computedStyle.backgroundImage;
   const backgroundColor = cssColorToFigmaColor(computedStyle.backgroundColor);
@@ -291,11 +409,11 @@ export function elementToFrameNodeChange(
     +computedStyle.overflowY;
   const hasOverflowHidden = overflow === "hidden";
 
-  // Parse border information
-  const borderProperties = parseBorderFromComputedStyle(computedStyle, {
-    width,
-    height,
-  });
+  // `doubleBorder` is converter metadata, never a serialized node field.
+  const { doubleBorder, ...borderProperties } = parseBorderFromComputedStyle(
+    computedStyle,
+    { width, height }
+  );
 
   const paddingTop = Number.parseFloat(computedStyle.paddingTop || "0");
   const paddingRight = Number.parseFloat(computedStyle.paddingRight || "0");
@@ -350,6 +468,9 @@ export function elementToFrameNodeChange(
     domTraversal ?? lightDomTraversal,
     composedParent
   );
+  const frameSize: FigmaSize = transformOverride
+    ? transformOverride.size
+    : { x: width, y: height };
 
   // A frame carries a single stroke color, so four different border colors
   // collapse to one. When the sides disagree, decompose the border into a
@@ -406,16 +527,28 @@ export function elementToFrameNodeChange(
   const fillPaints: Array<FigmaPaint> = [];
   let textGradient: Array<FigmaPaint> | undefined;
 
-  // Add background-color first (bottom layer)
+  // Bake color-matrix filters only when this solid fill is the element's whole
+  // visual appearance. The traversal check includes shadow roots and slots.
   if (backgroundColor) {
-    fillPaints.push(
-      createSolidPaint(backgroundColor.color, backgroundColor.opacity)
-    );
+    const canBakeFilter =
+      isComposedVisualLeaf(element, domTraversal ?? lightDomTraversal) &&
+      (!backgroundImage || backgroundImage === "none") &&
+      borderProperties.strokePaints.length === 0 &&
+      shadowEffects.length === 0 &&
+      filterEffects.length === 0 &&
+      hasColorMatrixFilter(filter);
+    const fillColor = canBakeFilter
+      ? applyCssColorMatrixFilters(backgroundColor.color, filter)
+      : backgroundColor.color;
+    fillPaints.push(createSolidPaint(fillColor, backgroundColor.opacity));
   }
 
   // Add background-image on top (top layer)
   if (backgroundImage && backgroundImage !== "none") {
-    const gradientPaints = cssBackgroundToFigmaPaints(backgroundImage);
+    const gradientPaints = cssBackgroundToFigmaPaints(backgroundImage, {
+      width,
+      height,
+    });
 
     if (isTextClipped) {
       textGradient = gradientPaints;
@@ -445,7 +578,7 @@ export function elementToFrameNodeChange(
     frameMaskDisabled: !hasOverflowHidden,
 
     /* Size and Position */
-    size: transformOverride ? transformOverride.size : { x: width, y: height },
+    size: frameSize,
     transform: transformOverride
       ? transformOverride.transform
       : {
@@ -496,6 +629,36 @@ export function elementToFrameNodeChange(
     ...inferred?.stack,
   };
 
+  const syntheticChildren: Array<FigmaFrameNodeChange> = [];
+  const firstSyntheticIndex = borderChildren?.length ?? 0;
+  if (doubleBorder && createGuid) {
+    syntheticChildren.push(
+      buildDoubleBorderInnerLine(
+        createGuid(),
+        guid,
+        firstSyntheticIndex + syntheticChildren.length,
+        frameSize,
+        borderProperties.cornerRadius,
+        doubleBorder,
+        inferred !== null
+      )
+    );
+  }
+  const outline = parseOutlineFromComputedStyle(computedStyle);
+  if (outline && createGuid) {
+    syntheticChildren.push(
+      buildOutlineRing(
+        createGuid(),
+        guid,
+        firstSyntheticIndex + syntheticChildren.length,
+        frameSize,
+        borderProperties.cornerRadius,
+        outline,
+        inferred !== null
+      )
+    );
+  }
+
   return {
     nodeChange,
     ...(borderChildren && { borderChildren }),
@@ -503,5 +666,6 @@ export function elementToFrameNodeChange(
     isAutoLayout: inferred !== null,
     childStackSpecs: inferred?.children,
     reverseChildren: inferred?.reverseChildren,
+    ...(syntheticChildren.length > 0 && { syntheticChildren }),
   };
 }

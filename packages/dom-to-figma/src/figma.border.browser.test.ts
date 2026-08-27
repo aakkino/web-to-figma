@@ -110,15 +110,81 @@ describe("per-side border color decomposition (BORD-03)", () => {
     expect(rgb255(borderedFrame?.strokePaints?.[0] as never)).toBe("239,68,68");
   });
 
-  it("leaves mixed-style borders on the single-stroke path (out of scope)", async () => {
-    // Different colors but non-solid styles: filling solid trapezoids would
-    // drop the dash/dot pattern, so this stays on the existing path (a separate
-    // border-style discrepancy, not BORD-03).
+  it("preserves transparent border space without painting a stroke", async () => {
+    const changes = await convert("border:10px solid transparent");
+    const borderedFrame = frames(changes).find(
+      (frame) => frame.size?.x === 180 && frame.size.y === 100
+    );
+
+    expect(borderedFrame).toBeDefined();
+    expect(borderedFrame?.strokePaints ?? []).toHaveLength(0);
+    expect(vectors(changes)).toHaveLength(0);
+  });
+
+  it("preserves a half-pixel hairline stroke", async () => {
+    const element = mountElement(
+      '<div><div style="width:160px;height:80px;border:0.5px solid #ef4444"></div></div>'
+    );
+    const bordered = element.firstElementChild;
+    if (!bordered) {
+      throw new Error("expected bordered element");
+    }
+    const rect = bordered.getBoundingClientRect();
+    const computedWidth = Number.parseFloat(
+      window.getComputedStyle(bordered).borderTopWidth
+    );
+    const figma = createFigmaConverter({ layout: "absolute" });
+    const result = await figma.convert({ element, width: 240, height: 120 });
+    const borderedFrame = frames(result.document.nodeChanges).find(
+      (frame) =>
+        frame.strokePaints?.[0] &&
+        rgb255(frame.strokePaints[0] as never) === "239,68,68"
+    );
+
+    expect(borderedFrame?.strokeWeight).toBe(computedWidth);
+    expect(borderedFrame?.strokePaints).toHaveLength(1);
+    expect(borderedFrame?.size?.x).toBeCloseTo(rect.width, 3);
+    expect(borderedFrame?.size?.y).toBeCloseTo(rect.height, 3);
+  });
+
+  it("matches an inline border frame to its measured DOM box", async () => {
+    const element = mountElement(
+      '<div><span style="border:1px solid #ef4444"><span style="display:inline-block;width:60.5px;height:20.25px"></span></span></div>'
+    );
+    const bordered = element.querySelector("span");
+    if (!bordered) {
+      throw new Error("expected bordered inline element");
+    }
+    const rect = bordered.getBoundingClientRect();
+    const figma = createFigmaConverter({ layout: "absolute" });
+    const result = await figma.convert({ element, width: 240, height: 80 });
+    const borderedFrame = frames(result.document.nodeChanges).find(
+      (frame) =>
+        frame.strokePaints?.[0] &&
+        rgb255(frame.strokePaints[0] as never) === "239,68,68"
+    );
+
+    expect(borderedFrame?.size?.x).toBeCloseTo(rect.width, 3);
+    expect(borderedFrame?.size?.y).toBeCloseTo(rect.height, 3);
+  });
+
+  it("paints a mixed-style border side by side, each in its own style", async () => {
+    // A 170×90 border box with a 5px border. Chrome fits each side's dashes on
+    // its own: 6 dashes down the 90px right side, 18 dots along the 170px
+    // bottom. Solid stays one trapezoid and double becomes two.
     const changes = await convert(
       "border-top:5px solid #f59e0b;border-right:5px dashed #8b5cf6;border-bottom:5px dotted #ef4444;border-left:5px double #06b6d4"
     );
 
-    expect(vectors(changes)).toHaveLength(0);
+    const byColor = new Map<string, number>();
+    for (const vector of vectors(changes)) {
+      const color = rgb255(vector.fillPaints?.[0] as never);
+      byColor.set(color, (byColor.get(color) ?? 0) + 1);
+    }
+    expect(byColor.get("245,158,11")).toBe(1); // solid top
+    expect(byColor.get("139,92,246")).toBe(6); // dashed right
+    expect(byColor.get("239,68,68")).toBe(18); // dotted bottom
+    expect(byColor.get("6,182,212")).toBe(2); // double left
   });
 
   it("keeps the single-stroke fast path when only widths differ (same color)", async () => {
@@ -135,5 +201,26 @@ describe("per-side border color decomposition (BORD-03)", () => {
     expect(borderedFrame?.borderStrokeWeightsIndependent).toBe(true);
     expect(borderedFrame?.borderTopWeight).toBe(4);
     expect(borderedFrame?.borderLeftWeight).toBe(10);
+  });
+
+  it("emits an offset outline as a reserved synthetic child", async () => {
+    const changes = await convert(
+      "outline:4px solid #2563eb;outline-offset:6px"
+    );
+    const outline = frames(changes).find((frame) => frame.name === "Outline");
+    const parent = frames(changes).find(
+      (frame) => frame.guid.localID === outline?.parentIndex?.guid.localID
+    );
+
+    expect(outline).toBeDefined();
+    expect(outline?.parentIndex?.position).toBe("0");
+    expect(outline?.strokeAlign).toBe("INSIDE");
+    expect(outline?.strokeWeight).toBe(4);
+    expect(outline?.size).toEqual({
+      x: (parent?.size?.x ?? 0) + 20,
+      y: (parent?.size?.y ?? 0) + 20,
+    });
+    expect(outline?.transform?.m02).toBe(-10);
+    expect(outline?.transform?.m12).toBe(-10);
   });
 });
