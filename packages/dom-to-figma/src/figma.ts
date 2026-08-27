@@ -2,7 +2,7 @@ import {
   composeClipboardHtml,
   encodeFigmaData,
   toClipboardItem,
-} from "@figit/fig-kiwi";
+} from "@aakkino/fig-kiwi";
 import { BlobManager } from "./converter/blob-manager";
 import type { DomTraversalStrategy } from "./converter/dom";
 import { lightDomTraversal } from "./converter/dom";

@@ -1,10 +1,10 @@
-# @figit/composed-dom
+# @aakkino/composed-dom
 
 Small browser-only DOM tree strategies for consumers that need either the
 ordinary light DOM or the visible tree formed by open Shadow DOM and slots.
 
 ```ts
-import { openComposedDomTree } from "@figit/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 
 for (const { node, composedParent, depth } of openComposedDomTree.walk(root)) {
   // `node` is a descendant in composed document order.

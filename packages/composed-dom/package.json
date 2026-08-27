@@ -1,14 +1,17 @@
 {
-  "name": "@figit/composed-dom",
+  "name": "@aakkino/composed-dom",
   "version": "0.1.1",
   "description": "Browser DOM tree strategies for light and open composed trees.",
   "license": "MIT",
-  "author": "Figit <https://figit.design>",
-  "homepage": "https://github.com/figitdesign/web-to-figma#readme",
+  "author": "aakkino",
+  "homepage": "https://github.com/aakkino/web-to-figma#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/figitdesign/web-to-figma.git",
+    "url": "git+https://github.com/aakkino/web-to-figma.git",
     "directory": "packages/composed-dom"
+  },
+  "bugs": {
+    "url": "https://github.com/aakkino/web-to-figma/issues"
   },
   "type": "module",
   "sideEffects": false,
@@ -16,8 +19,7 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true,
+    "registry": "https://npm.pkg.github.com",
     "exports": {
       ".": {
         "types": "./dist/index.d.mts",

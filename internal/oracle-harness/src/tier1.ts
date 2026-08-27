@@ -1,9 +1,9 @@
-import type { Mismatch, OracleNode } from "@figit/fig-kiwi";
+import type { Mismatch, OracleNode } from "@aakkino/fig-kiwi";
 import {
   decodeFigmaData,
   diffFigmaTrees,
   parseClipboardHtml,
-} from "@figit/fig-kiwi";
+} from "@aakkino/fig-kiwi";
 import type { Finding } from "./findings";
 import { severityFromDelta } from "./findings";
 

@@ -1,7 +1,8 @@
 // biome-ignore-all lint/style/noMagicNumbers: Typography fixture values are intentionally explicit.
+
+import { decodeFigmaData, parseClipboardHtml } from "@aakkino/fig-kiwi";
 import type { TypographyInspection } from "@figit/browser-capture-adapter";
 import { createBrowserCaptureAdapter } from "@figit/browser-capture-adapter";
-import { decodeFigmaData, parseClipboardHtml } from "@figit/fig-kiwi";
 import { afterEach, describe, expect, it } from "vitest";
 import { commands } from "vitest/browser";
 import { buildTypographyReport } from "./font-spec";

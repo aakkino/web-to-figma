@@ -5,7 +5,7 @@
 | **Status** | Draft — approved direction, pending implementation |
 | **Owner** | Nicco (@niko047) |
 | **Audience** | Implementing agents and human reviewers |
-| **Repo** | `figitdesign/web-to-figma` (this repo — everything lives here) |
+| **Repo** | `aakkino/web-to-figma` (this repo — everything lives here) |
 | **Date** | 2026-07-18 |
 
 ## How to use this document (read first, implementers)
@@ -20,7 +20,7 @@
 
 ## 1. Summary
 
-`@figit/dom-to-figma` converts a live DOM into a Figma clipboard payload. The end goal of the product is **1:1 visual correspondence**: a scene rendered by the browser and the same scene pasted into Figma should look identical.
+`@aakkino/dom-to-figma` converts a live DOM into a Figma clipboard payload. The end goal of the product is **1:1 visual correspondence**: a scene rendered by the browser and the same scene pasted into Figma should look identical.
 
 Today, verifying that correspondence is manual: a human runs `pnpm oracle:outbox`, opens the generated copy pages, pastes into Figma, eyeballs the result, copies it back, runs `pnpm oracle:capture` and `pnpm oracle:diff`. This PRD specifies the system that automates that measurement end-to-end and puts an AI agent on top of it, so a human can **run the pipeline locally on demand, measure parity, localize discrepancies, and drive supervised converter fixes** — with the human reviewing and committing every change. (A scheduled, autonomous PR-opening loop was built and then deliberately removed on 2026-07-20; the pipeline is local-only by decision.)
 
@@ -286,7 +286,7 @@ Outcome: every PR to this repo gets a deterministic Tier-0 parity check with a c
 
 **Steps**
 
-1. `package.json`: private, `type: module`, `engines.node >= 20`, deps: `playwright` (same range as dom-to-figma), `pixelmatch`, `pngjs`; devDeps: `tsx`, `vitest`, `typescript: catalog:`, `@types/node: catalog:`. Workspace deps: `@figit/dom-to-figma`, `@figit/fig-kiwi`.
+1. `package.json`: private, `type: module`, `engines.node >= 20`, deps: `playwright` (same range as dom-to-figma), `pixelmatch`, `pngjs`; devDeps: `tsx`, `vitest`, `typescript: catalog:`, `@types/node: catalog:`. Workspace deps: `@aakkino/dom-to-figma`, `@aakkino/fig-kiwi`.
 2. CLI entry `src/cli.ts` with subcommands: `snapshot` (Tier 0), `figma` (Tiers 1–2), `report` (merge + rank), `check` (ratchet), `calibrate` (M2). Argument parsing with `node:util` `parseArgs` — no CLI framework.
 3. Root `package.json` scripts: `oracle:parity` → `pnpm --filter @figit/oracle-harness cli snapshot --check`, `oracle:figma-run`, `oracle:calibrate`. Keep existing `oracle:*` scripts untouched (the human workflow remains a fallback).
 4. Scene discovery module `src/scenes.ts`: enumerate `packages/dom-to-figma/scripts/oracle-scenes/**/*.html` and playground corpus refs, applying the same id/name/size-hint conventions as `oracle-outbox.ts` (`loadScene`). **Refactor, don't duplicate**: extract the scene-loading helpers from `oracle-outbox.ts` into a small shared module both consume.
@@ -426,7 +426,7 @@ Rationale: without a persisted, deduplicated, cross-run memory of discrepancies,
 
 Outcome: a Playwright-driven, logged-in Figma session pastes the corpus into a real scratch file, lets Figma's engine render and re-lay-it-out, and captures — **from the same rendered frame, through the clipboard** — two things: the **kiwi structure Figma produced** (structural truth) and its **rendered pixels** (visual truth). The report gains Tier 1/2 findings. Requires the login session + file key (§11); **no REST token on the primary path**; none of this runs on PRs.
 
-**Why clipboard copy-back, not REST.** Figma's REST `GET /v1/files/:key` returns Figma's own REST JSON schema — a *different serialization* from the **kiwi clipboard format** the entire pipeline speaks (what `@figit/fig-kiwi` encodes/decodes and what `oracle-diff` compares). Diffing against REST would mean re-mapping a foreign schema and would silently lose the kiwi-specific fields `oracle-diff` already tracks (stack / auto-layout properties). The clipboard **copy-back returns kiwi** — Figma's post-render result *in our exact format* — so it diffs cleanly with the existing `oracle:capture` / `oracle:diff` machinery. This milestone is that manual loop, automated: Playwright is the human who pastes, then copies the rendered frame back. (The REST *file-content* objection is about structure only; REST *image* export returns a plain PNG and remains an optional Tier-2 pixel fallback — see WS-2.5.)
+**Why clipboard copy-back, not REST.** Figma's REST `GET /v1/files/:key` returns Figma's own REST JSON schema — a *different serialization* from the **kiwi clipboard format** the entire pipeline speaks (what `@aakkino/fig-kiwi` encodes/decodes and what `oracle-diff` compares). Diffing against REST would mean re-mapping a foreign schema and would silently lose the kiwi-specific fields `oracle-diff` already tracks (stack / auto-layout properties). The clipboard **copy-back returns kiwi** — Figma's post-render result *in our exact format* — so it diffs cleanly with the existing `oracle:capture` / `oracle:diff` machinery. This milestone is that manual loop, automated: Playwright is the human who pastes, then copies the rendered frame back. (The REST *file-content* objection is about structure only; REST *image* export returns a plain PNG and remains an optional Tier-2 pixel fallback — see WS-2.5.)
 
 ### WS-2.1 Figma session bootstrap
 
@@ -646,6 +646,6 @@ Specified at lower resolution intentionally; re-plan when M3 is live.
 - **Tests**: Vitest. Pure logic → node project; DOM-dependent → browser project (`*.browser.test.ts`); live-Figma → gated behind `FIGMA_ORACLE_LIVE=1` and excluded from default `pnpm test`.
 - **Commits**: conventional, lowercase, no scope (`feat:`, `fix:`, `chore:`); commitlint enforces. **Never add attribution lines** (repo rule in `.claude/commands/commit.md`).
 - **PRs**: follow `.claude/commands/create-pr.md` (title ≤ 80 chars, TLDR ≤ 2 sentences, 1–3 bullets, no attribution footer).
-- **Releases**: changesets; only published packages (`@figit/dom-to-figma`, `@figit/fig-kiwi`) get changesets — `internal/*` and `apps/*` do not.
+- **Releases**: changesets; only published packages (`@aakkino/dom-to-figma`, `@aakkino/composed-dom`, `@aakkino/fig-kiwi`) get changesets — `internal/*` and `apps/*` do not.
 - **Scripts**: executed via `tsx`; no build step for `internal/*` packages.
 - **New dependencies**: keep the harness's deps minimal (`pixelmatch`, `pngjs`, optionally `zod`); do not add deps to published packages for pipeline needs.

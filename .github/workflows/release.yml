@@ -3,30 +3,113 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed commit on main (40 lowercase hex characters)
+        required: true
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}
 
 jobs:
-  release:
-    name: Release
+  version:
+    if: github.event_name == 'push'
+    name: Update version pull request
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-      id-token: write
     steps:
       - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup
-
-      - name: Create Release Pull Request or Publish
+      - name: Create or update the version pull request
         uses: changesets/action@v1
         with:
           version: pnpm changeset version
-          publish: pnpm release
           commit: "chore: release packages"
           title: "chore: release packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    name: Build, inspect, and publish private packages
+    runs-on: ubuntu-latest
+    environment: package-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Validate source SHA input
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+      - name: Require the current remote main commit
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --quiet && git diff --cached --quiet
+      - uses: ./.github/actions/setup
+      - name: Build release packages
+        run: pnpm build
+      - name: Enforce release policy
+        run: pnpm release:policy
+      - name: Pack, inspect, and smoke-test without publishing
+        run: pnpm release:preflight --source-sha "${{ inputs.source_sha }}"
+      - name: Revalidate main immediately before publication
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --quiet && git diff --cached --quiet
+      - name: Configure the owned package scope
+        run: |
+          cat > .npmrc <<'EOF'
+          @aakkino:registry=https://npm.pkg.github.com
+          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+          always-auth=true
+          EOF
+      - name: Publish and verify the staged tarballs
+        run: pnpm release:publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload non-binary release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-release-manifest-${{ inputs.source_sha }}
+          path: .artifacts/private-release/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
+  metadata:
+    needs: publish
+    name: Reconcile owned tags and releases
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: private-release-manifest-${{ inputs.source_sha }}
+          path: .artifacts/private-release
+      - name: Reconcile metadata at the reviewed SHA
+        run: pnpm release:metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-# @figit/fig-kiwi
+# @aakkino/fig-kiwi
 
 ## 0.2.0
 

@@ -1,6 +1,6 @@
-import { openComposedDomTree } from "@figit/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 // biome-ignore lint/performance/noNamespaceImport: one runtime boundary must support multiple peer API shapes.
-import * as domToFigma from "@figit/dom-to-figma";
+import * as domToFigma from "@aakkino/dom-to-figma";
 
 import type {
   BridgeCaptureInput,
@@ -83,7 +83,7 @@ export class UnsupportedCaptureCapabilityError extends Error {
   readonly code = "unsupported-capability" as const;
 
   constructor(capability = "the base converter API") {
-    super(`The installed @figit/dom-to-figma does not support ${capability}`);
+    super(`The installed @aakkino/dom-to-figma does not support ${capability}`);
     this.name = "UnsupportedCaptureCapabilityError";
   }
 }

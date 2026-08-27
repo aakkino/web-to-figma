@@ -4,7 +4,7 @@
  * oracle ground truth is captured).
  */
 
-import { openComposedDomTree } from "@figit/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 import { describe, expect, it } from "vitest";
 import type { FigmaFrameNodeChange, FigmaNodeChange } from "./converter/types";
 import { createFigmaConverter } from "./figma";

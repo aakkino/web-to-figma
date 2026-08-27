@@ -107,7 +107,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "split-draft-pending",
       "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
-      "patchFingerprint": "sha256:581f4ec624427d40834a47a656c5cd9c74033cb1b07dd838fabfa465ac92621b"
+      "patchFingerprint": "sha256:8a1061cee00b30be3ae4dae515279de9f08f14b2f9228a1ebe093c70af8f9fe3"
     },
     {
       "id": "composed-dom-traversal",
@@ -132,7 +132,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "pr-draft-pending",
       "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
-      "patchFingerprint": "sha256:d09065b4d1ba7bdb3a96523723a5c658961445b84a40065bc0f69d1f56be6de4"
+      "patchFingerprint": "sha256:357faeec2f3f3f4f47926dbb47e2dad72d651544df5100ee44fdca65b349f175"
     },
     {
       "id": "glyph-aware-font-fallback",

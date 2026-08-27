@@ -5,7 +5,7 @@ Thanks for your interest in contributing.
 ## Setup
 
 ```sh
-git clone git@github.com:figitdesign/web-to-figma.git
+git clone git@github.com:aakkino/web-to-figma.git
 cd figma
 pnpm install
 ```
@@ -54,7 +54,14 @@ pnpm changeset
 
 …and pick the package(s) and bump type. Commit the generated `.changeset/*.md` along with your code.
 
-When the change merges to `main`, the `Release` workflow opens (or updates) a "Version Packages" PR. Merging that PR publishes to npm and creates a GitHub release.
+When a change merges to `main`, the `Release` workflow only opens or updates a
+version PR. It never publishes from a push. Private publication is a separate,
+protected manual dispatch pinned to a reviewed 40-character `main` SHA. The
+`package-publish` environment must require the repository owner as reviewer.
+
+Local package consumers map only `@aakkino` to GitHub Packages and authenticate
+with a classic PAT carrying `read:packages`. Keep that token in user-level npm
+configuration or an environment variable, never in this repository.
 
 ## Pull requests
 

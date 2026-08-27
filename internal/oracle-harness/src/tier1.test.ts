@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Mismatch } from "@figit/fig-kiwi";
+import type { Mismatch } from "@aakkino/fig-kiwi";
 import { describe, expect, it } from "vitest";
 import { diffTier1, mismatchesToFindings } from "./tier1";
 

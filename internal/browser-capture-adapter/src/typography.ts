@@ -1,4 +1,4 @@
-import type { DomTreeStrategy } from "@figit/composed-dom";
+import type { DomTreeStrategy } from "@aakkino/composed-dom";
 
 import { isTargetConnected } from "./resource-inventory";
 import type {

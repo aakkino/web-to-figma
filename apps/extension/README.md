@@ -3,7 +3,7 @@
 The extension keeps the popup-to-content synchronous trigger and writes the
 clipboard item from the content script. The conversion itself runs through
 `@figit/browser-capture-adapter`, which prepares the page before calling the
-published `@figit/dom-to-figma` API.
+published `@aakkino/dom-to-figma` API.
 
 ## Capture behavior
 
@@ -74,7 +74,7 @@ pnpm --filter extension build
 pnpm --filter extension build:firefox
 ```
 
-When upgrading `@figit/dom-to-figma`, run the adapter tests and build first,
+When upgrading `@aakkino/dom-to-figma`, run the adapter tests and build first,
 then the extension gates. The adapter intentionally consumes only the public
 converter and loader contracts, so a tokenizer or `FontLoader` change should
 surface in those checks before a release is updated.
