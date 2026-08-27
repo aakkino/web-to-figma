@@ -26,9 +26,9 @@ layout engine. Happy-path mocks are not evidence for geometry.
 ## Commands
 
 ~~~sh
-pnpm --filter @figit/dom-to-figma test
-pnpm --filter @figit/dom-to-figma check-types
-pnpm --filter @figit/dom-to-figma build
+pnpm --filter @aakkino/dom-to-figma test
+pnpm --filter @aakkino/dom-to-figma check-types
+pnpm --filter @aakkino/dom-to-figma build
 ~~~
 
 For converter geometry, paint, text, ordering, or trace changes also run:
@@ -43,7 +43,7 @@ suite passed.
 
 ## Release Gate
 
-`@figit/dom-to-figma` is published. A user-visible API or behavior change needs
+`@aakkino/dom-to-figma` is published privately. A user-visible API or behavior change needs
 documentation in `packages/dom-to-figma/README.md` when relevant and a
 changeset. Internal refactors with no published impact do not need a release
 note solely because files moved.

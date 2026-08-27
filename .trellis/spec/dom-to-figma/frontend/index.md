@@ -1,4 +1,4 @@
-# @figit/dom-to-figma Browser Runtime Guidelines
+# @aakkino/dom-to-figma Browser Runtime Guidelines
 
 This directory covers the published browser conversion library in
 `packages/dom-to-figma`. It is not a React frontend. Its core contract is a

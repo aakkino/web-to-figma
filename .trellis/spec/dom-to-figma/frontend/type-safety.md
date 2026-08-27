@@ -24,7 +24,7 @@ replace these types with `Record<string, unknown>` to avoid modeling a field.
 
 ## External Boundaries
 
-Binary encoder input crosses into `@figit/fig-kiwi` as an object assembled from
+Binary encoder input crosses into `@aakkino/fig-kiwi` as an object assembled from
 typed node changes. DOM APIs still require runtime narrowing:
 
 - use `isTextNode` / `isElementNode` before node-specific access;

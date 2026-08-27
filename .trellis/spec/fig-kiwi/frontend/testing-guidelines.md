@@ -22,9 +22,9 @@ system otherwise prevents, as in `kiwi-writer.test.ts`.
 ## Commands
 
 ~~~sh
-pnpm --filter @figit/fig-kiwi test
-pnpm --filter @figit/fig-kiwi check-types
-pnpm --filter @figit/fig-kiwi build
+pnpm --filter @aakkino/fig-kiwi test
+pnpm --filter @aakkino/fig-kiwi check-types
+pnpm --filter @aakkino/fig-kiwi build
 ~~~
 
 Because this is a published package, a user-visible codec, clipboard, schema,

@@ -29,9 +29,9 @@ resolved from `import.meta.dirname` so invocation cwd does not matter.
 `src/schema.json` is generated. Never patch a field manually. Run:
 
 ~~~sh
-pnpm --filter @figit/fig-kiwi extract-schema <clipboard.html>
-pnpm --filter @figit/fig-kiwi test
-pnpm --filter @figit/fig-kiwi check-types
+pnpm --filter @aakkino/fig-kiwi extract-schema <clipboard.html>
+pnpm --filter @aakkino/fig-kiwi test
+pnpm --filter @aakkino/fig-kiwi check-types
 ~~~
 
 Review version, type count, public encode behavior, and the full generated diff.
