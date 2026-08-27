@@ -216,6 +216,105 @@ Apply the same rule to paint fallbacks: preserve the established frame
 stroke/effect path when decomposition or promotion preconditions are not fully
 met. Never trade a known limitation for a visually incorrect approximation.
 
+## Scenario: Whole-Appearance Color-Matrix Baking
+
+### 1. Scope / Trigger
+
+Read and preserve this scenario when changing CSS `filter` parsing, frame fill
+conversion, composed-tree traversal, border/shadow effects, or color-matrix
+support. Figma has no general color-matrix effect, so baking is valid only when
+the solid fill is the element's complete visible appearance.
+
+### 2. Signatures
+
+The public converter and Kiwi schema remain unchanged. The relevant internal
+boundaries are:
+
+~~~ts
+export function hasColorMatrixFilter(filter: string): boolean;
+
+export function applyCssColorMatrixFilters(
+  color: FigmaColor,
+  filter: string
+): FigmaColor;
+~~~
+
+### 3. Contracts
+
+Bake color-matrix filters into a solid background fill only when all of these
+conditions are true:
+
+- the element is a visual leaf under composed traversal, including shadow-root
+  and slotted children;
+- the element has no background image or gradient;
+- the element emits no border stroke paint;
+- the element emits no box-shadow effect;
+- parsing the same `filter` value emits no Figma blur or drop-shadow effect;
+- the filter contains at least one supported color-matrix operation.
+
+If any condition fails, preserve the unmodified fill color and any representable
+effects. A partial bake is forbidden because it would recolor one layer while
+leaving another layer or composed child outside the CSS filter.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required result | Forbidden result |
+| --- | --- | --- |
+| Solid visual leaf + color-only filter | Bake the filtered RGB into the fill | Dropping the filter without changing the fill |
+| Composed or light-DOM child exists | Keep the original fill | Recoloring only the parent behind an unfiltered child |
+| Background image or gradient exists | Keep all paints unbaked | Recoloring only the solid background layer |
+| Border stroke exists | Keep fill and stroke unbaked | Recoloring the fill while leaving the border unchanged |
+| Box shadow exists | Keep fill and shadow unbaked | Recoloring only the fill |
+| Filter emits blur/drop-shadow | Preserve emitted effects and original fill | Baking color while retaining an unfiltered effect |
+
+Unsupported filter syntax remains best effort and does not throw solely because
+the appearance cannot be represented exactly.
+
+### 5. Good / Base / Bad Cases
+
+- Good: a leaf with only `background: rgb(...)` and `filter: grayscale(1)`
+  emits the transformed solid color.
+- Base: an element without a supported color-matrix filter keeps its existing
+  fill and effects.
+- Bad: a fill is transformed while its child, border, box shadow, blur, or
+  gradient remains visually unfiltered.
+
+### 6. Tests Required
+
+- Pure filter-color tests assert supported matrix composition and stable color
+  output.
+- `figma.filter.browser.test.ts` asserts the emitted fill for an eligible leaf
+  and safe fallback for children, background images, borders, shadows, and
+  representable filter effects.
+- Include a composed-tree child case so light-DOM-only leaf checks cannot
+  regress Shadow DOM or slot behavior.
+- Run package tests, type-check, build, changed-file lint, and oracle parity.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+~~~ts
+const fillColor = hasColorMatrixFilter(filter)
+  ? applyCssColorMatrixFilters(backgroundColor.color, filter)
+  : backgroundColor.color;
+~~~
+
+#### Correct
+
+~~~ts
+const canBake =
+  isComposedVisualLeaf(element) &&
+  !hasBackgroundImage &&
+  strokePaints.length === 0 &&
+  shadowEffects.length === 0 &&
+  filterEffects.length === 0 &&
+  hasColorMatrixFilter(filter);
+const fillColor = canBake
+  ? applyCssColorMatrixFilters(backgroundColor.color, filter)
+  : backgroundColor.color;
+~~~
+
 ## Scenario: Glyph-Aware Font Loading
 
 ### 1. Scope / Trigger
