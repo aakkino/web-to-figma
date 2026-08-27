@@ -54,6 +54,11 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      - name: Fetch upstream main read-only
+        run: |
+          git remote add upstream https://github.com/figitdesign/web-to-figma.git
+          git fetch --no-tags upstream main
+
       - name: Enforce registered core deltas
         run: pnpm upstream-core-delta:check --report .artifacts/upstream-core-delta.json
 
