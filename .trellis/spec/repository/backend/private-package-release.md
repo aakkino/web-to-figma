@@ -68,6 +68,13 @@ non-binary manifest after publication succeeds.
   replace or weaken the PAT publication boundary.
 - Publication order is fixed. A package version is either absent, exactly
   matching the staged artifact, or conflicting. Only absent versions publish.
+- GitHub Packages may omit package-manifest fields such as `exports` from
+  `npm view`. Treat that response as authoritative only for the exact
+  coordinate and declared `dist.integrity`. For immutable-content comparison,
+  authenticated `npm pack --ignore-scripts` must download the registry
+  tarball, its bytes must match the declared SHA-512 integrity before parsing,
+  and `package/package.json` must supply repository, dependencies, peers, and
+  exports. Tar extraction runs without registry or GitHub credentials.
 
 ## 4. Validation & Error Matrix
 
@@ -77,6 +84,8 @@ non-binary manifest after publication succeeds.
 | Tarball bytes, size, SHA-512, package name/version, files, exports, or dependencies differ from the manifest | Stop; do not publish that artifact |
 | Existing registry version matches integrity, repository, dependencies, peers, and exports | Treat as idempotent success and verify it |
 | Existing registry version differs | Stop as an immutable-version conflict |
+| `npm view` omits exports or other manifest fields | Download the authenticated registry tarball and compare its manifest; do not treat omission as mismatch or success |
+| Downloaded bytes differ from declared `dist.integrity` | Stop before tar parsing or any further publication |
 | Package API reports public visibility | Stop and use only the approved single-incident recovery workflow; never patch visibility |
 | Private visibility passes but the owning repository token cannot install/import | Stop and instruct the operator to grant `aakkino/web-to-figma` under **Manage Actions access**; never substitute the PAT |
 | Authorized clean install/import fails | Stop before continuing to the next package |
@@ -104,7 +113,9 @@ Diagnostics must redact credentials and remain bounded.
 - `pnpm test:release`: assert absent/matching/conflicting registry states,
   scoped REST path encoding, explicit denial classification, staged-byte
   tampering rejection, serial stopping, no partial promotion, authorized
-  import, metadata preflight, and release-surface policy.
+  import, metadata preflight, GitHub `npm view` manifest-field omission,
+  downloaded-tarball integrity-before-parse ordering, credential-free tar
+  extraction, and release-surface policy.
 - `pnpm release:policy`: assert the exact publishable allowlist, owned scope,
   GitHub registry, fork metadata, dependency graph, and guarded workflows.
 - `pnpm release:preflight --source-sha <sha>`: build real tarballs, inspect file
