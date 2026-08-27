@@ -47,6 +47,24 @@ afterEach(() => {
 });
 
 describe("layout assertions for nested frames", () => {
+  it("preserves fractional frame dimensions outside auto layout", async () => {
+    const element = mountElement(
+      '<div style="width:100.5px;height:40.25px;background:#f00"></div>'
+    );
+
+    const figma = createFigmaConverter({ layout: "absolute" });
+    const result = await figma.convert({
+      element,
+      width: 101,
+      height: 41,
+    });
+
+    const converted = result.document.nodeChanges.find(
+      (change) => change.type === "FRAME" && change.guid.localID === 3
+    );
+    expect(converted?.size).toEqual({ x: 100.5, y: 40.25 });
+  });
+
   it("preserves a two-column flex layout in the document tree", async () => {
     // Two 100x80 boxes side-by-side inside a 320x200 frame.
     const element = mountElement(

@@ -9,9 +9,21 @@ import {
   runCoreDeltaCheck,
   validateRegistry,
 } from "./check-upstream-core-delta.mjs";
+import { upstreamArchiveArgs } from "./upstream-adapter-fixture.mjs";
 
 const EXPECTED_ERROR_PATTERN = /expected/u;
 const GLOB_ERROR_PATTERN = /glob syntax/u;
+
+test("excludes the non-build symlink from upstream source archives", () => {
+  assert.deepEqual(upstreamArchiveArgs("a".repeat(40)), [
+    "archive",
+    "--format=tar",
+    "a".repeat(40),
+    "--",
+    ".",
+    ":(exclude).claude/skills/opensrc",
+  ]);
+});
 
 function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -172,5 +184,64 @@ test("rejects a moving ref that no longer matches the reviewed commit", () => {
         targetName: "upstreamMain",
       }),
     EXPECTED_ERROR_PATTERN
+  );
+});
+
+test("excludes exact absorbed upstream runtime from the fork budget", () => {
+  const fixture = createFixture();
+  const absorbedPath = "packages/dom-to-figma/src/absorbed.ts";
+  writeFileSync(
+    join(fixture.sourceRoot, "absorbed.ts"),
+    "export const upstream = true;\n"
+  );
+  git(fixture.cwd, "add", absorbedPath);
+  git(
+    fixture.cwd,
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.com",
+    "commit",
+    "--quiet",
+    "-m",
+    "upstream capability"
+  );
+  const upstream = git(fixture.cwd, "rev-parse", "HEAD");
+  fixture.registry.targets.upstreamMain = { ref: upstream, commit: upstream };
+  fixture.registry.absorbedUpstreamPaths = [absorbedPath];
+  writeFileSync(
+    fixture.registryPath,
+    `${JSON.stringify(fixture.registry, null, 2)}\n`
+  );
+
+  const report = runCoreDeltaCheck({
+    cwd: fixture.cwd,
+    registryPath: fixture.registryPath,
+  });
+  assert.deepEqual(report.errors, []);
+  assert.equal(report.summary.runtimeFiles, 2);
+  assert.equal(report.summary.governedRuntimeFiles, 1);
+  assert.equal(report.summary.absorbedUpstreamRuntimeFiles, 1);
+  assert.equal(report.summary.unmappedRuntimeFiles, 0);
+
+  const upstreamReport = runCoreDeltaCheck({
+    cwd: fixture.cwd,
+    registryPath: fixture.registryPath,
+    targetName: "upstreamMain",
+  });
+  assert.equal(upstreamReport.summary.absorbedUpstreamRuntimeFiles, 0);
+
+  writeFileSync(
+    join(fixture.sourceRoot, "absorbed.ts"),
+    "export const upstream = false;\n"
+  );
+  const drifted = runCoreDeltaCheck({
+    cwd: fixture.cwd,
+    registryPath: fixture.registryPath,
+  });
+  assert(
+    drifted.errors.some((error) =>
+      error.includes("Absorbed upstream path drifted")
+    )
   );
 });

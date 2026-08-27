@@ -1,0 +1,43 @@
+{
+  "id": "reassess-upstream-cherry-pick",
+  "name": "reassess-upstream-cherry-pick",
+  "title": "复审更新后的上游与 cherry-pick 策略",
+  "description": "上游更新后重新固定 live targets，复审 fork overrides、历史 upstream intake 与直接 cherry-pick/移植/保留/退役策略。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-26",
+  "completedAt": "2026-08-27",
+  "branch": "task/reassess-upstream-cherry-pick",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-26-border-evolution",
+    "08-26-gradient-background-parity",
+    "08-26-effects-evolution",
+    "08-26-fractional-geometry-conflict",
+    "08-26-fork-integration-regression",
+    "08-26-governance-main-adapter"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "predecessor_task": "08-25-reconcile-local-main-with-origin-main",
+    "current_main": "13948d88e3ec6a0939f39d8f69ce3ef637976a68",
+    "frozen_sync_branch": "sync/upstream-20260726",
+    "frozen_sync_sha": "07bbcd751c34a378caeb91b10681842f37c64b7d",
+    "planning_only": "true",
+    "implementation_authorized": "true",
+    "planning_approved": "true",
+    "planning_approved_at": "2026-08-26",
+    "implementation_deferred_to_next_session": "true"
+  }
+}

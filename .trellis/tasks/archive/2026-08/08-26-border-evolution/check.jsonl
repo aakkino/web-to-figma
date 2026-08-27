@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Defines package and workspace quality gates."}
+{"file": ".trellis/spec/dom-to-figma/frontend/testing-guidelines.md", "reason": "Defines unit, browser, oracle, and release verification."}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "Defines exact paths, fingerprints, absorbed files, targets, adapters, and CI policy."}
+{"file": ".trellis/tasks/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md", "reason": "Provides the reviewed 24-row ledger and fork invariants to check."}

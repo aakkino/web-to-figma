@@ -243,6 +243,7 @@ describe("single-line text auto resize", () => {
     if (!label) {
       throw new Error("expected label");
     }
+    const elementRect = element.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
 
     const figma = createFigmaConverter({ fontLoader: createInterFontLoader() });
@@ -255,8 +256,9 @@ describe("single-line text auto resize", () => {
     const buttonChange = changes.find((change) => change.guid.localID === 3);
     const textChange = findTextChange(changes);
 
-    expect(element.getBoundingClientRect().width).toBeCloseTo(141.078, 1);
-    expect(buttonChange?.size).toEqual({ x: 142, y: 48 });
+    expect(elementRect.width).toBeCloseTo(141.078, 1);
+    expect(buttonChange?.size?.x).toBeCloseTo(elementRect.width, 3);
+    expect(buttonChange?.size?.y).toBeCloseTo(elementRect.height, 3);
     expect(buttonChange).toMatchObject({
       stackMode: "HORIZONTAL",
       stackPrimaryAlignItems: "CENTER",
@@ -401,5 +403,81 @@ describe("text rendering with Inter", () => {
     // silently corrupted.
     const glyphs = textChange.derivedTextData?.glyphs ?? [];
     expect(glyphs).toHaveLength("office affinity".length);
+  });
+});
+
+describe("text-shadow → TEXT node DROP_SHADOW effect", () => {
+  it("attaches a drop shadow parsed from the computed text-shadow", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:32px;font-weight:700;color:#1d4ed8;text-shadow:5px 5px 0 #f59e0b">Shadow</div>`
+    );
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const textChange = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    if (textChange?.type !== "TEXT") {
+      throw new Error("expected TEXT node");
+    }
+
+    const effects = textChange.effects ?? [];
+    expect(effects).toHaveLength(1);
+    const shadow = effects[0];
+    expect(shadow?.type).toBe("DROP_SHADOW");
+    expect(shadow?.offset).toEqual({ x: 5, y: 5 });
+    expect(shadow?.radius).toBe(0);
+    // #f59e0b in sRGB 0-1.
+    if (shadow?.type === "DROP_SHADOW") {
+      expect(shadow.color.r).toBeCloseTo(0.961, 2);
+      expect(shadow.color.g).toBeCloseTo(0.62, 2);
+      expect(shadow.color.b).toBeCloseTo(0.043, 2);
+    }
+  });
+
+  it("emits no effects field when the text has no shadow", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:32px;color:#1d4ed8">Plain</div>`
+    );
+
+    const figma = createFigmaConverter({ fontLoader: createTestFontLoader() });
+    const result = await figma.convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+
+    const textChange = result.document.nodeChanges.find(
+      (change) => change.type === "TEXT"
+    );
+    if (textChange?.type !== "TEXT") {
+      throw new Error("expected TEXT node");
+    }
+    expect(textChange.effects ?? []).toHaveLength(0);
+  });
+});
+
+describe("gradient text paint", () => {
+  it("uses the measured text box for an angular gradient fill", async () => {
+    const element = mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;font-family:'${TEST_FONT_FAMILY}',sans-serif;font-size:32px;color:transparent;background-image:conic-gradient(red 0deg, blue 360deg);background-clip:text">Gradient</div>`
+    );
+
+    const result = await createFigmaConverter({
+      fontLoader: createTestFontLoader(),
+    }).convert({
+      element,
+      width: FRAME_WIDTH,
+      height: FRAME_HEIGHT,
+    });
+    const textChange = findTextChange(result.document.nodeChanges);
+
+    expect(textChange.fillPaints).toHaveLength(1);
+    expect(textChange.fillPaints?.[0]?.type).toBe("GRADIENT_ANGULAR");
   });
 });

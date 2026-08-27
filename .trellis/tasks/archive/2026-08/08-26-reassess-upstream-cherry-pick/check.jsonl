@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "检查 workspace、release、验证与 Git/ref 授权约束。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "确认所有受影响的 converter/rendering/parity/governance/testing 规范均被覆盖。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/layout-and-parity.md", "reason": "检查 geometry、Auto Layout、fallback 与 oracle parity 未被 style intake 破坏。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/rendering-contracts.md", "reason": "复核 border、shadow、font、nowrap 和 image contracts 的回归证据。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "复核 targets、patch/tree evidence、capability mapping、fingerprints、adapter 和 CI gate。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/testing-guidelines.md", "reason": "检查 focused、browser、package、workspace 与 oracle gates 的真实性。"}
+{"file": ".trellis/tasks/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md", "reason": "作为 24/109 topology、完整 ledger、唯一 disposition、dependency、target-tree 与 no-direct-cherry-pick 的核验基线。"}

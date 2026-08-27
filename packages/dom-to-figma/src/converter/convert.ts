@@ -135,10 +135,15 @@ export async function convertElement(
         domTraversal,
       });
       const borderChildren = frameResult.borderChildren ?? [];
+      const syntheticChildren = frameResult.syntheticChildren ?? [];
       return {
-        changes: [frameResult.nodeChange, ...borderChildren],
+        changes: [
+          frameResult.nodeChange,
+          ...borderChildren,
+          ...syntheticChildren,
+        ],
         hasChildren: true,
-        reservedChildCount: borderChildren.length,
+        reservedChildCount: borderChildren.length + syntheticChildren.length,
         frameTextGradient: frameResult.textGradient,
         isAutoLayout: frameResult.isAutoLayout,
         childStackSpecs: frameResult.childStackSpecs,

@@ -79,6 +79,28 @@ function validateTarget(target, field, { requirePackage = false } = {}) {
   }
 }
 
+function validateAbsorbedUpstreamPaths(registry) {
+  const paths = registry.absorbedUpstreamPaths ?? [];
+  invariant(Array.isArray(paths), "absorbedUpstreamPaths must be an array");
+  const pathSet = new Set();
+  for (const rawPath of paths) {
+    const filePath = requireString(rawPath, "absorbedUpstreamPaths[]");
+    invariant(
+      filePath === normalizePath(filePath) &&
+        filePath.startsWith(`${registry.coreRoot}/`) &&
+        !GLOB_PATTERN.test(filePath) &&
+        classifySourcePath(filePath) === "runtime",
+      `absorbedUpstreamPaths must contain exact runtime paths: ${filePath}`
+    );
+    invariant(
+      !pathSet.has(filePath),
+      `duplicate absorbedUpstreamPaths entry: ${filePath}`
+    );
+    pathSet.add(filePath);
+  }
+  return pathSet;
+}
+
 export function validateRegistry(
   registry,
   { allowPendingFingerprints = false } = {}
@@ -117,6 +139,7 @@ export function validateRegistry(
     Array.isArray(registry.sharedPaths),
     "sharedPaths must be an array"
   );
+  const absorbedPathSet = validateAbsorbedUpstreamPaths(registry);
 
   const ids = new Set();
   const pathOwners = new Map();
@@ -225,6 +248,10 @@ export function validateRegistry(
       owners.length === 1 || declaredSharedPaths.has(filePath),
       `overlapping path is not declared: ${filePath}`
     );
+    invariant(
+      !absorbedPathSet.has(filePath),
+      `absorbed upstream path cannot also be capability-owned: ${filePath}`
+    );
   }
 
   return registry;
@@ -311,10 +338,14 @@ export function computePatchFingerprint(cwd, baselineCommit, paths) {
   return `sha256:${createHash("sha256").update(diff).digest("hex")}`;
 }
 
-function buildPathRecords(paths, registry) {
+function buildPathRecords(paths, registry, { markAbsorbed = false } = {}) {
+  const absorbedUpstreamPaths = new Set(
+    markAbsorbed ? (registry.absorbedUpstreamPaths ?? []) : []
+  );
   return paths.map((filePath) => ({
     path: filePath,
     category: classifySourcePath(filePath),
+    upstreamOwned: absorbedUpstreamPaths.has(filePath),
     capabilities: registry.capabilities
       .filter((entry) =>
         classifySourcePath(filePath) === "runtime"
@@ -325,10 +356,33 @@ function buildPathRecords(paths, registry) {
   }));
 }
 
-function evaluateGovernance(registry, records, fingerprints, today) {
+function verifyAbsorbedUpstreamPaths(registry, cwd) {
   const errors = [];
+  for (const filePath of registry.absorbedUpstreamPaths ?? []) {
+    const current = readFileSync(resolve(cwd, filePath), "utf8").replaceAll(
+      "\r\n",
+      "\n"
+    );
+    const upstream = execFileSync(
+      "git",
+      ["show", `${registry.targets.upstreamMain.commit}:${filePath}`],
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+    ).replaceAll("\r\n", "\n");
+    const currentHash = createHash("sha256").update(current).digest("hex");
+    const upstreamHash = createHash("sha256").update(upstream).digest("hex");
+    if (currentHash !== upstreamHash) {
+      errors.push(
+        `Absorbed upstream path drifted from ${registry.targets.upstreamMain.commit}: ${filePath}`
+      );
+    }
+  }
+  return errors;
+}
+
+function evaluateGovernance(registry, records, fingerprints, today, cwd) {
+  const errors = verifyAbsorbedUpstreamPaths(registry, cwd);
   const runtimeRecords = records.filter(
-    (record) => record.category === "runtime"
+    (record) => record.category === "runtime" && !record.upstreamOwned
   );
   const changedRuntime = new Set(runtimeRecords.map((record) => record.path));
 
@@ -419,7 +473,8 @@ export function runCoreDeltaCheck({
   );
   const records = buildPathRecords(
     listChangedPaths(resolvedBaseline, registry.coreRoot, cwd),
-    registry
+    registry,
+    { markAbsorbed: targetName === "governance" }
   );
   const stats = readDiffStats(resolvedBaseline, registry.coreRoot, cwd);
   const fingerprints = new Map(
@@ -453,10 +508,13 @@ export function runCoreDeltaCheck({
     : undefined;
   const errors =
     targetName === "governance"
-      ? evaluateGovernance(registry, records, fingerprints, today)
+      ? evaluateGovernance(registry, records, fingerprints, today, cwd)
       : [];
   const runtimeRecords = records.filter(
     (record) => record.category === "runtime"
+  );
+  const governedRuntimeRecords = runtimeRecords.filter(
+    (record) => !record.upstreamOwned
   );
   const testRecords = records.filter((record) => record.category === "test");
   const capabilities = registry.capabilities.map((entry) => ({
@@ -486,11 +544,14 @@ export function runCoreDeltaCheck({
     summary: {
       sourceFiles: records.length,
       runtimeFiles: runtimeRecords.length,
+      governedRuntimeFiles: governedRuntimeRecords.length,
+      absorbedUpstreamRuntimeFiles:
+        runtimeRecords.length - governedRuntimeRecords.length,
       testFiles: testRecords.length,
       insertions: stats.insertions,
       deletions: stats.deletions,
       capabilityCount: registry.capabilities.length,
-      unmappedRuntimeFiles: runtimeRecords.filter(
+      unmappedRuntimeFiles: governedRuntimeRecords.filter(
         (record) => record.capabilities.length === 0
       ).length,
       unmappedTestFiles: testRecords.filter(
@@ -553,6 +614,9 @@ function printReport(report) {
         ? `Stable package: ${report.resolved.package}@${report.resolved.version}`
         : undefined,
       `Changed source: ${summary.sourceFiles} (${summary.runtimeFiles} runtime, ${summary.testFiles} test/fixture)`,
+      summary.absorbedUpstreamRuntimeFiles
+        ? `Governed fork runtime: ${summary.governedRuntimeFiles}; absorbed upstream runtime: ${summary.absorbedUpstreamRuntimeFiles}`
+        : undefined,
       `Diff size: +${summary.insertions} -${summary.deletions}`,
       `Capabilities: ${summary.capabilityCount}; runtime paths without registry mapping: ${summary.unmappedRuntimeFiles}`,
       ...report.errors.map((error) => `ERROR: ${error}`),

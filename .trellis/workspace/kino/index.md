@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 28 | 2026-08-27 | Reassess upstream rendering parity | `9986a89`, `a92dc5c`, `0e07a71`, `9826786`, `bf0bf8e`, `993b34a`, `f6a16fe` | `task/reassess-upstream-cherry-pick` |
 | 10 | 2026-07-25 | Controlled fork versioning | `7cbaeba`, `6f94661`, `a23f6e6`, `7d71fc7`, `ee651c2`, `896bec2` | `chore/archive-controlled-fork-versioning` |
 | 9 | 2026-07-25 | Preserve single-line text in Figma | `ab0f56e`, `e25fece` | `main` |
 | 8 | 2026-07-25 | DOM-to-Figma image fit semantics | `0149d62`, `5ea3317` | `main` |
