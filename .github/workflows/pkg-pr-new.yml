@@ -1,9 +1,9 @@
 name: Publish Preview
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,4 +24,4 @@ jobs:
         run: pnpm build
 
       - name: Publish preview
-        run: pnpm exec pkg-pr-new publish './packages/*' --packageManager=pnpm --comment=on
+        run: pnpm exec pkg-pr-new publish --pnpm './packages/*' --packageManager=pnpm --comment=update
