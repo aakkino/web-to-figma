@@ -18,6 +18,7 @@ export const ownedRegistry = "https://npm.pkg.github.com";
 const releaseSurfacePaths = [
   "package.json",
   ".changeset/config.json",
+  "scripts/private-release.mjs",
   "scripts/recover-public-fig-kiwi.mjs",
 ];
 
@@ -155,6 +156,80 @@ export function validateReleaseSurfaces(surfaces) {
       errors.push(`fig-kiwi recovery workflow must retain ${label}`);
     }
   }
+
+  const releaseWorkflow = surfaces[".github/workflows/release.yml"] ?? "";
+  for (const [pattern, label] of [
+    [
+      /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.PACKAGE_PUBLISH_TOKEN \}\}/u,
+      "classic PAT package authentication",
+    ],
+    [
+      /GH_TOKEN:\s*\$\{\{ secrets\.PACKAGE_PUBLISH_TOKEN \}\}/u,
+      "classic PAT visibility authentication",
+    ],
+    [
+      /ACTIONS_PACKAGE_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/u,
+      "independent repository Actions authentication",
+    ],
+    [
+      /GH_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/u,
+      "repository metadata authentication",
+    ],
+    [/packages:\s*read/u, "repository package read permission"],
+  ]) {
+    if (!pattern.test(releaseWorkflow)) {
+      errors.push(`release workflow must retain ${label}`);
+    }
+  }
+  if (
+    /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/u.test(
+      releaseWorkflow
+    )
+  ) {
+    errors.push("release workflow must never publish with GITHUB_TOKEN");
+  }
+  if (/packages:\s*write/u.test(releaseWorkflow)) {
+    errors.push("release workflow GITHUB_TOKEN must remain packages: read");
+  }
+  if (
+    (releaseWorkflow.match(/secrets\.PACKAGE_PUBLISH_TOKEN/gu) ?? []).length !==
+    2
+  ) {
+    errors.push(
+      "release workflow must use PACKAGE_PUBLISH_TOKEN only for npm and visibility authentication"
+    );
+  }
+  for (const [variable, expectedCount] of [
+    ["NODE_AUTH_TOKEN", 1],
+    ["ACTIONS_PACKAGE_TOKEN", 1],
+    ["GH_TOKEN", 2],
+  ]) {
+    const count = (
+      releaseWorkflow.match(new RegExp(`^\\s*${variable}:`, "gmu")) ?? []
+    ).length;
+    if (count !== expectedCount) {
+      errors.push(
+        `release workflow must map ${variable} exactly ${expectedCount} time(s)`
+      );
+    }
+  }
+  const privateReleaseScript = surfaces["scripts/private-release.mjs"] ?? "";
+  for (const literal of [
+    "const token = baseEnv.ACTIONS_PACKAGE_TOKEN;",
+    "isolatedCredentialEnvironment(baseEnv, { NODE_AUTH_TOKEN: token })",
+    "GH_TOKEN: undefined",
+    "ACTIONS_PACKAGE_TOKEN: undefined",
+    "Manage Actions access",
+  ]) {
+    if (!privateReleaseScript.includes(literal)) {
+      errors.push(`private release script must retain ${literal}`);
+    }
+  }
+  if (/ACTIONS_PACKAGE_TOKEN\s*(?:\?\?|\|\|)/u.test(privateReleaseScript)) {
+    errors.push(
+      "Actions access verification must not fall back to another token"
+    );
+  }
   if (/ref:\s*\$\{\{\s*inputs\.source_sha\s*\}\}/u.test(recoveryWorkflow)) {
     errors.push(
       "fig-kiwi recovery workflow must use source_sha only as incident evidence"
@@ -162,17 +237,19 @@ export function validateReleaseSurfaces(surfaces) {
   }
   const recoveryScript = surfaces["scripts/recover-public-fig-kiwi.mjs"] ?? "";
   for (const literal of [
-    'confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0"',
-    'sourceSha: "7b5bc37d8b79d6afa26e17f7f10fb19be3d02b45"',
-    "packageId: 14_681_422",
-    "versionId: 1_177_442_350",
+    'confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0_FF5410E6"',
+    'sourceSha: "ff5410e61de4e9243d8f46967fb5de6199e5ee12"',
+    "packageId: 14_684_516",
+    "versionId: 1_178_055_708",
     'leafName: "fig-kiwi"',
     'name: "@aakkino/fig-kiwi"',
     'version: "0.2.0"',
     'repository: "aakkino/web-to-figma"',
-    '"sha512-rkliZpAkJyWtVB0QYhmwcglrOijRPecC9nndIjjDAnFKiZJ80jK7qhpyR/FzdA2+XCMeERE7Sp33IPsJbcE4Zg=="',
+    '"sha512-5oEQUbje4kv1eSKPVkeFHXs11wEK/ujPeKFWLS00wb/YzZR1Ow8SruI7nma5xpUXQkCFa4EZp1yuzcG+qUMEhQ=="',
     'packagePath: "/users/aakkino/packages/npm/fig-kiwi"',
     'deletePath: "/users/aakkino/packages/npm/fig-kiwi"',
+    "await boundary.inspectDeletedPackage()",
+    "Post-delete package inspection failed without an explicit 404",
   ]) {
     if (!recoveryScript.includes(literal)) {
       errors.push(`fig-kiwi recovery script must retain ${literal}`);

@@ -40,7 +40,7 @@ jobs:
     environment: package-publish
     permissions:
       contents: read
-      packages: write
+      packages: read
     steps:
       - name: Validate source SHA input
         env:
@@ -84,8 +84,9 @@ jobs:
       - name: Publish and verify the staged tarballs
         run: pnpm release:publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
+          GH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
+          ACTIONS_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload non-binary release manifest
         uses: actions/upload-artifact@v4
         with:

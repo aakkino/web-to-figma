@@ -33,8 +33,18 @@ non-binary manifest after publication succeeds.
 
 - Registry: `https://npm.pkg.github.com` for the `@aakkino` scope.
 - Workflow input: `source_sha`, exactly 40 lowercase hexadecimal characters.
-- Publish credentials: `NODE_AUTH_TOKEN` and `GH_TOKEN`, both provided only to
-  the publish step from that job's `GITHUB_TOKEN`.
+- Publish credentials: `NODE_AUTH_TOKEN` and package-visibility `GH_TOKEN`
+  both come only from the protected environment secret
+  `PACKAGE_PUBLISH_TOKEN`, a classic PAT with `read:packages` and
+  `write:packages`. There is no `GITHUB_TOKEN` fallback for either operation.
+- Actions-access credential: `ACTIONS_PACKAGE_TOKEN` is the run-scoped
+  `GITHUB_TOKEN` with `packages: read`. It is used only for an independent clean
+  install/import after private visibility succeeds; it must not publish or
+  replace the PAT-based verification.
+- Each registry subprocess receives only its intended identity. PAT-based npm
+  operations do not inherit GitHub or Actions tokens; the Actions probe does
+  not inherit the PAT; anonymous probes and post-install import subprocesses
+  receive none of them.
 - Metadata credential: `GH_TOKEN` with repository contents write permission.
 - Protected environment: `package-publish`, attached to the job that builds,
   packs, inspects, publishes, and verifies.
@@ -51,6 +61,11 @@ non-binary manifest after publication succeeds.
 - A package created with public visibility cannot be changed back to private.
   Visibility verification must hard-fail; it must never attempt or claim a
   visibility patch.
+- A package first created by a workflow `GITHUB_TOKEN` inherits the source
+  repository's visibility. Because this source repository is public, first
+  publication must use the environment classic PAT directly. Keep repository
+  metadata linked to `aakkino/web-to-figma`; that source attribution does not
+  replace or weaken the PAT publication boundary.
 - Publication order is fixed. A package version is either absent, exactly
   matching the staged artifact, or conflicting. Only absent versions publish.
 
@@ -63,6 +78,7 @@ non-binary manifest after publication succeeds.
 | Existing registry version matches integrity, repository, dependencies, peers, and exports | Treat as idempotent success and verify it |
 | Existing registry version differs | Stop as an immutable-version conflict |
 | Package API reports public visibility | Stop and use only the approved single-incident recovery workflow; never patch visibility |
+| Private visibility passes but the owning repository token cannot install/import | Stop and instruct the operator to grant `aakkino/web-to-figma` under **Manage Actions access**; never substitute the PAT |
 | Authorized clean install/import fails | Stop before continuing to the next package |
 | Anonymous probe returns explicit 401, 403, or 404 | Accept as denied access |
 | Anonymous probe succeeds, times out, has a network error, or returns 5xx | Fail; never infer privacy from an inconclusive result |
@@ -99,6 +115,9 @@ Diagnostics must redact credentials and remain bounded.
 - The approved live run must verify private visibility, owner access,
   anonymous denial, owning-repository Actions access, and any deliberately
   granted cross-repository consumer separately.
+- Verification order after each publish is private visibility first, owning
+  repository Actions-token install/import second, then PAT-authorized and
+  anonymous-denial checks.
 
 ## 7. Public Fig Kiwi Incident Recovery
 
@@ -109,6 +128,15 @@ package deletion tool. Before deleting, it requires the exact
 `RECOVERY_CONFIRM` phrase and incident source SHA, then verifies all preserved
 evidence: owner/repository, npm leaf name, package ID, public visibility, the
 single version and version ID, version coordinate, and registry integrity.
+
+| Fixed evidence | Required value |
+| --- | --- |
+| Confirmation | `DELETE_PUBLIC_FIG_KIWI_0.2.0_FF5410E6` |
+| Incident source SHA | `ff5410e61de4e9243d8f46967fb5de6199e5ee12` |
+| Package / version IDs | `14684516` / `1178055708` |
+| Coordinate | `@aakkino/fig-kiwi@0.2.0` |
+| Repository | `aakkino/web-to-figma` |
+| Integrity | `sha512-5oEQUbje4kv1eSKPVkeFHXs11wEK/ujPeKFWLS00wb/YzZR1Ow8SruI7nma5xpUXQkCFa4EZp1yuzcG+qUMEhQ==` |
 
 The package API does not provide a reliable source commit for every npm
 version. The exact incident SHA is therefore an explicit operator input and
@@ -150,8 +178,9 @@ binaries through a public repository artifact.
 - run: pnpm release:preflight --source-sha "${{ inputs.source_sha }}"
 - run: pnpm release:publish
   env:
-    NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
+    GH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
+    ACTIONS_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 Build, inspect, publish, and verify the exact local tarballs inside one

@@ -93,6 +93,55 @@ export function npmPublishArguments(artifact, tag) {
   ];
 }
 
+export function ownerRegistryEnvironment(baseEnv = process.env) {
+  const token = baseEnv.NODE_AUTH_TOKEN;
+  if (!token) {
+    throw new Error("NODE_AUTH_TOKEN must contain PACKAGE_PUBLISH_TOKEN");
+  }
+  return isolatedCredentialEnvironment(baseEnv, { NODE_AUTH_TOKEN: token });
+}
+
+export function ownerVisibilityEnvironment(baseEnv = process.env) {
+  const token = baseEnv.GH_TOKEN;
+  if (!token) {
+    throw new Error("GH_TOKEN must contain PACKAGE_PUBLISH_TOKEN");
+  }
+  return isolatedCredentialEnvironment(baseEnv, { GH_TOKEN: token });
+}
+
+export function actionsRegistryEnvironment(baseEnv = process.env) {
+  const token = baseEnv.ACTIONS_PACKAGE_TOKEN;
+  if (!token) {
+    throw new Error(
+      "ACTIONS_PACKAGE_TOKEN must contain the run-scoped GITHUB_TOKEN"
+    );
+  }
+  return isolatedCredentialEnvironment(baseEnv, { NODE_AUTH_TOKEN: token });
+}
+
+export function anonymousRegistryEnvironment(baseEnv = process.env) {
+  return {
+    ...isolatedCredentialEnvironment(baseEnv),
+    NPM_CONFIG_GLOBALCONFIG: undefined,
+    NPM_CONFIG_USERCONFIG: undefined,
+    npm_config_globalconfig: undefined,
+    npm_config_userconfig: undefined,
+  };
+}
+
+function isolatedCredentialEnvironment(baseEnv, credentials = {}) {
+  return {
+    ...baseEnv,
+    NODE_AUTH_TOKEN: undefined,
+    NPM_TOKEN: undefined,
+    GH_TOKEN: undefined,
+    GITHUB_TOKEN: undefined,
+    ACTIONS_PACKAGE_TOKEN: undefined,
+    PACKAGE_PUBLISH_TOKEN: undefined,
+    ...credentials,
+  };
+}
+
 export async function publishSerially({ artifacts, registry }) {
   const results = [];
   for (const artifact of artifacts) {
@@ -114,6 +163,11 @@ export async function publishSerially({ artifacts, registry }) {
     }
     if (!(await registry.verifyPrivate(artifact))) {
       throw new Error(`${artifact.name}@${artifact.version} is not private`);
+    }
+    if (!(await registry.verifyActionsAccess(artifact))) {
+      throw new Error(
+        `${artifact.name}@${artifact.version} is private but the owning repository GITHUB_TOKEN cannot install it; grant aakkino/web-to-figma access under Manage Actions access`
+      );
     }
     if (!(await registry.verifyAuthorized(artifact))) {
       throw new Error(
@@ -346,7 +400,8 @@ function smokeLocalArtifacts(artifacts) {
           resolve(repositoryRoot, tarballPath)
         ),
       ],
-      consumerRoot
+      consumerRoot,
+      anonymousRegistryEnvironment()
     );
     runInherited(
       process.execPath,
@@ -357,7 +412,8 @@ function smokeLocalArtifacts(artifacts) {
           .map(({ name }) => `await import(${JSON.stringify(name)})`)
           .join(";"),
       ],
-      consumerRoot
+      consumerRoot,
+      anonymousRegistryEnvironment()
     );
   } finally {
     rmSync(consumerRoot, { recursive: true, force: true });
@@ -390,13 +446,18 @@ async function runMetadata(args) {
 function shellRegistry() {
   return {
     inspect(artifact) {
-      const result = spawnCapture("npm", [
-        "view",
-        `${artifact.name}@${artifact.version}`,
-        "--registry",
-        ownedRegistry,
-        "--json",
-      ]);
+      const env = ownerRegistryEnvironment();
+      const result = spawnCapture(
+        "npm",
+        [
+          "view",
+          `${artifact.name}@${artifact.version}`,
+          "--registry",
+          ownedRegistry,
+          "--json",
+        ],
+        env
+      );
       if (result.status !== 0 && /E404|404 Not Found/u.test(result.stderr)) {
         return null;
       }
@@ -413,15 +474,26 @@ function shellRegistry() {
       };
     },
     publish(artifact, tag) {
-      runInherited("npm", npmPublishArguments(artifact, tag));
+      runInherited(
+        "npm",
+        npmPublishArguments(artifact, tag),
+        repositoryRoot,
+        ownerRegistryEnvironment()
+      );
     },
     verifyPrivate(artifact) {
       const value = JSON.parse(
-        runCapture("gh", ["api", githubPackageApiPath(artifact.name)])
+        runCapture(
+          "gh",
+          ["api", githubPackageApiPath(artifact.name)],
+          repositoryRoot,
+          ownerVisibilityEnvironment()
+        )
       );
       return assertPrivatePackageRecord(value, artifact);
     },
     verifyAuthorized(artifact) {
+      const env = ownerRegistryEnvironment();
       const consumerRoot = mkdtempSync(join(tmpdir(), "aakkino-authorized-"));
       try {
         writeFileSync(
@@ -441,7 +513,8 @@ function shellRegistry() {
             "--no-fund",
             `${artifact.name}@${artifact.version}`,
           ],
-          consumerRoot
+          consumerRoot,
+          env
         );
         runInherited(
           process.execPath,
@@ -450,9 +523,51 @@ function shellRegistry() {
             "--eval",
             `await import(${JSON.stringify(artifact.name)})`,
           ],
-          consumerRoot
+          consumerRoot,
+          anonymousRegistryEnvironment(env)
         );
         return true;
+      } finally {
+        rmSync(consumerRoot, { recursive: true, force: true });
+      }
+    },
+    verifyActionsAccess(artifact) {
+      const env = actionsRegistryEnvironment();
+      const consumerRoot = mkdtempSync(join(tmpdir(), "aakkino-actions-"));
+      try {
+        writeFileSync(
+          resolve(consumerRoot, "package.json"),
+          `${JSON.stringify({ private: true, type: "module" }, null, 2)}\n`
+        );
+        writeFileSync(
+          resolve(consumerRoot, ".npmrc"),
+          `@aakkino:registry=${ownedRegistry}\n//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}\n`
+        );
+        runInherited(
+          "npm",
+          [
+            "install",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            `${artifact.name}@${artifact.version}`,
+          ],
+          consumerRoot,
+          env
+        );
+        runInherited(
+          process.execPath,
+          [
+            "--input-type=module",
+            "--eval",
+            `await import(${JSON.stringify(artifact.name)})`,
+          ],
+          consumerRoot,
+          anonymousRegistryEnvironment(env)
+        );
+        return true;
+      } catch {
+        return false;
       } finally {
         rmSync(consumerRoot, { recursive: true, force: true });
       }
@@ -464,15 +579,7 @@ function shellRegistry() {
         const globalNpmrc = resolve(npmrcRoot, "global.npmrc");
         writeFileSync(npmrc, `@aakkino:registry=${ownedRegistry}\n`);
         writeFileSync(globalNpmrc, "");
-        const env = {
-          ...process.env,
-          NODE_AUTH_TOKEN: undefined,
-          NPM_TOKEN: undefined,
-          NPM_CONFIG_GLOBALCONFIG: undefined,
-          NPM_CONFIG_USERCONFIG: undefined,
-          npm_config_globalconfig: undefined,
-          npm_config_userconfig: undefined,
-        };
+        const env = anonymousRegistryEnvironment();
         const result = spawnCapture(
           "npm",
           [
@@ -502,6 +609,7 @@ function shellRegistry() {
       }
     },
     smoke(artifacts) {
+      const env = ownerRegistryEnvironment();
       const consumerRoot = mkdtempSync(
         join(tmpdir(), "aakkino-package-smoke-")
       );
@@ -520,7 +628,8 @@ function shellRegistry() {
             "install",
             ...artifacts.map(({ name, version }) => `${name}@${version}`),
           ],
-          consumerRoot
+          consumerRoot,
+          env
         );
         runInherited(
           process.execPath,
@@ -531,21 +640,27 @@ function shellRegistry() {
               .map(({ name }) => `await import(${JSON.stringify(name)})`)
               .join(";"),
           ],
-          consumerRoot
+          consumerRoot,
+          anonymousRegistryEnvironment(env)
         );
       } finally {
         rmSync(consumerRoot, { recursive: true, force: true });
       }
     },
     promote(artifact, tag) {
-      runInherited("npm", [
-        "dist-tag",
-        "add",
-        `${artifact.name}@${artifact.version}`,
-        tag,
-        "--registry",
-        ownedRegistry,
-      ]);
+      runInherited(
+        "npm",
+        [
+          "dist-tag",
+          "add",
+          `${artifact.name}@${artifact.version}`,
+          tag,
+          "--registry",
+          ownedRegistry,
+        ],
+        repositoryRoot,
+        ownerRegistryEnvironment()
+      );
     },
   };
 }
@@ -704,11 +819,12 @@ function runPackageManager(args) {
   runInherited("pnpm", args);
 }
 
-function runCapture(command, args, cwd = repositoryRoot) {
+function runCapture(command, args, cwd = repositoryRoot, env = process.env) {
   return execFileSync(command, args, {
     cwd,
     encoding: "utf8",
     maxBuffer: 1024 * 1024 * 50,
+    env,
   });
 }
 
@@ -733,16 +849,16 @@ function assertCommand(result, label) {
   }
 }
 
-function runInherited(command, args, cwd = repositoryRoot) {
+function runInherited(command, args, cwd = repositoryRoot, env = process.env) {
   if (process.platform === "win32" && command === "npm") {
     execFileSync(
       process.env.ComSpec ?? "cmd.exe",
       ["/d", "/s", "/c", windowsCommand(command, args)],
-      { cwd, stdio: "inherit" }
+      { cwd, stdio: "inherit", env }
     );
     return;
   }
-  execFileSync(command, args, { cwd, stdio: "inherit" });
+  execFileSync(command, args, { cwd, stdio: "inherit", env });
 }
 
 function windowsCommand(command, args) {

@@ -58,6 +58,12 @@ When a change merges to `main`, the `Release` workflow only opens or updates a
 version PR. It never publishes from a push. Private publication is a separate,
 protected manual dispatch pinned to a reviewed 40-character `main` SHA. The
 `package-publish` environment must require the repository owner as reviewer.
+It must define `PACKAGE_PUBLISH_TOKEN` as a classic PAT with only
+`read:packages` and `write:packages`. GitHub workflow tokens inherit the public
+repository's visibility when they create a package, so the publish and package
+visibility checks must never fall back to `GITHUB_TOKEN`. The workflow uses its
+run-scoped `GITHUB_TOKEN` separately to prove the owning repository has been
+granted package access under **Manage Actions access**.
 
 Local package consumers map only `@aakkino` to GitHub Packages and authenticate
 with a classic PAT carrying `read:packages`. Keep that token in user-level npm
