@@ -128,8 +128,11 @@ Use `pnpm upstream-core-delta:stable` and
 `pnpm upstream-core-delta:main` to reproduce the inventory reports. Build the
 adapter and composed-DOM packages, then run `pnpm upstream-adapter:stable` to
 compile and execute a temporary consumer against the registry-pinned npm
-release rather than the workspace core. The temporary consumer is always
-removed after the check. A moving
+release rather than the workspace core. Run `pnpm upstream-adapter:main` to
+export the reviewed upstream commit, install its locked dependencies, build and
+pack its vanilla core, then execute the same type, capability, image fallback,
+and basic conversion checks. Both temporary consumers and the exported source
+tree are always removed after the check. A moving
 ref is never accepted by name alone: resolve it to a full commit, review the
 delta, then update the registry. These jobs inspect and report compatibility;
 they do not merge, rebase, push, or otherwise mutate the fork branch.

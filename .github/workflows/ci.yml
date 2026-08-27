@@ -118,6 +118,12 @@ jobs:
       - name: Verify reviewed upstream main snapshot
         run: pnpm upstream-core-delta:main --report .artifacts/upstream-main.json
 
+      - name: Build adapter compatibility artifacts
+        run: pnpm --filter @figit/composed-dom build && pnpm --filter @figit/browser-capture-adapter build
+
+      - name: Build and test adapter against reviewed upstream main
+        run: pnpm upstream-adapter:main
+
       - name: Upload upstream main report
         if: always()
         uses: actions/upload-artifact@v4

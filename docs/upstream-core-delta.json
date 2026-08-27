@@ -27,15 +27,27 @@
   "sharedPaths": [
     {
       "path": "packages/dom-to-figma/src/converter/convert.ts",
-      "capabilities": ["composed-dom-traversal", "nowrap-text-sizing"]
+      "capabilities": [
+        "composed-dom-traversal",
+        "nowrap-text-sizing",
+        "upstream-rendering-parity"
+      ]
     },
     {
       "path": "packages/dom-to-figma/src/converter/dom.ts",
-      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+      "capabilities": [
+        "responsive-shadow-dom",
+        "composed-dom-traversal",
+        "upstream-rendering-parity"
+      ]
     },
     {
       "path": "packages/dom-to-figma/src/converter/layout/infer.ts",
       "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+      "capabilities": ["composed-dom-traversal", "upstream-rendering-parity"]
     },
     {
       "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
@@ -50,7 +62,8 @@
       "capabilities": [
         "composed-dom-traversal",
         "glyph-aware-font-fallback",
-        "nowrap-text-sizing"
+        "nowrap-text-sizing",
+        "upstream-rendering-parity"
       ]
     },
     {
@@ -61,6 +74,19 @@
       "path": "packages/dom-to-figma/src/figma.ts",
       "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
     }
+  ],
+  "absorbedUpstreamPaths": [
+    "packages/dom-to-figma/src/converter/nodes/frame/border-decomposition.ts",
+    "packages/dom-to-figma/src/converter/nodes/frame/rounded-dash-border.ts",
+    "packages/dom-to-figma/src/converter/styles/blur.ts",
+    "packages/dom-to-figma/src/converter/styles/border-3d.ts",
+    "packages/dom-to-figma/src/converter/styles/border.ts",
+    "packages/dom-to-figma/src/converter/styles/filter-color.ts",
+    "packages/dom-to-figma/src/converter/styles/gradient.ts",
+    "packages/dom-to-figma/src/converter/styles/outline.ts",
+    "packages/dom-to-figma/src/converter/styles/shadow.ts",
+    "packages/dom-to-figma/src/converter/types/node.ts",
+    "packages/dom-to-figma/src/converter/types/paint.ts"
   ],
   "capabilities": [
     {
@@ -81,7 +107,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "split-draft-pending",
       "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
-      "patchFingerprint": "sha256:1254ea8fce9a0f211fec0ab2f1b513b5169b7431def4e8e7e0ed5fa92115516a"
+      "patchFingerprint": "sha256:581f4ec624427d40834a47a656c5cd9c74033cb1b07dd838fabfa465ac92621b"
     },
     {
       "id": "composed-dom-traversal",
@@ -106,7 +132,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "pr-draft-pending",
       "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
-      "patchFingerprint": "sha256:dcb5695384813b80126b049a0f0797fc14b7563967ae46ce4d47775446410735"
+      "patchFingerprint": "sha256:d09065b4d1ba7bdb3a96523723a5c658961445b84a40065bc0f69d1f56be6de4"
     },
     {
       "id": "glyph-aware-font-fallback",
@@ -127,7 +153,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "upstream-ready-local",
       "removeWhen": "selected upstream baseline covers glyph availability and CJK fallback without text parity regressions",
-      "patchFingerprint": "sha256:3df44125a7f2f2149aafc9d90730b058d60c9e4fd1d14e6ada14eb31fffb2d21"
+      "patchFingerprint": "sha256:c45304a8ae943b71334a7c1e52f3d3b697a6beffdca4049f2e383cb6eda56c24"
     },
     {
       "id": "image-presentation",
@@ -179,7 +205,54 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "upstream-ready-local",
       "removeWhen": "selected upstream baseline preserves measured nowrap width and single-line height with parity",
-      "patchFingerprint": "sha256:79eab6e13f2fa7efa298fb1d23ae76c49707d0f27ee0c885b4e0b522368a15ee"
+      "patchFingerprint": "sha256:f361cf06b6d6d921d0a6655d05f041b0b2184c02dd9c4a24f57697cfc5dd4159"
+    },
+    {
+      "id": "upstream-rendering-parity",
+      "capability": "Adapted upstream border, gradient, effects, and fractional frame parity",
+      "classification": "upstream-main-adaptation",
+      "originCommits": [
+        "0208934deb0b540967ea34dc7360967199341156",
+        "774a670a99950fe7927e971816adaee6d792dd85",
+        "51b582107bf12cd01fd9a1bae309eb14a4f95edb",
+        "810c2aaf947fc6ef7fcb9de6bd95fae38b1469f7",
+        "cc8d4864e6be53d0d5047fbf97283b112b3117f4",
+        "83202a39356affe1d8eba0baf9807584adb46e7b",
+        "0d3c9eac37e274f08a5005868a60f5604d2d8eb5",
+        "ec38305e32fab580a7e04ebd11e6e66630d847e7",
+        "7dd5da2bc77e722064730ee95768f43bf8f91f70",
+        "922e12e9b2bc245edae38c36478f91818ac08ddf",
+        "20a438c55f089bfb8ff7d157be3c5e420100e1f4"
+      ],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/converter/nodes/frame/border-decomposition.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/rounded-dash-border.test.ts",
+        "packages/dom-to-figma/src/converter/styles/blur.test.ts",
+        "packages/dom-to-figma/src/converter/styles/border-3d.test.ts",
+        "packages/dom-to-figma/src/converter/styles/border.test.ts",
+        "packages/dom-to-figma/src/converter/styles/filter-color.test.ts",
+        "packages/dom-to-figma/src/converter/styles/gradient.test.ts",
+        "packages/dom-to-figma/src/converter/styles/outline.test.ts",
+        "packages/dom-to-figma/src/converter/styles/shadow.test.ts",
+        "packages/dom-to-figma/src/figma.border-double.browser.test.ts",
+        "packages/dom-to-figma/src/figma.border.browser.test.ts",
+        "packages/dom-to-figma/src/figma.filter.browser.test.ts",
+        "packages/dom-to-figma/src/figma.gradient.browser.test.ts",
+        "packages/dom-to-figma/src/figma.layout.browser.test.ts",
+        "packages/dom-to-figma/src/figma.shadow.browser.test.ts",
+        "packages/dom-to-figma/src/figma.text.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "adapted-upstream-main-final-tree",
+      "removeWhen": "the selected upstream baseline can replace the shared frame, text, traversal, and geometry integration without regressing registered fork capabilities",
+      "patchFingerprint": "sha256:09b3410022920b2e31ced7db68d1227ccb1c523c275167e3ec796e93d7f7c75f"
     }
   ]
 }
