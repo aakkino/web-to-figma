@@ -68,10 +68,7 @@ export function getElementPositionRelativeToParent(
 
 export function getElementSize(element: Element): Size {
   const elementRect = element.getBoundingClientRect();
-  return {
-    width: Math.ceil(elementRect.width),
-    height: Math.ceil(elementRect.height),
-  };
+  return { width: elementRect.width, height: elementRect.height };
 }
 
 function getTextRect(textNode: Text) {
