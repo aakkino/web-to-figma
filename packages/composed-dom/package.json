@@ -20,6 +20,7 @@
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
+    "access": "restricted",
     "exports": {
       ".": {
         "types": "./dist/index.d.mts",

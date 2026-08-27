@@ -1,0 +1,50 @@
+name: Recover Public Fig Kiwi Incident
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Source SHA of the accidental public publication
+        required: true
+        type: string
+      recovery_confirm:
+        description: Type the fixed RECOVERY_CONFIRM value from the release spec
+        required: true
+        type: string
+
+concurrency:
+  group: recover-public-fig-kiwi
+
+jobs:
+  recover:
+    name: Delete the single accidental public package
+    runs-on: ubuntu-latest
+    environment: package-publish
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Require the current remote main recovery code
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)"
+          git diff --quiet && git diff --cached --quiet
+      - uses: ./.github/actions/setup
+      - name: Enforce release policy
+        run: pnpm release:policy
+      - name: Configure authenticated package inspection
+        run: |
+          cat > .npmrc <<'EOF'
+          @aakkino:registry=https://npm.pkg.github.com
+          //npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+          always-auth=true
+          EOF
+      - name: Delete only the verified accidental public package
+        run: pnpm release:recover-public-fig-kiwi --source-sha "${{ inputs.source_sha }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RECOVERY_CONFIRM: ${{ inputs.recovery_confirm }}
