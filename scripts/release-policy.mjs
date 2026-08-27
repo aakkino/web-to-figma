@@ -15,7 +15,11 @@ export const releasePackages = [
 
 export const ownedRegistry = "https://npm.pkg.github.com";
 
-const releaseSurfacePaths = ["package.json", ".changeset/config.json"];
+const releaseSurfacePaths = [
+  "package.json",
+  ".changeset/config.json",
+  "scripts/recover-public-fig-kiwi.mjs",
+];
 
 const migratedUpstreamNames = new Set([
   "@figit/fig-kiwi",
@@ -117,6 +121,63 @@ export function validateReleaseSurfaces(surfaces) {
   if ("pkg-pr-new" in (rootManifest.devDependencies ?? {})) {
     errors.push("root package must not depend on pkg-pr-new");
   }
+  if (
+    rootManifest.scripts?.["release:recover-public-fig-kiwi"] !==
+    "node scripts/recover-public-fig-kiwi.mjs"
+  ) {
+    errors.push(
+      "root package must expose only the fixed fig-kiwi recovery command"
+    );
+  }
+
+  const recoveryWorkflow =
+    surfaces[".github/workflows/recover-public-fig-kiwi.yml"] ?? "";
+  for (const [pattern, label] of [
+    [/group:\s*recover-public-fig-kiwi/u, "fixed recovery concurrency"],
+    [/environment:\s*package-publish/u, "protected environment"],
+    [/contents:\s*read/u, "contents read permission"],
+    [/packages:\s*write/u, "packages write permission"],
+    [/actions\/checkout@v6/u, "reviewed checkout action"],
+    [
+      /test "\$\(git rev-parse origin\/main\)" = "\$\(git rev-parse HEAD\)"/u,
+      "current remote main check",
+    ],
+    [
+      /RECOVERY_CONFIRM:\s*\$\{\{ inputs\.recovery_confirm \}\}/u,
+      "explicit confirmation",
+    ],
+    [
+      /pnpm release:recover-public-fig-kiwi --source-sha "\$\{\{ inputs\.source_sha \}\}"/u,
+      "fixed recovery command",
+    ],
+  ]) {
+    if (!pattern.test(recoveryWorkflow)) {
+      errors.push(`fig-kiwi recovery workflow must retain ${label}`);
+    }
+  }
+  if (/ref:\s*\$\{\{\s*inputs\.source_sha\s*\}\}/u.test(recoveryWorkflow)) {
+    errors.push(
+      "fig-kiwi recovery workflow must use source_sha only as incident evidence"
+    );
+  }
+  const recoveryScript = surfaces["scripts/recover-public-fig-kiwi.mjs"] ?? "";
+  for (const literal of [
+    'confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0"',
+    'sourceSha: "7b5bc37d8b79d6afa26e17f7f10fb19be3d02b45"',
+    "packageId: 14_681_422",
+    "versionId: 1_177_442_350",
+    'leafName: "fig-kiwi"',
+    'name: "@aakkino/fig-kiwi"',
+    'version: "0.2.0"',
+    'repository: "aakkino/web-to-figma"',
+    '"sha512-rkliZpAkJyWtVB0QYhmwcglrOijRPecC9nndIjjDAnFKiZJ80jK7qhpyR/FzdA2+XCMeERE7Sp33IPsJbcE4Zg=="',
+    'packagePath: "/users/aakkino/packages/npm/fig-kiwi"',
+    'deletePath: "/users/aakkino/packages/npm/fig-kiwi"',
+  ]) {
+    if (!recoveryScript.includes(literal)) {
+      errors.push(`fig-kiwi recovery script must retain ${literal}`);
+    }
+  }
 
   const changesets = JSON.parse(surfaces[".changeset/config.json"] ?? "{}");
   if (changesets.access !== "restricted") {
@@ -155,8 +216,8 @@ function validateAllowedPackage(path, manifest, expectedName) {
   if (manifest.bugs?.url !== "https://github.com/aakkino/web-to-figma/issues") {
     errors.push(`${path} must use the fork issue tracker`);
   }
-  if (manifest.publishConfig?.access === "public") {
-    errors.push(`${path} must not request public access`);
+  if (manifest.publishConfig?.access !== "restricted") {
+    errors.push(`${path} must explicitly request restricted access`);
   }
   if ("provenance" in (manifest.publishConfig ?? {})) {
     errors.push(`${path} must not claim unsupported npm provenance`);

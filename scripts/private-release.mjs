@@ -48,7 +48,27 @@ export function githubPackageApiPath(name) {
   if (!/^@aakkino\/[a-z0-9-]+$/u.test(name)) {
     throw new Error(`Cannot inspect unowned package ${name}`);
   }
-  return `/user/packages/npm/${encodeURIComponent(name)}`;
+  return `/users/aakkino/packages/npm/${githubPackageLeafName(name)}`;
+}
+
+export function githubPackageLeafName(name) {
+  if (!/^@aakkino\/[a-z0-9-]+$/u.test(name)) {
+    throw new Error(`Cannot inspect unowned package ${name}`);
+  }
+  return name.slice("@aakkino/".length);
+}
+
+export function assertPrivatePackageRecord(value, artifact) {
+  if (value.visibility === "public") {
+    throw new Error(
+      `${artifact.name}@${artifact.version} is public and cannot be changed back to private; use the approved recovery workflow`
+    );
+  }
+  return (
+    value.name === githubPackageLeafName(artifact.name) &&
+    value.package_type === "npm" &&
+    value.visibility === "private"
+  );
 }
 
 export function isExplicitAccessDenial(result) {
@@ -58,6 +78,19 @@ export function isExplicitAccessDenial(result) {
   return /(?:E40[134]|40[134] (?:Unauthorized|Forbidden|Not Found))/iu.test(
     `${result.stdout}\n${result.stderr}`
   );
+}
+
+export function npmPublishArguments(artifact, tag) {
+  return [
+    "publish",
+    resolve(repositoryRoot, artifact.tarballPath),
+    "--tag",
+    tag,
+    "--access",
+    "restricted",
+    "--registry",
+    ownedRegistry,
+  ];
 }
 
 export async function publishSerially({ artifacts, registry }) {
@@ -148,6 +181,9 @@ export function inspectPackedArtifact({ packagePath, tarballPath, sourceSha }) {
   }
   if (JSON.stringify(packageJson).includes("workspace:")) {
     throw new Error(`${packageJson.name} contains a workspace protocol`);
+  }
+  if (packageJson.publishConfig?.access !== "restricted") {
+    throw new Error(`${packageJson.name} must pack restricted access`);
   }
   const activeEdges = {
     ...(packageJson.dependencies ?? {}),
@@ -377,20 +413,13 @@ function shellRegistry() {
       };
     },
     publish(artifact, tag) {
-      runInherited("npm", [
-        "publish",
-        resolve(repositoryRoot, artifact.tarballPath),
-        "--tag",
-        tag,
-        "--registry",
-        ownedRegistry,
-      ]);
+      runInherited("npm", npmPublishArguments(artifact, tag));
     },
     verifyPrivate(artifact) {
       const value = JSON.parse(
         runCapture("gh", ["api", githubPackageApiPath(artifact.name)])
       );
-      return value.name === artifact.name && value.visibility === "private";
+      return assertPrivatePackageRecord(value, artifact);
     },
     verifyAuthorized(artifact) {
       const consumerRoot = mkdtempSync(join(tmpdir(), "aakkino-authorized-"));

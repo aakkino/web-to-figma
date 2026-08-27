@@ -41,9 +41,16 @@ non-binary manifest after publication succeeds.
 - Source identity: checkout `HEAD`, fetched `origin/main`, manifest
   `sourceSha`, package repository metadata, tags, and Releases must resolve to
   the approved SHA.
-- Package state: `publishConfig.registry` must be GitHub Packages; public
-  access, npm provenance, direct `npm publish`, and migrated active `@figit/*`
-  dependency edges are forbidden.
+- Package state: `publishConfig.registry` must be GitHub Packages and
+  `publishConfig.access` must be explicitly `restricted`; every publish also
+  passes `--access restricted`. Public access, npm provenance, unguarded direct
+  `npm publish`, and migrated active `@figit/*` dependency edges are forbidden.
+- GitHub's user-owned REST package path is
+  `/users/aakkino/packages/npm/<leaf>`, where a scoped npm package uses its
+  unscoped leaf (`fig-kiwi`, not `@aakkino/fig-kiwi` or its encoded form).
+- A package created with public visibility cannot be changed back to private.
+  Visibility verification must hard-fail; it must never attempt or claim a
+  visibility patch.
 - Publication order is fixed. A package version is either absent, exactly
   matching the staged artifact, or conflicting. Only absent versions publish.
 
@@ -55,6 +62,7 @@ non-binary manifest after publication succeeds.
 | Tarball bytes, size, SHA-512, package name/version, files, exports, or dependencies differ from the manifest | Stop; do not publish that artifact |
 | Existing registry version matches integrity, repository, dependencies, peers, and exports | Treat as idempotent success and verify it |
 | Existing registry version differs | Stop as an immutable-version conflict |
+| Package API reports public visibility | Stop and use only the approved single-incident recovery workflow; never patch visibility |
 | Authorized clean install/import fails | Stop before continuing to the next package |
 | Anonymous probe returns explicit 401, 403, or 404 | Accept as denied access |
 | Anonymous probe succeeds, times out, has a network error, or returns 5xx | Fail; never infer privacy from an inconclusive result |
@@ -92,7 +100,37 @@ Diagnostics must redact credentials and remain bounded.
   anonymous denial, owning-repository Actions access, and any deliberately
   granted cross-repository consumer separately.
 
-## 7. Wrong vs Correct
+## 7. Public Fig Kiwi Incident Recovery
+
+The only approved destructive recovery surface is
+`recover-public-fig-kiwi.yml` plus
+`pnpm release:recover-public-fig-kiwi`. It is deliberately not a generic
+package deletion tool. Before deleting, it requires the exact
+`RECOVERY_CONFIRM` phrase and incident source SHA, then verifies all preserved
+evidence: owner/repository, npm leaf name, package ID, public visibility, the
+single version and version ID, version coordinate, and registry integrity.
+
+The package API does not provide a reliable source commit for every npm
+version. The exact incident SHA is therefore an explicit operator input and
+fixed script constant; the recorded tarball integrity and repository link are
+the registry-side evidence. If registry metadata exposes `gitHead`, it must
+also match. Any absent or mismatched required evidence stops recovery.
+The workflow itself checks out the dispatch ref and requires that checkout to
+equal current `origin/main`; it must never check out the incident SHA as
+recovery code.
+
+Only after those checks may the script call the fixed
+`DELETE /users/aakkino/packages/npm/fig-kiwi` endpoint with `packages: write`,
+then require an explicit 404 from the same package path. The workflow
+`GITHUB_TOKEN` must also have package admin access; GitHub grants that access
+to the repository that published or is explicitly connected to the package.
+There is no PAT fallback.
+Deletion is valid only while `0.2.0` is the package's unique version. After
+deletion, the ordinary protected release workflow rebuilds the coordinate with
+explicit restricted access. Never add package name, version, ID, endpoint, or
+integrity arguments to this recovery command.
+
+## 8. Wrong vs Correct
 
 ### Wrong
 
@@ -118,4 +156,3 @@ binaries through a public repository artifact.
 
 Build, inspect, publish, and verify the exact local tarballs inside one
 protected job. Upload only `manifest.json` for metadata reconciliation.
-

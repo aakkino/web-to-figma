@@ -19,7 +19,7 @@ function validEntries() {
           directory: path,
         },
         bugs: { url: "https://github.com/aakkino/web-to-figma/issues" },
-        publishConfig: { registry: ownedRegistry },
+        publishConfig: { registry: ownedRegistry, access: "restricted" },
       },
     })),
     {
@@ -41,9 +41,18 @@ test("rejects public, old-scope, and unallowlisted publication", () => {
 
   const errors = validateWorkspaceManifests(entries).join("\n");
   assert.ok(errors.includes("must be named @aakkino/fig-kiwi"));
-  assert.ok(errors.includes("must not request public access"));
+  assert.ok(errors.includes("must explicitly request restricted access"));
   assert.ok(errors.includes("upstream @figit scope"));
   assert.ok(errors.includes("absent from the release allowlist"));
+});
+
+test("requires explicit restricted access on every publishable package", () => {
+  const entries = validEntries();
+  entries[1].manifest.publishConfig.access = undefined;
+  assert.match(
+    validateWorkspaceManifests(entries).join("\n"),
+    /must explicitly request restricted access/u
+  );
 });
 
 test("rejects package metadata that does not link to the fork", () => {
@@ -74,6 +83,8 @@ function validReleaseSurfaces() {
     "package.json": JSON.stringify({
       scripts: {
         "release:publish": "node scripts/private-release.mjs publish",
+        "release:recover-public-fig-kiwi":
+          "node scripts/recover-public-fig-kiwi.mjs",
       },
       devDependencies: {},
     }),
@@ -84,8 +95,34 @@ function validReleaseSurfaces() {
         { repo: "aakkino/web-to-figma" },
       ],
     }),
+    "scripts/recover-public-fig-kiwi.mjs": [
+      'confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0"',
+      'sourceSha: "7b5bc37d8b79d6afa26e17f7f10fb19be3d02b45"',
+      "packageId: 14_681_422",
+      "versionId: 1_177_442_350",
+      'leafName: "fig-kiwi"',
+      'name: "@aakkino/fig-kiwi"',
+      'version: "0.2.0"',
+      'repository: "aakkino/web-to-figma"',
+      '"sha512-rkliZpAkJyWtVB0QYhmwcglrOijRPecC9nndIjjDAnFKiZJ80jK7qhpyR/FzdA2+XCMeERE7Sp33IPsJbcE4Zg=="',
+      'packagePath: "/users/aakkino/packages/npm/fig-kiwi"',
+      'deletePath: "/users/aakkino/packages/npm/fig-kiwi"',
+    ].join("\n"),
     ".github/workflows/release.yml": "run: pnpm release:publish",
     ".github/workflows/pkg-pr-new.yml": "run: pnpm release:preflight",
+    ".github/workflows/recover-public-fig-kiwi.yml": [
+      "group: recover-public-fig-kiwi",
+      "environment: package-publish",
+      "contents: read",
+      "packages: write",
+      "uses: actions/checkout@v6",
+      'test "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)"',
+      [
+        'run: pnpm release:recover-public-fig-kiwi --source-sha "$',
+        '{{ inputs.source_sha }}"',
+      ].join(""),
+      ["RECOVERY_CONFIRM: $", "{{ inputs.recovery_confirm }}"].join(""),
+    ].join("\n"),
   };
 }
 
@@ -105,4 +142,29 @@ test("rejects public preview, npm, provenance, and Changesets publish paths", ()
   assert.match(errors, /Changesets publication/u);
   assert.match(errors, /public npm registry/u);
   assert.match(errors, /unsupported provenance/u);
+});
+
+test("rejects a weakened or generic recovery surface", () => {
+  const surfaces = validReleaseSurfaces();
+  surfaces[".github/workflows/recover-public-fig-kiwi.yml"] =
+    "run: node generic-delete.mjs";
+  surfaces["scripts/recover-public-fig-kiwi.mjs"] =
+    "export function deleteAnyPackage() {}";
+  const errors = validateReleaseSurfaces(surfaces).join("\n");
+  assert.match(errors, /protected environment/u);
+  assert.match(errors, /packages write permission/u);
+  assert.match(errors, /fixed recovery command/u);
+  assert.match(errors, /recovery script must retain/u);
+});
+
+test("rejects using the incident SHA as recovery code", () => {
+  const surfaces = validReleaseSurfaces();
+  surfaces[".github/workflows/recover-public-fig-kiwi.yml"] += [
+    "\nref: $",
+    "{{ inputs.source_sha }}",
+  ].join("");
+  assert.match(
+    validateReleaseSurfaces(surfaces).join("\n"),
+    /only as incident evidence/u
+  );
 });

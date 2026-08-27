@@ -5,10 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  assertPrivatePackageRecord,
   assertStagedArtifact,
   compareRegistryArtifact,
   githubPackageApiPath,
+  githubPackageLeafName,
   isExplicitAccessDenial,
+  npmPublishArguments,
   publishSerially,
   reconcileMetadata,
 } from "./private-release.mjs";
@@ -41,14 +44,33 @@ test("classifies absent, matching, and mismatched registry state", () => {
   );
 });
 
-test("encodes the complete scoped npm name for the GitHub package API", () => {
+test("uses the unscoped leaf name for the GitHub npm package API", () => {
   assert.equal(
     githubPackageApiPath("@aakkino/fig-kiwi"),
-    "/user/packages/npm/%40aakkino%2Ffig-kiwi"
+    "/users/aakkino/packages/npm/fig-kiwi"
   );
+  assert.equal(githubPackageLeafName("@aakkino/dom-to-figma"), "dom-to-figma");
   assert.throws(
     () => githubPackageApiPath("@figit/fig-kiwi"),
     /unowned package/u
+  );
+});
+
+test("hard-fails public visibility because it cannot be patched private", () => {
+  assert.throws(
+    () =>
+      assertPrivatePackageRecord(
+        { name: "fig-kiwi", package_type: "npm", visibility: "public" },
+        artifact
+      ),
+    /cannot be changed back to private/u
+  );
+  assert.equal(
+    assertPrivatePackageRecord(
+      { name: "fig-kiwi", package_type: "npm", visibility: "private" },
+      artifact
+    ),
+    true
   );
 });
 
@@ -68,6 +90,20 @@ test("accepts only explicit authentication and authorization denials", () => {
   assert.equal(
     isExplicitAccessDenial({ status: 0, stdout: "package", stderr: "" }),
     false
+  );
+});
+
+test("publishes with explicit restricted access", () => {
+  assert.deepEqual(
+    npmPublishArguments({ tarballPath: "package.tgz" }, "migration").slice(2),
+    [
+      "--tag",
+      "migration",
+      "--access",
+      "restricted",
+      "--registry",
+      "https://npm.pkg.github.com",
+    ]
   );
 });
 
