@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -12,6 +19,7 @@ import {
   compareRegistryArtifact,
   githubPackageApiPath,
   githubPackageLeafName,
+  inspectDownloadedRegistryArtifact,
   isExplicitAccessDenial,
   npmPublishArguments,
   ownerRegistryEnvironment,
@@ -25,27 +33,148 @@ const artifact = {
   version: "0.2.0",
   integrity: "sha512-reviewed",
   repository: "https://github.com/aakkino/web-to-figma",
+  dependencies: { fflate: "^0.8.2" },
+  peerDependencies: {},
+  exports: { ".": "./dist/index.js" },
 };
 
-const matching = { ...artifact };
+const matching = {
+  metadata: {
+    name: artifact.name,
+    version: artifact.version,
+    integrity: artifact.integrity,
+  },
+  tarballIntegrity: artifact.integrity,
+  packageManifest: {
+    name: artifact.name,
+    version: artifact.version,
+    repository: artifact.repository,
+    dependencies: artifact.dependencies,
+    peerDependencies: artifact.peerDependencies,
+    exports: artifact.exports,
+  },
+};
 const registryConflict = /conflicts with registry state/u;
 const unauthorizedAccess = /available without authorization/u;
 const actionsAccess = /Manage Actions access/u;
 const tagConflict = /already points/u;
+const downloadedIntegrityMismatch = /does not match registry integrity/u;
 
 test("classifies absent, matching, and mismatched registry state", () => {
   assert.equal(compareRegistryArtifact(artifact, null), "absent");
   assert.equal(compareRegistryArtifact(artifact, matching), "matching");
   assert.equal(
-    compareRegistryArtifact(artifact, { ...matching, integrity: "other" }),
+    compareRegistryArtifact(artifact, {
+      ...matching,
+      tarballIntegrity: "sha512-other",
+    }),
     "mismatch"
   );
   assert.equal(
-    compareRegistryArtifact(
-      { ...artifact, dependencies: { fflate: "^0.8.2" } },
-      { ...matching, dependencies: { fflate: "^0.8.3" } }
-    ),
+    compareRegistryArtifact(artifact, {
+      ...matching,
+      metadata: { ...matching.metadata, integrity: "sha512-other" },
+    }),
     "mismatch"
+  );
+  assert.equal(
+    compareRegistryArtifact(artifact, {
+      ...matching,
+      packageManifest: {
+        ...matching.packageManifest,
+        dependencies: { fflate: "^0.8.3" },
+      },
+    }),
+    "mismatch"
+  );
+});
+
+test("uses the downloaded manifest when GitHub npm view omits exports", () => {
+  const githubRegistryVersion = {
+    ...matching,
+    metadata: {
+      name: artifact.name,
+      version: artifact.version,
+      integrity: artifact.integrity,
+      repository: { url: "git+https://github.com/aakkino/web-to-figma.git" },
+      dependencies: artifact.dependencies,
+    },
+  };
+
+  assert.equal("exports" in githubRegistryVersion.metadata, false);
+  assert.equal("publishConfig" in githubRegistryVersion.metadata, false);
+  assert.equal(
+    compareRegistryArtifact(artifact, githubRegistryVersion),
+    "matching"
+  );
+});
+
+test("reads immutable metadata and integrity from a downloaded tarball", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "private-release-download-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const packageRoot = join(root, "package");
+  mkdirSync(packageRoot);
+  writeFileSync(
+    join(packageRoot, "package.json"),
+    JSON.stringify({
+      name: artifact.name,
+      version: artifact.version,
+      repository: { url: `git+${artifact.repository}.git` },
+      dependencies: artifact.dependencies,
+      peerDependencies: artifact.peerDependencies,
+      publishConfig: { exports: artifact.exports },
+    })
+  );
+  const tarballPath = join(root, "package.tgz");
+  execFileSync("tar", ["-czf", tarballPath, "package"], { cwd: root });
+  const bytes = readFileSync(tarballPath);
+  const integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
+
+  assert.deepEqual(
+    inspectDownloadedRegistryArtifact({
+      tarballPath,
+      registryMetadata: {
+        name: artifact.name,
+        version: artifact.version,
+        dist: { integrity },
+      },
+    }),
+    {
+      metadata: {
+        name: artifact.name,
+        version: artifact.version,
+        integrity,
+      },
+      tarballIntegrity: integrity,
+      packageManifest: {
+        name: artifact.name,
+        version: artifact.version,
+        repository: artifact.repository,
+        dependencies: artifact.dependencies,
+        peerDependencies: artifact.peerDependencies,
+        exports: artifact.exports,
+      },
+    }
+  );
+});
+
+test("rejects downloaded bytes before parsing an untrusted tarball", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "private-release-corrupt-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const tarballPath = join(root, "package.tgz");
+  writeFileSync(tarballPath, "not a tarball");
+
+  assert.throws(
+    () =>
+      inspectDownloadedRegistryArtifact({
+        tarballPath,
+        registryMetadata: {
+          name: artifact.name,
+          version: artifact.version,
+          dist: { integrity: "sha512-declared" },
+        },
+      }),
+    downloadedIntegrityMismatch
   );
 });
 
@@ -284,7 +413,9 @@ test("accepts an already matching version without publishing", async () => {
 });
 
 test("stops on mismatched bytes", async () => {
-  const boundary = registry([{ ...matching, integrity: "sha512-other" }]);
+  const boundary = registry([
+    { ...matching, tarballIntegrity: "sha512-other" },
+  ]);
   await assert.rejects(
     publishSerially({ artifacts: [artifact], registry: boundary }),
     registryConflict
@@ -300,7 +431,20 @@ test("partial success never promotes when a later package fails", async () => {
   };
   const boundary = registry([
     matching,
-    { ...second, integrity: "sha512-other" },
+    {
+      ...matching,
+      metadata: {
+        ...matching.metadata,
+        name: second.name,
+        version: second.version,
+      },
+      tarballIntegrity: "sha512-other",
+      packageManifest: {
+        ...matching.packageManifest,
+        name: second.name,
+        version: second.version,
+      },
+    },
   ]);
   await assert.rejects(
     publishSerially({ artifacts: [artifact, second], registry: boundary }),

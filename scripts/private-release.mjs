@@ -27,21 +27,63 @@ export function compareRegistryArtifact(artifact, registryVersion) {
   if (registryVersion === null) {
     return "absent";
   }
+  const { metadata, packageManifest, tarballIntegrity } = registryVersion;
   if (
-    registryVersion.name === artifact.name &&
-    registryVersion.version === artifact.version &&
-    registryVersion.integrity === artifact.integrity &&
-    registryVersion.repository === artifact.repository &&
-    equalMetadata(registryVersion.dependencies, artifact.dependencies) &&
+    metadata?.name === artifact.name &&
+    metadata.version === artifact.version &&
+    metadata.integrity === artifact.integrity &&
+    tarballIntegrity === artifact.integrity &&
+    packageManifest?.name === artifact.name &&
+    packageManifest.version === artifact.version &&
+    packageManifest.repository === artifact.repository &&
+    equalMetadata(packageManifest.dependencies, artifact.dependencies) &&
     equalMetadata(
-      registryVersion.peerDependencies,
+      packageManifest.peerDependencies,
       artifact.peerDependencies
     ) &&
-    equalMetadata(registryVersion.exports, artifact.exports)
+    equalMetadata(packageManifest.exports, artifact.exports)
   ) {
     return "matching";
   }
   return "mismatch";
+}
+
+export function inspectDownloadedRegistryArtifact({
+  tarballPath,
+  registryMetadata,
+}) {
+  const bytes = readFileSync(tarballPath);
+  const tarballIntegrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
+  const declaredIntegrity = registryMetadata.dist?.integrity;
+  if (declaredIntegrity !== tarballIntegrity) {
+    throw new Error(
+      `${registryMetadata.name}@${registryMetadata.version} downloaded tarball does not match registry integrity`
+    );
+  }
+  const packageJson = JSON.parse(
+    runCapture(
+      "tar",
+      ["-xOf", tarballPath, "package/package.json"],
+      repositoryRoot,
+      anonymousRegistryEnvironment()
+    )
+  );
+  return {
+    metadata: {
+      name: registryMetadata.name,
+      version: registryMetadata.version,
+      integrity: registryMetadata.dist?.integrity,
+    },
+    tarballIntegrity,
+    packageManifest: {
+      name: packageJson.name,
+      version: packageJson.version,
+      repository: normalizeRepository(packageJson.repository),
+      dependencies: packageJson.dependencies ?? {},
+      peerDependencies: packageJson.peerDependencies ?? {},
+      exports: packageJson.exports ?? packageJson.publishConfig?.exports,
+    },
+  };
 }
 
 export function githubPackageApiPath(name) {
@@ -463,15 +505,52 @@ function shellRegistry() {
       }
       assertCommand(result, "registry inspection");
       const value = JSON.parse(result.stdout);
-      return {
-        name: value.name,
-        version: value.version,
-        integrity: value.dist?.integrity,
-        repository: normalizeRepository(value.repository),
-        dependencies: value.dependencies ?? {},
-        peerDependencies: value.peerDependencies ?? {},
-        exports: value.exports ?? value.publishConfig?.exports,
-      };
+      // GitHub's npm metadata omits package fields such as exports, so verify
+      // immutable contents from the authenticated registry tarball.
+      const downloadRoot = mkdtempSync(
+        join(tmpdir(), "aakkino-registry-artifact-")
+      );
+      try {
+        const emptyGlobalConfig = resolve(downloadRoot, "global.npmrc");
+        writeFileSync(emptyGlobalConfig, "");
+        const downloadEnv = {
+          ...env,
+          NPM_CONFIG_GLOBALCONFIG: emptyGlobalConfig,
+          NPM_CONFIG_USERCONFIG: resolve(repositoryRoot, ".npmrc"),
+          npm_config_globalconfig: undefined,
+          npm_config_userconfig: undefined,
+        };
+        const download = spawnCapture(
+          "npm",
+          [
+            "pack",
+            `${artifact.name}@${artifact.version}`,
+            "--ignore-scripts",
+            "--pack-destination",
+            ".",
+            "--registry",
+            ownedRegistry,
+            "--json",
+          ],
+          downloadEnv,
+          downloadRoot
+        );
+        assertCommand(download, "registry tarball download");
+        const tarballs = readdirSync(downloadRoot).filter((file) =>
+          file.endsWith(".tgz")
+        );
+        if (tarballs.length !== 1) {
+          throw new Error(
+            `Registry download produced ${tarballs.length} tarballs for ${artifact.name}@${artifact.version}`
+          );
+        }
+        return inspectDownloadedRegistryArtifact({
+          tarballPath: resolve(downloadRoot, tarballs[0]),
+          registryMetadata: value,
+        });
+      } finally {
+        rmSync(downloadRoot, { recursive: true, force: true });
+      }
     },
     publish(artifact, tag) {
       runInherited(
