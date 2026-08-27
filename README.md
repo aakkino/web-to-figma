@@ -5,7 +5,7 @@
 Convert HTML to editable Figma layers. No plugin needed, just paste.
 
 ```ts
-import { createFigmaConverter } from "@figit/dom-to-figma";
+import { createFigmaConverter } from "@aakkino/dom-to-figma";
 
 const figma = createFigmaConverter();
 
@@ -31,14 +31,27 @@ Used in production by [Sleek](https://sleek.design) to copy generated designs st
 
 | Package | Version | Description |
 | ------- | ------- | ----------- |
-| [`@figit/dom-to-figma`](./packages/dom-to-figma) | [![npm](https://img.shields.io/npm/v/@figit/dom-to-figma)](https://www.npmjs.com/package/@figit/dom-to-figma) | Convert any DOM tree to a Figma clipboard payload. |
+| [`@aakkino/dom-to-figma`](./packages/dom-to-figma) | `0.3.0` | Convert any DOM tree to a Figma clipboard payload. |
 
 See the [`dom-to-figma` README](./packages/dom-to-figma) for the full API: customizing font/image loaders, multi-frame canvases, and DOM-to-node classification.
 
 ## Install
 
+The fork packages are private on GitHub Packages. Configure the owned scope and
+use a classic personal access token with `read:packages`; never commit the token:
+
+```ini
+@aakkino:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+Initial access is owner-only plus this repository's Actions workflows. A
+workflow in another repository may use its own run-scoped `GITHUB_TOKEN` only
+after that repository is explicitly granted read access to each package; do
+not replace that grant with a shared PAT.
+
 ```sh
-pnpm add @figit/dom-to-figma
+pnpm add @aakkino/dom-to-figma
 ```
 
 ## Contributing

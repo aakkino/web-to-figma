@@ -5,7 +5,7 @@
 - `entrypoints/popup/` is the 320 px action UI. It finds the active tab and
   injects a synchronous trigger into that tab.
 - `entrypoints/content/` mounts a WXT shadow-root overlay, receives triggers,
-  picks DOM elements, runs `@figit/dom-to-figma`, and writes to the clipboard.
+  picks DOM elements, runs `@aakkino/dom-to-figma`, and writes to the clipboard.
 - `entrypoints/background.ts` is a service worker with privileged host access.
   It fetches public image/font bytes when page-context fetch is blocked by CORS.
 - `shared/` contains the contracts used by more than one context: messaging,

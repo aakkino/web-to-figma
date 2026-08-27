@@ -1,5 +1,5 @@
-import type { DomTreeStrategy } from "@figit/composed-dom";
-import { openComposedDomTree } from "@figit/composed-dom";
+import type { DomTreeStrategy } from "@aakkino/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 
 import type {
   CaptureAnalysis,

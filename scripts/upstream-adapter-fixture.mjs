@@ -51,19 +51,20 @@ export function runAdapterConsumer({ coreSpec, label }) {
       },
     });
     installDependencies(consumerRoot);
+    installUpstreamCoreAlias(consumerRoot);
 
     installBuiltPackage(
       consumerRoot,
       "@figit/browser-capture-adapter",
       resolve(repositoryRoot, "internal/browser-capture-adapter/dist"),
       {
-        "@figit/composed-dom": "0.1.0",
-        "@figit/dom-to-figma": coreSpec,
+        "@aakkino/composed-dom": "0.1.1",
+        "@aakkino/dom-to-figma": "0.0.0-upstream-compat",
       }
     );
     installBuiltPackage(
       consumerRoot,
-      "@figit/composed-dom",
+      "@aakkino/composed-dom",
       resolve(repositoryRoot, "packages/composed-dom/dist")
     );
 
@@ -193,6 +194,30 @@ function installBuiltPackage(consumerRoot, name, dist, dependencies = {}) {
       },
     },
     dependencies,
+  });
+}
+
+function installUpstreamCoreAlias(consumerRoot) {
+  const source = resolve(
+    consumerRoot,
+    "node_modules",
+    "@figit",
+    "dom-to-figma"
+  );
+  const target = resolve(
+    consumerRoot,
+    "node_modules",
+    "@aakkino",
+    "dom-to-figma"
+  );
+  mkdirSync(dirname(target), { recursive: true });
+  cpSync(source, target, { recursive: true });
+  const manifestPath = resolve(target, "package.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  writeJson(manifestPath, {
+    ...manifest,
+    name: "@aakkino/dom-to-figma",
+    version: "0.0.0-upstream-compat",
   });
 }
 

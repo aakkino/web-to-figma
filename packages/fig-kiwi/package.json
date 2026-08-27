@@ -1,17 +1,17 @@
 {
-  "name": "@figit/fig-kiwi",
+  "name": "@aakkino/fig-kiwi",
   "version": "0.2.0",
   "description": "Encode Figma's Kiwi binary format and HTML clipboard envelope.",
   "license": "MIT",
-  "author": "Figit <https://figit.design>",
-  "homepage": "https://github.com/figitdesign/web-to-figma#readme",
+  "author": "aakkino",
+  "homepage": "https://github.com/aakkino/web-to-figma#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/figitdesign/web-to-figma.git",
+    "url": "git+https://github.com/aakkino/web-to-figma.git",
     "directory": "packages/fig-kiwi"
   },
   "bugs": {
-    "url": "https://github.com/figitdesign/web-to-figma/issues"
+    "url": "https://github.com/aakkino/web-to-figma/issues"
   },
   "keywords": [
     "figma",
@@ -29,8 +29,7 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true,
+    "registry": "https://npm.pkg.github.com",
     "exports": {
       ".": {
         "types": "./dist/index.d.mts",

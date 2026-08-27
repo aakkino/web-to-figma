@@ -1,4 +1,4 @@
-# @figit/fig-kiwi Node Tooling Guidelines
+# @aakkino/fig-kiwi Node Tooling Guidelines
 
 This directory covers `packages/fig-kiwi/scripts`: schema extraction and the
 human-assisted oracle capture/diff/distill tools. There is no database or

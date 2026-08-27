@@ -1,4 +1,4 @@
-import { decodeFigmaData, parseClipboardHtml } from "@figit/fig-kiwi";
+import { decodeFigmaData, parseClipboardHtml } from "@aakkino/fig-kiwi";
 
 type DecodedNode = {
   type?: string;

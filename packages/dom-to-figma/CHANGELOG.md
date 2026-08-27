@@ -1,4 +1,4 @@
-# @figit/dom-to-figma
+# @aakkino/dom-to-figma
 
 ## 0.3.0
 
@@ -59,7 +59,7 @@
 
 - Add an optional structural `domTraversal` strategy to
   `createFigmaConverter`. Existing consumers continue to use light DOM by
-  default; `@figit/composed-dom` can opt into open Shadow DOM and slot
+  default; `@aakkino/composed-dom` can opt into open Shadow DOM and slot
   projection while sharing the same strategy with auto-layout inference.
 
 ## 0.2.0

@@ -36,7 +36,7 @@ results. `clearCache()` clears both long-lived caches.
    `converter/nodes/`.
 5. Style parsers under `converter/styles/` and type definitions under
    `converter/types/` build the node changes.
-6. `@figit/fig-kiwi` encodes the document and composes the clipboard envelope.
+6. `@aakkino/fig-kiwi` encodes the document and composes the clipboard envelope.
 
 Keep DOM traversal out of leaf converters and keep Kiwi wire encoding out of
 the DOM conversion modules.
@@ -47,7 +47,7 @@ the DOM conversion modules.
 
 - Trigger: a consumer needs open Shadow DOM and slot projection without making
   the published converter depend on the capture adapter or browser extension.
-- Scope: `@figit/composed-dom`, the converter's optional traversal hook, and
+- Scope: `@aakkino/composed-dom`, the converter's optional traversal hook, and
   the private capture adapter's preparation/conversion boundary.
 
 ### 2. Signatures
@@ -69,7 +69,7 @@ createFigmaConverter({
 });
 ~~~
 
-`@figit/composed-dom` extends the structural shape with
+`@aakkino/composed-dom` extends the structural shape with
 `walk(root): Iterable<{ node; composedParent; depth }>` and exports only
 `lightDomTree` and `openComposedDomTree` from its package root.
 

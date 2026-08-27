@@ -4,8 +4,8 @@
 
 The harness is private measurement tooling. It consumes:
 
-- `@figit/dom-to-figma` for conversion and `ConvertTrace`;
-- `@figit/fig-kiwi` for clipboard decode and copy-back structural diff;
+- `@aakkino/dom-to-figma` for conversion and `ConvertTrace`;
+- `@aakkino/fig-kiwi` for clipboard decode and copy-back structural diff;
 - Playwright for deterministic browser capture and live Figma;
 - pixelmatch/pngjs for Tier 2.
 

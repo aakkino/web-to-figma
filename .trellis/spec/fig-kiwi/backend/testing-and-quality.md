@@ -7,9 +7,9 @@ covered by the package's Vitest suite.
 Before handing off a tooling change:
 
 ~~~sh
-pnpm --filter @figit/fig-kiwi check-types
-pnpm --filter @figit/fig-kiwi test
-pnpm --filter @figit/fig-kiwi build
+pnpm --filter @aakkino/fig-kiwi check-types
+pnpm --filter @aakkino/fig-kiwi test
+pnpm --filter @aakkino/fig-kiwi build
 ~~~
 
 For an oracle workflow change, use a disposable or already-authorized capture

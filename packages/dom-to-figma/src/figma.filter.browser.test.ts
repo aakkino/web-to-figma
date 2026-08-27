@@ -1,4 +1,4 @@
-import { openComposedDomTree } from "@figit/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import { createTestFontLoader } from "./__fixtures__/loaders";
 import type { FigmaFrameNodeChange, FigmaNodeChange } from "./converter/types";

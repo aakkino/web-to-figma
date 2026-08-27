@@ -6,23 +6,23 @@ import { describe, expect, it } from "vitest";
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(sourceRoot, "..", "..", "..");
 const extensionRoot = join(repositoryRoot, "apps", "extension");
-const upstreamImport = ["@figit", "dom-to-figma"].join("/");
+const converterImport = ["@aakkino", "dom-to-figma"].join("/");
 const bridgePath = join(sourceRoot, "bridges", "dom-to-figma.ts");
 const SOURCE_FILE_PATTERN = /\.(ts|tsx)$/;
 
-describe("upstream import boundary", () => {
-  it("keeps the adapter's upstream dependency inside the bridge", () => {
+describe("converter import boundary", () => {
+  it("keeps the adapter's converter dependency inside the bridge", () => {
     const adapterFiles = collectSourceFiles(sourceRoot);
     const adapterImports = adapterFiles.filter((file) =>
-      readFileSync(file, "utf8").includes(upstreamImport)
+      readFileSync(file, "utf8").includes(converterImport)
     );
 
     expect(adapterImports).toEqual([bridgePath]);
   });
 
-  it("keeps extension product modules upstream-independent", () => {
+  it("keeps extension product modules converter-independent", () => {
     const extensionImports = collectSourceFiles(extensionRoot).filter((file) =>
-      readFileSync(file, "utf8").includes(upstreamImport)
+      readFileSync(file, "utf8").includes(converterImport)
     );
 
     expect(extensionImports).toEqual([]);

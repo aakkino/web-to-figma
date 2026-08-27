@@ -10,7 +10,7 @@
   are ESM, and Node tooling resolves repository-relative paths from
   `import.meta.dirname` rather than the caller's current directory.
 - Import another workspace through its package export, such as
-  `@figit/dom-to-figma` or `@figit/ui/components/button`. Do not cross package
+  `@aakkino/dom-to-figma` or `@figit/ui/components/button`. Do not cross package
   boundaries with deep relative paths.
 
 Reference files:
@@ -99,7 +99,8 @@ Reference files:
 
 ## Releases And Commits
 
-- User-facing changes to `@figit/dom-to-figma` or `@figit/fig-kiwi` require a
+- User-facing changes to `@aakkino/dom-to-figma`, `@aakkino/composed-dom`, or
+  `@aakkino/fig-kiwi` require a
   changeset. Private `apps/*` and `internal/*` packages do not.
 - Use Conventional Commits and keep one logical change per pull request.
 - Do not mix generated baselines, schema updates, or broad formatting churn

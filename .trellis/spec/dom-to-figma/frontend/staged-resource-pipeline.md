@@ -3,7 +3,7 @@
 This document records the staged browser-capture contract after retirement of
 the fork-only core preparation API. The capture adapter owns scheduling,
 policy, diagnostics, frozen source mapping, and prepared bytes.
-`@figit/dom-to-figma` owns ordinary image loading, format normalization,
+`@aakkino/dom-to-figma` owns ordinary image loading, format normalization,
 hashing, intrinsic dimensions, and final image presentation.
 
 ## Scenario: Prepared Images And Explicit Placeholders

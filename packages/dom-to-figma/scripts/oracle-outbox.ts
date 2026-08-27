@@ -23,7 +23,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import process from "node:process";
-import { decodeFigmaData, parseClipboardHtml } from "@figit/fig-kiwi";
+import { decodeFigmaData, parseClipboardHtml } from "@aakkino/fig-kiwi";
 import { chromium } from "playwright";
 import { build } from "tsdown";
 

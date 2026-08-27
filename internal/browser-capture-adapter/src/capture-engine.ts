@@ -1,4 +1,4 @@
-import { openComposedDomTree } from "@figit/composed-dom";
+import { openComposedDomTree } from "@aakkino/composed-dom";
 
 import { FontPreflightError } from "./font-resolver";
 import {

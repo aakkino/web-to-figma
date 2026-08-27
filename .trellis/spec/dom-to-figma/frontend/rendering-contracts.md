@@ -178,10 +178,10 @@ DOM geometry.
   fallback, and CSS-border precedence.
 - Oracle corpus: retain minimal `bord` and `fx` scenes and run
   `pnpm oracle:parity`; text changes must also inspect geometry-x findings.
-- Package gate: run `pnpm --filter @figit/dom-to-figma test`, `check-types`, and
+- Package gate: run `pnpm --filter @aakkino/dom-to-figma test`, `check-types`, and
   `build`.
 - Release gate: keep a patch changeset for each independently releasable
-  consumer-visible fix. Do not bump `@figit/fig-kiwi` without a Kiwi package or
+  consumer-visible fix. Do not bump `@aakkino/fig-kiwi` without a Kiwi package or
   schema change.
 
 ### 7. Wrong vs Correct
@@ -603,7 +603,7 @@ fallbacks, or adapter-specific behavior.
 - Oracle corpus: keep a non-symmetric image scene with non-centered contain and
   cover, then run `pnpm oracle:parity` without widening tolerances.
 - Boundary/release gate: adapter tests, core test/type/build, and a core patch
-  changeset; do not bump `@figit/fig-kiwi` without a schema/package change.
+  changeset; do not bump `@aakkino/fig-kiwi` without a schema/package change.
 
 ### 7. Wrong vs Correct
 

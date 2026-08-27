@@ -3,7 +3,7 @@
 ## Browser-Only SPA
 
 `vite.config.ts` enables TanStack Start SPA mode because
-`@figit/dom-to-figma` requires real browser APIs and layout. Do not move
+`@aakkino/dom-to-figma` requires real browser APIs and layout. Do not move
 converter imports into an SSR loader or re-enable route SSR without isolating
 all DOM-dependent code and testing both execution paths.
 
@@ -22,7 +22,7 @@ select data and compose the workbench.
 
 ## Dependencies
 
-Use `@figit/dom-to-figma` through its public workspace API and shared controls
+Use `@aakkino/dom-to-figma` through its public workspace API and shared controls
 through explicit `@figit/ui` subpath exports. `src/styles.css` must continue to
 scan `internal/ui/src` so Tailwind emits classes used inside shared components.
 

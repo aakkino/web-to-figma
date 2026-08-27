@@ -1,4 +1,4 @@
-# @figit/fig-kiwi Runtime Guidelines
+# @aakkino/fig-kiwi Runtime Guidelines
 
 The Trellis `frontend` route is retained for the published, browser-capable
 runtime in `packages/fig-kiwi/src`. This package is a Kiwi binary codec and

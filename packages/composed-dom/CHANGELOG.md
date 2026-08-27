@@ -1,4 +1,4 @@
-# @figit/composed-dom
+# @aakkino/composed-dom
 
 ## 0.1.1
 

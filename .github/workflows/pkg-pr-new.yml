@@ -1,4 +1,4 @@
-name: Publish Preview
+name: Package Release Assurance
 
 on:
   pull_request:
@@ -9,19 +9,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
-  publish:
-    name: Publish to pkg.pr.new
+  pack:
+    name: Inspect local package tarballs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - uses: ./.github/actions/setup
-
       - name: Build
         run: pnpm build
-
-      - name: Publish preview
-        run: pnpm exec pkg-pr-new publish --pnpm './packages/*' --packageManager=pnpm --comment=update
+      - name: Enforce release policy
+        run: pnpm release:policy
+      - name: Pack and run clean-consumer smoke test
+        run: pnpm release:preflight --source-sha "${{ github.event.pull_request.head.sha }}"
+      - name: Upload package manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-release-manifest
+          path: .artifacts/private-release/manifest.json
+          if-no-files-found: error
+          retention-days: 7

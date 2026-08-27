@@ -1,4 +1,4 @@
-import type { DomTreeStrategy } from "@figit/composed-dom";
+import type { DomTreeStrategy } from "@aakkino/composed-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type {

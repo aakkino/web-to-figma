@@ -8,7 +8,7 @@
  * the output still matches what Figma accepted — no Figma required.
  */
 
-import { STACK_FIELD_DEFAULTS, TRACKED_STACK_FIELDS } from "@figit/fig-kiwi";
+import { STACK_FIELD_DEFAULTS, TRACKED_STACK_FIELDS } from "@aakkino/fig-kiwi";
 import { describe, expect, it } from "vitest";
 import alignCenterEnd from "../scripts/oracle-scenes/01-flex/align-center-end.html?raw";
 import asymmetricPadding from "../scripts/oracle-scenes/01-flex/asymmetric-padding.html?raw";

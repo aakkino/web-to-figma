@@ -2,12 +2,12 @@
   "$schema": "https://unpkg.com/@changesets/config@latest/schema.json",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "figitdesign/web-to-figma" }
+    { "repo": "aakkino/web-to-figma" }
   ],
   "commit": false,
   "fixed": [],
   "linked": [],
-  "access": "public",
+  "access": "restricted",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [],

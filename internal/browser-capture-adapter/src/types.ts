@@ -1,6 +1,6 @@
-import type { DomTreeStrategy } from "@figit/composed-dom";
+import type { DomTreeStrategy } from "@aakkino/composed-dom";
 
-export type { DomTreeStrategy } from "@figit/composed-dom";
+export type { DomTreeStrategy } from "@aakkino/composed-dom";
 
 export type ConverterLayout = "absolute" | "auto";
 

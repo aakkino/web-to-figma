@@ -1,11 +1,11 @@
 # Browser capture adapter
 
 `@figit/browser-capture-adapter` is a private consumer-side layer around the
-public `@figit/dom-to-figma` API. It stabilizes a live page, resolves usable
+private `@aakkino/dom-to-figma` API. It stabilizes a live page, resolves usable
 font bytes, records browser CJK line boundaries, and restores temporary page
 state before returning a conversion result.
 
-The adapter depends on `@figit/composed-dom` and selects
+The adapter depends on `@aakkino/composed-dom` and selects
 `openComposedDomTree` by default. Fork cores with `domTraversal` support use
 the same strategy for image waiting, font requests, CJK line-break preparation,
 and the converter call. Pass
@@ -18,7 +18,7 @@ Compatibility matrix:
 
 | Utility | Core converter | Adapter |
 | --- | --- | --- |
-| `@figit/composed-dom` `0.1.x` | `@figit/dom-to-figma` `>=0.2.0 <0.4.0` | private workspace package |
+| `@aakkino/composed-dom` `0.1.x` | `@aakkino/dom-to-figma` `>=0.3.0 <0.4.0` | private workspace package |
 
 The bridge negotiates image preparation once when it is constructed. Fork
 cores that export a structurally compatible `createImagePreparation` keep the

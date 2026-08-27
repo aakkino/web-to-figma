@@ -297,12 +297,12 @@ plus resolver diagnostics as the only inventory source.
 message and converts base64 back to an ArrayBuffer. Keep MIME type with the
 bytes; downstream image processing needs both.
 
-The adapter selects `openComposedDomTree` from `@figit/composed-dom` by default
+The adapter selects `openComposedDomTree` from `@aakkino/composed-dom` by default
 and passes that same strategy into the converter. Open Shadow DOM roots replace
 a host's light-DOM children, and `<slot>` nodes are replaced by their assigned
 nodes. The same strategy is used by the settle gate, font request collection,
 and temporary CJK line-break pass so resources and text inside web components
-are ready before conversion. Direct `@figit/dom-to-figma` consumers remain on
+are ready before conversion. Direct `@aakkino/dom-to-figma` consumers remain on
 light DOM unless they explicitly provide a strategy. Closed shadow roots remain
 inaccessible by browser security rules.
 
