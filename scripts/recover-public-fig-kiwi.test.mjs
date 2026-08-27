@@ -46,16 +46,16 @@ function validBoundary(overrides = {}) {
 
 test("pins every incident coordinate and destructive endpoint", () => {
   assert.deepEqual(recoveryTarget, {
-    confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0",
-    sourceSha: "7b5bc37d8b79d6afa26e17f7f10fb19be3d02b45",
-    packageId: 14_681_422,
-    versionId: 1_177_442_350,
+    confirmation: "DELETE_PUBLIC_FIG_KIWI_0.2.0_FF5410E6",
+    sourceSha: "ff5410e61de4e9243d8f46967fb5de6199e5ee12",
+    packageId: 14_684_516,
+    versionId: 1_178_055_708,
     leafName: "fig-kiwi",
     name: "@aakkino/fig-kiwi",
     version: "0.2.0",
     repository: "aakkino/web-to-figma",
     integrity:
-      "sha512-rkliZpAkJyWtVB0QYhmwcglrOijRPecC9nndIjjDAnFKiZJ80jK7qhpyR/FzdA2+XCMeERE7Sp33IPsJbcE4Zg==",
+      "sha512-5oEQUbje4kv1eSKPVkeFHXs11wEK/ujPeKFWLS00wb/YzZR1Ow8SruI7nma5xpUXQkCFa4EZp1yuzcG+qUMEhQ==",
     packagePath: "/users/aakkino/packages/npm/fig-kiwi",
     deletePath: "/users/aakkino/packages/npm/fig-kiwi",
   });

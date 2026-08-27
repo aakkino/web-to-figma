@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
+  actionsRegistryEnvironment,
+  anonymousRegistryEnvironment,
   assertPrivatePackageRecord,
   assertStagedArtifact,
   compareRegistryArtifact,
@@ -12,6 +14,8 @@ import {
   githubPackageLeafName,
   isExplicitAccessDenial,
   npmPublishArguments,
+  ownerRegistryEnvironment,
+  ownerVisibilityEnvironment,
   publishSerially,
   reconcileMetadata,
 } from "./private-release.mjs";
@@ -26,6 +30,7 @@ const artifact = {
 const matching = { ...artifact };
 const registryConflict = /conflicts with registry state/u;
 const unauthorizedAccess = /available without authorization/u;
+const actionsAccess = /Manage Actions access/u;
 const tagConflict = /already points/u;
 
 test("classifies absent, matching, and mismatched registry state", () => {
@@ -107,6 +112,70 @@ test("publishes with explicit restricted access", () => {
   );
 });
 
+test("isolates PAT, Actions, and anonymous credential environments", () => {
+  const base = {
+    NODE_AUTH_TOKEN: "pat",
+    NPM_TOKEN: "npm-fallback",
+    GH_TOKEN: "pat",
+    GITHUB_TOKEN: "actions-default",
+    ACTIONS_PACKAGE_TOKEN: "actions-read",
+    PACKAGE_PUBLISH_TOKEN: "raw-secret",
+    KEEP_ME: "yes",
+  };
+  assert.deepEqual(
+    {
+      ...ownerRegistryEnvironment(base),
+      KEEP_ME: undefined,
+    },
+    {
+      ...base,
+      NODE_AUTH_TOKEN: "pat",
+      NPM_TOKEN: undefined,
+      GH_TOKEN: undefined,
+      GITHUB_TOKEN: undefined,
+      ACTIONS_PACKAGE_TOKEN: undefined,
+      PACKAGE_PUBLISH_TOKEN: undefined,
+      KEEP_ME: undefined,
+    }
+  );
+  const visibility = ownerVisibilityEnvironment(base);
+  assert.equal(visibility.GH_TOKEN, "pat");
+  assert.equal(visibility.NODE_AUTH_TOKEN, undefined);
+  assert.equal(visibility.ACTIONS_PACKAGE_TOKEN, undefined);
+
+  const actions = actionsRegistryEnvironment(base);
+  assert.equal(actions.NODE_AUTH_TOKEN, "actions-read");
+  assert.equal(actions.GH_TOKEN, undefined);
+  assert.equal(actions.ACTIONS_PACKAGE_TOKEN, undefined);
+
+  const anonymous = anonymousRegistryEnvironment(base);
+  for (const name of [
+    "NODE_AUTH_TOKEN",
+    "NPM_TOKEN",
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "ACTIONS_PACKAGE_TOKEN",
+    "PACKAGE_PUBLISH_TOKEN",
+  ]) {
+    assert.equal(anonymous[name], undefined);
+  }
+});
+
+test("credential environments never fall back to another identity", () => {
+  assert.throws(
+    () => ownerRegistryEnvironment({ ACTIONS_PACKAGE_TOKEN: "actions" }),
+    /PACKAGE_PUBLISH_TOKEN/u
+  );
+  assert.throws(
+    () => ownerVisibilityEnvironment({ NODE_AUTH_TOKEN: "pat" }),
+    /PACKAGE_PUBLISH_TOKEN/u
+  );
+  assert.throws(
+    () => actionsRegistryEnvironment({ NODE_AUTH_TOKEN: "pat" }),
+    /run-scoped GITHUB_TOKEN/u
+  );
+});
+
 test("rejects staged tarballs whose bytes changed after preflight", (t) => {
   const root = mkdtempSync(join(tmpdir(), "private-release-bytes-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -164,12 +233,19 @@ function registry(states, options = {}) {
       calls.push(`publish:${current.name}`);
     },
     verifyPrivate() {
+      calls.push("verify-private");
       return options.private !== false;
     },
+    verifyActionsAccess() {
+      calls.push("verify-actions-access");
+      return options.actions !== false;
+    },
     verifyAuthorized() {
+      calls.push("verify-pat-access");
       return options.authorized !== false;
     },
     verifyUnauthorizedDenied() {
+      calls.push("verify-anonymous-denial");
       return options.denied !== false;
     },
     smoke() {
@@ -188,6 +264,10 @@ test("publishes an absent version and verifies before promotion", async () => {
     "inspect:@aakkino/fig-kiwi",
     "publish:@aakkino/fig-kiwi",
     "inspect:@aakkino/fig-kiwi",
+    "verify-private",
+    "verify-actions-access",
+    "verify-pat-access",
+    "verify-anonymous-denial",
     "smoke",
     "promote:@aakkino/fig-kiwi",
   ]);
@@ -238,6 +318,19 @@ test("fails when an unauthorized identity can read a package", async () => {
     publishSerially({ artifacts: [artifact], registry: boundary }),
     unauthorizedAccess
   );
+});
+
+test("fails after privacy verification when the repository token lacks access", async () => {
+  const boundary = registry([matching], { actions: false });
+  await assert.rejects(
+    publishSerially({ artifacts: [artifact], registry: boundary }),
+    actionsAccess
+  );
+  assert.deepEqual(boundary.calls.slice(-2), [
+    "verify-private",
+    "verify-actions-access",
+  ]);
+  assert.equal(boundary.calls.includes("smoke"), false);
 });
 
 test("metadata reconciliation accepts correct tags and rejects conflicts", async () => {
