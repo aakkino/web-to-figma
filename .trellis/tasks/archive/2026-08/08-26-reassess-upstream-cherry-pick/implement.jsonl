@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "约束 workspace、release、验证与 Git 写操作边界。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "路由 converter、rendering、parity、type safety、upstream governance 和测试规范。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/converter-guidelines.md", "reason": "约束 style parser 与 frame/text converter 的职责边界。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/rendering-contracts.md", "reason": "保护 border、shadow、font、nowrap 与 image presentation 的既有 fork contract。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "执行 target、patch evidence、capability ownership、fingerprint、adapter 与 CI 门禁。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/testing-guidelines.md", "reason": "确定 unit、browser、oracle 与 release 验证层级。"}
+{"file": ".trellis/tasks/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md", "reason": "提供 upstream-vs-sync 24/109 拓扑、完整 24-row ledger、能力分类、patch 边界、依赖链、目标树差异和直接 cherry-pick 拒绝证据。"}

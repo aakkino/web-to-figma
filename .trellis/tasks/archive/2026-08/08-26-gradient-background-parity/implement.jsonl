@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Repository, release, verification, and Git boundaries."}
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "Routes converter, rendering, parity, governance, and test guidance."}
+{"file": ".trellis/spec/dom-to-figma/frontend/rendering-contracts.md", "reason": "Preserves border, shadow, text, font, image, and nowrap fork contracts."}
+{"file": ".trellis/tasks/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md", "reason": "Pinned ledger, cohort boundaries, target evidence, and prohibited intake."}
