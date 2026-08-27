@@ -39,6 +39,46 @@ Replaced Trellis spec scaffolding with codebase-backed conventions for six works
 
 - None - task complete
 
+## Session 28: Reassess upstream rendering parity
+
+**Date**: 2026-08-27
+**Task**: Reassess upstream rendering parity
+**Branch**: `task/reassess-upstream-cherry-pick`
+
+### Summary
+
+Reassessed upstream versus frozen sync, adapted border/gradient/effects/fractional geometry to current main, added executable upstream-main governance, preserved fork overrides, and completed independent verification.
+
+### Main Changes
+
+- Adapted reviewed upstream border, gradient, effects, and fractional geometry semantics without cherry-picking upstream commits.
+- Added upstream-main adapter, exact absorbed-path governance, browser regressions, changeset, and rendering contract documentation.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9986a89` | (see git log) |
+| `a92dc5c` | (see git log) |
+| `0e07a71` | (see git log) |
+| `9826786` | (see git log) |
+| `bf0bf8e` | (see git log) |
+| `993b34a` | (see git log) |
+| `f6a16fe` | (see git log) |
+
+### Testing
+
+- [OK] 269 dom-to-figma tests, workspace test/type/build, and 46-scene oracle parity passed.
+- [OK] Stable/main adapters and governance checks passed with 14 governed + 11 absorbed and zero unmapped paths.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Push or open a PR only after separate authorization.
+
 
 ## Session 2: Browser capture adapter milestone
 
