@@ -34,6 +34,7 @@ import {
   useResolvedTheme,
 } from "../../shared/theme";
 import { createElementCaptureTarget, createPageCaptureTarget } from "./convert";
+import { FontRecoveryDiagnostics } from "./font-recovery-diagnostics";
 import { Picker } from "./picker";
 import type {
   OutputRunState,
@@ -556,11 +557,7 @@ function FontRecoveryView({
       >
         Cancel capture
       </Button>
-      {state.capture.fontDiagnostics?.length ? (
-        <p className="text-muted-foreground text-xs">
-          {state.capture.fontDiagnostics.length} font requests were checked.
-        </p>
-      ) : null}
+      <FontRecoveryDiagnostics diagnostics={state.capture.fontDiagnostics} />
     </div>
   );
 }
