@@ -132,7 +132,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "local-rebuild",
       "removeWhen": "the selected upstream baseline converts prepared computed CSS raster backgrounds with equivalent geometry, fallback, diagnostics, and adapter compatibility",
-      "patchFingerprint": "sha256:00ad4cb005dfc1f7f4f520fb5061fde7f9344224aecbdd60ec72526e2cbcfaf6"
+      "patchFingerprint": "sha256:e580d5a49bcb228663f8a086ffaa7bd2d3f5bcc9674b5b0239f12a98b7463080"
     },
     {
       "id": "responsive-shadow-dom",
