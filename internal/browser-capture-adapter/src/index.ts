@@ -41,6 +41,8 @@ export {
   prepareCjkLineBreaks,
 } from "./text-line-breaks";
 export type {
+  BackgroundDiagnostic,
+  BackgroundRasterizer,
   BridgeCaptureInput,
   BridgeCaptureResult,
   BrowserCaptureAdapter,
@@ -63,7 +65,9 @@ export type {
   CaptureInput,
   CapturePhase,
   CapturePlan,
+  CaptureResourceKind,
   CaptureResourceSummary,
+  CaptureResourceUsage,
   CaptureResult,
   CaptureSettings,
   CaptureState,

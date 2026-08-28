@@ -114,3 +114,122 @@ await bridge.convert(input, signal);
 
 The bridge owns the staged store and passes a prepared-only `imageLoader` to
 the converter internally.
+
+## Scenario: CSS Raster Backgrounds (BG1)
+
+### 1. Scope / Trigger
+
+- Trigger: computed CSS uses `background-image: url(...)` or `image-set(...)`.
+- Scope: computed-style discovery, adapter staging, frozen detached owners,
+  core paint/raster conversion, and structured diagnostics.
+- Exclusion: lazy `<img>` attributes, `data-bgset`, activation, and scrolling
+  belong to BG2. BG1 must neither inventory nor execute them.
+
+### 2. Signatures
+
+```ts
+type CaptureResourceKind = "image" | "background-image";
+
+type CaptureResourceUsage = {
+  kind: CaptureResourceKind;
+  owner: Element;
+  layerIndex?: number;
+};
+
+type CaptureInventoryResource = {
+  resourceId: string;
+  src: string;
+  kind: CaptureResourceKind;
+  elements: ReadonlyArray<HTMLImageElement>;
+  usages: ReadonlyArray<CaptureResourceUsage>;
+};
+
+type FigmaConverterConfig = {
+  imageSourceResolver?: (element: HTMLImageElement) => string | null;
+  backgroundRasterizer?: BackgroundRasterizer;
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
+};
+
+type BackgroundRasterizer = (request: {
+  element: Element;
+  snapshot: BackgroundSnapshot;
+  loadImage(source: string): Promise<ImageBlobInfo>;
+  signal?: AbortSignal;
+}) => Promise<ImageFile>;
+```
+
+The published core advertises support structurally through
+`domToFigmaCapabilities.cssBackgroundImages === true`.
+
+### 3. Contracts
+
+- Ordinary `<img>` inventory resolves only active `currentSrc` / `src`.
+  Unknown or lazy `data-*` attributes are outside BG1.
+- Analysis resolves computed CSS URL and `image-set()` layers into detached
+  image owners. It never assigns `src`, inserts owners, or fetches bytes.
+- Canonical sources are deduplicated across image and background usages and
+  staged once through the existing scheduler before fonts and conversion.
+- The adapter freezes real image elements and detached owners in the same
+  session-local source map. Core consumes it through `imageSourceResolver` and
+  the prepared-only loader; conversion must not start an unplanned request.
+- The bridge clears staged owner/source state and converter caches in `finally`
+  after success or failure. A later capture cannot reuse session state.
+- Expressible URL layers emit native IMAGE paints. Unsupported repeat,
+  attachment, origin/clip, or geometry uses the bounded canvas rasterizer.
+  Dynamic/unknown image functions require a host rasterizer or an explicit
+  unsupported diagnostic.
+- The conversion `AbortSignal` reaches rasterizers. Aborted work must not
+  register a late blob or publish a successful background result.
+- A stable core without the capability continues ordinary image conversion;
+  each unblocked background usage gets one `unsupported-capability` result.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior | Forbidden behavior |
+| --- | --- | --- |
+| CSS URL is inventoried | Stage its canonical source before conversion | Fetch it during the frame walk |
+| `data-srcset` or `data-bgset` exists alone | Leave it outside BG1 inventory | Treat BG2 metadata as computed CSS |
+| One source has multiple usages | Stage once and retain every usage | Fetch once per owner/layer |
+| Geometry is not exactly expressible | Rasterize or report unsupported | Emit knowingly incorrect native geometry |
+| Rasterization is aborted | Reject and publish no late blob | Complete after cancellation |
+| Conversion throws after staging | Clear adapter and converter state | Leak state into the next capture |
+| Stable core lacks BG1 capability | Preserve `<img>` conversion and report backgrounds once | Omit silently or duplicate diagnostics |
+
+### 5. Good / Base / Bad Cases
+
+- Good: inventory records canonical source plus every owner/layer usage without
+  fetching; staging prepares the source once.
+- Base: direct core callers retain ordinary image-loader behavior.
+- Good: `image-set()` selects the computed DPR candidate without DOM mutation.
+- Bad: add a timeout or scroll and claim computed raster support.
+- Bad: interpret `data-src*`, `data-original*`, or `data-bgset` as BG1 inputs.
+
+### 6. Tests Required
+
+- Inventory tests cover computed URL, `image-set()`, duplicate sources, shadow
+  DOM, no-fetch analysis, revisions, and absence of BG2 lazy attributes.
+- Scheduler/bridge tests assert image preparation precedes fonts/conversion,
+  cleanup runs after failure, and stable-core diagnostics are not duplicated.
+- Core tests cover layer order, position/size, repeat, origin/clip, attachment,
+  blend mode, border/padding geometry fallback, and cancellation propagation.
+- Browser/oracle tests require a decoded IMAGE paint or explicit raster/
+  unsupported result. Stable and pinned-main adapter compatibility remain
+  release gates.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+await waitForTimeout(15_000);
+// Assumes lazy metadata and computed backgrounds are now staged.
+```
+
+#### Correct
+
+```ts
+const inventory = analyzeCaptureTarget({ element: document.body });
+// Inventory contains active images and computed CSS backgrounds only.
+await prepareAll(inventory.resources);
+await bridge.convert({ element: document.body, width: 100, height: 100 });
+```

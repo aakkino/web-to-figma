@@ -18,6 +18,7 @@ import {
 } from "./resource-inventory";
 import { prepareCjkLineBreaks } from "./text-line-breaks";
 import type {
+  BackgroundDiagnostic,
   BridgeCaptureInput,
   CaptureAnalysis,
   CaptureCommand,
@@ -554,6 +555,11 @@ export function createCaptureEngine(
         toBridgeInput(inventory.analysis.plan.target.input, root),
         session.controller.signal
       );
+      session.diagnostics.backgrounds = collectBackgroundDiagnostics(
+        inventory,
+        options.bridge,
+        session.imageDiagnostics
+      );
       result = {
         clipboardHtml: bridgeResult.clipboardHtml,
         settings: session.state.settings,
@@ -789,6 +795,7 @@ function createEmptyDiagnostics(
       softBudgetReached: false,
       hardBudgetReached: false,
     },
+    backgrounds: [],
     cleanupFailures: [],
   };
 }
@@ -816,6 +823,73 @@ function buildImageDiagnostics(session: RuntimeSession): ImageStageDiagnostics {
       resources.some((entry) => entry.errorCode === "image-memory-limit"),
     hardBudgetReached: session.hardBudgetReached,
   };
+}
+
+function collectBackgroundDiagnostics(
+  inventory: CaptureInventory,
+  bridge: CaptureEngineOptions["bridge"],
+  imageDiagnostics: ReadonlyMap<string, ImageResourceDiagnostic>
+): ReadonlyArray<BackgroundDiagnostic> {
+  const resourceBySource = new Map(
+    inventory.resources.map((resource) => [resource.src, resource.resourceId])
+  );
+  const blockedSources = new Set(
+    inventory.resources
+      .filter((resource) => {
+        const status = imageDiagnostics.get(resource.resourceId)?.status;
+        return status === "placeholder" || status === "failed";
+      })
+      .map((resource) => resource.src)
+  );
+  const native = (bridge.getBackgroundDiagnostics?.() ?? [])
+    .filter(
+      (diagnostic) =>
+        !(diagnostic.source && blockedSources.has(diagnostic.source))
+    )
+    .map(({ source, ...diagnostic }) => ({
+      ...diagnostic,
+      reason: redactResourceMessage(diagnostic.reason),
+      ...(source && { resourceId: resourceBySource.get(source) }),
+    }));
+  const blocked = inventory.resources.flatMap((resource) => {
+    const status = imageDiagnostics.get(resource.resourceId);
+    if (status?.status !== "placeholder" && status?.status !== "failed") {
+      return [];
+    }
+    return resource.usages
+      .filter((usage) => usage.kind === "background-image")
+      .map((usage) => ({
+        mode:
+          status.status === "placeholder"
+            ? ("placeholder" as const)
+            : ("failed" as const),
+        reason: status.reason ?? status.errorCode ?? "resource unavailable",
+        resourceId: resource.resourceId,
+        layerIndex: usage.layerIndex,
+      }));
+  });
+  if (bridge.supportsBackgroundImages !== false) {
+    return [...native, ...blocked];
+  }
+  const unsupported = inventory.resources.flatMap((resource) =>
+    blockedSources.has(resource.src)
+      ? []
+      : resource.usages
+          .filter((usage) => usage.kind === "background-image")
+          .map((usage) => ({
+            mode: "unsupported" as const,
+            reason: "installed core lacks CSS background image capability",
+            resourceId: resource.resourceId,
+            layerIndex: usage.layerIndex,
+          }))
+  );
+  return [...native, ...blocked, ...unsupported];
+}
+
+function redactResourceMessage(message: string): string {
+  return message
+    .replace(/https?:\/\/[^\s)]+/gi, "[resource]")
+    .replace(/(?:data|blob):[^\s)]+/gi, "[resource]");
 }
 
 function mergeSettings(

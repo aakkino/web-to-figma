@@ -20,7 +20,11 @@ type BridgeHarness = {
 };
 
 function createHarness(
-  options: { failFirstSource?: string; pendingImages?: boolean } = {}
+  options: {
+    failFirstSource?: string;
+    pendingImages?: boolean;
+    supportsBackgroundImages?: boolean;
+  } = {}
 ): BridgeHarness {
   const prepareCalls: Array<string> = [];
   const placeholders: BridgeHarness["placeholders"] = [];
@@ -62,6 +66,9 @@ function createHarness(
   const bridge: ConversionBridge = {
     imagePreparation,
     fontLoader: async () => ({ bytes: new ArrayBuffer(0) }),
+    ...(options.supportsBackgroundImages === undefined
+      ? {}
+      : { supportsBackgroundImages: options.supportsBackgroundImages }),
     convert(_input: BridgeCaptureInput) {
       convertCalls += 1;
       return Promise.resolve({ clipboardHtml: "<figma>capture</figma>" });
@@ -129,6 +136,57 @@ function inputFor(target: Element) {
 }
 
 describe("capture engine", () => {
+  it("stages duplicate CSS backgrounds once before fonts and reports an unsupported stable core", async () => {
+    const target = createTarget(
+      '<div style="background-image:url(https://example.test/shared-background.png)"><div style="background-image:url(https://example.test/shared-background.png)"></div></div>'
+    );
+    const harness = createHarness({ supportsBackgroundImages: false });
+    const engine = createEngine(harness);
+
+    await engine.start(inputFor(target));
+
+    expect(harness.prepareCalls).toEqual([
+      "https://example.test/shared-background.png",
+    ]);
+    expect(harness.phases.indexOf("preparing-images")).toBeLessThan(
+      harness.phases.indexOf("preparing-fonts")
+    );
+    expect(engine.getState().prepared?.diagnostics.backgrounds).toEqual([
+      expect.objectContaining({
+        mode: "unsupported",
+        reason: "installed core lacks CSS background image capability",
+        layerIndex: 0,
+      }),
+      expect.objectContaining({
+        mode: "unsupported",
+        reason: "installed core lacks CSS background image capability",
+        layerIndex: 0,
+      }),
+    ]);
+  });
+
+  it("reports a blocked stable-core background once as a placeholder", async () => {
+    const source = "https://example.test/blocked-background.png";
+    const target = createTarget(
+      `<div style="background-image:url(${source})"></div>`
+    );
+    const harness = createHarness({
+      failFirstSource: source,
+      supportsBackgroundImages: false,
+    });
+    const engine = createEngine(harness);
+
+    const sessionId = await engine.start(inputFor(target));
+    await engine.dispatch({
+      type: "continue-with-placeholders",
+      sessionId,
+    });
+
+    expect(engine.getState().prepared?.diagnostics.backgrounds).toEqual([
+      expect.objectContaining({ mode: "placeholder", layerIndex: 0 }),
+    ]);
+  });
+
   it("prepares unique images before fonts and retries only failed resources", async () => {
     const target = createTarget(
       '<div><img src="https://example.test/good.png"><img src="https://example.test/good.png"><img src="https://example.test/retry.png"></div>'

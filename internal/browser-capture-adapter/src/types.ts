@@ -230,6 +230,16 @@ export type CaptureResourceSummary = {
   /** Stable in-memory identifier; this is not the source URL. */
   resourceId: string;
   nodeCount: number;
+  kind?: CaptureResourceKind;
+  usageCount?: number;
+};
+
+export type CaptureResourceKind = "image" | "background-image";
+
+export type CaptureResourceUsage = {
+  kind: CaptureResourceKind;
+  owner: Element;
+  layerIndex?: number;
 };
 
 export type CapturePlan = {
@@ -237,6 +247,8 @@ export type CapturePlan = {
   imageNodeCount: number;
   uniqueImageResourceCount: number;
   unsupportedBackgroundImageCount: number;
+  backgroundImageLayerCount?: number;
+  uniqueResourceCount?: number;
   resources: ReadonlyArray<CaptureResourceSummary>;
   revision: string;
 };
@@ -315,16 +327,28 @@ export type BridgeCaptureResult = {
 export type ConversionBridge = {
   readonly imagePreparation: ImagePreparationPort;
   readonly fontLoader: FontLoader;
+  readonly supportsBackgroundImages?: boolean;
   convert(
     input: BridgeCaptureInput,
     signal?: AbortSignal
   ): Promise<BridgeCaptureResult>;
   clearCache(): void;
+  getBackgroundDiagnostics?: () => ReadonlyArray<
+    BackgroundDiagnostic & { source?: string }
+  >;
 };
+
+export type BackgroundRasterizer = (request: {
+  element: Element;
+  snapshot: unknown;
+  loadImage(source: string): Promise<ImageFile>;
+  signal?: AbortSignal;
+}) => Promise<ImageFile>;
 
 export type DomToFigmaBridgeOptions = {
   imageLoader?: ImageLoader;
   fontLoader?: FontLoader;
+  backgroundRasterizer?: BackgroundRasterizer;
   classify?: CaptureClassifier;
   layout?: ConverterLayout;
   domTraversal?: DomTreeStrategy;
@@ -379,7 +403,15 @@ export type CaptureDiagnostics = {
   lineBreaks: LineBreakDiagnostics;
   fonts: ReadonlyArray<FontDiagnostic>;
   images: ImageStageDiagnostics;
+  backgrounds?: ReadonlyArray<BackgroundDiagnostic>;
   cleanupFailures: ReadonlyArray<string>;
+};
+
+export type BackgroundDiagnostic = {
+  mode: "native" | "raster-fallback" | "unsupported" | "failed" | "placeholder";
+  reason: string;
+  resourceId?: string;
+  layerIndex?: number;
 };
 
 export type PreparedCapture = {
