@@ -7,6 +7,7 @@ import { BlobManager } from "./converter/blob-manager";
 import type { DomTraversalStrategy } from "./converter/dom";
 import { lightDomTraversal } from "./converter/dom";
 import { createFontCache } from "./converter/font-cache";
+import type { ImageSourceResolver } from "./converter/image-cache";
 import { createImageCache } from "./converter/image-cache";
 import type { ImageLoader } from "./converter/nodes/image/loader";
 import { createDirectImageLoader } from "./converter/nodes/image/loader";
@@ -17,6 +18,10 @@ import {
 } from "./converter/nodes/root";
 import type { FontLoader } from "./converter/nodes/text/primitives/font/loader";
 import { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
+import type {
+  BackgroundDiagnostic,
+  BackgroundRasterizer,
+} from "./converter/styles/background";
 import type { ConvertTrace, TraceEntry } from "./converter/trace";
 import type {
   FigmaClipboard,
@@ -32,6 +37,7 @@ export type {
   DomTraversalChild,
   DomTraversalStrategy,
 } from "./converter/dom";
+export type { ImageSourceResolver } from "./converter/image-cache";
 export type {
   ImageFile,
   ImageLoader,
@@ -45,9 +51,20 @@ export type {
   FontsourceLoaderOptions,
 } from "./converter/nodes/text/primitives/font/loader";
 export { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
+export type {
+  BackgroundBox,
+  BackgroundDiagnostic,
+  BackgroundLayer,
+  BackgroundRasterizer,
+  BackgroundSnapshot,
+} from "./converter/styles/background";
 export type { ConvertTrace, TraceEntry } from "./converter/trace";
 export type { FigmaClipboard } from "./converter/types";
 export type { Classify, ConverterLayout } from "./converter/walk";
+
+export const domToFigmaCapabilities = {
+  cssBackgroundImages: true,
+} as const;
 
 export type FrameInput = {
   element: Element;
@@ -63,6 +80,12 @@ export type FigmaConverterConfig = {
   fontLoader?: FontLoader;
   /** Defaults to `createDirectImageLoader()` (single direct `fetch(src)`). */
   imageLoader?: ImageLoader;
+  /** Resolve an already staged image source without mutating the DOM. */
+  imageSourceResolver?: ImageSourceResolver;
+  /** Optional host rasterizer for dynamic CSS image functions. */
+  backgroundRasterizer?: BackgroundRasterizer;
+  /** Receives structured background conversion outcomes. */
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
   /** Override the default DOM-element classification. */
   classify?: Classify;
   /**
@@ -116,7 +139,7 @@ export type ConvertResult = {
 };
 
 export type FigmaConverter = {
-  convert(input: ConvertInput): Promise<ConvertResult>;
+  convert(input: ConvertInput, signal?: AbortSignal): Promise<ConvertResult>;
   /** Drop cached fonts and images. Useful in long-running processes. */
   clearCache(): void;
 };
@@ -134,9 +157,12 @@ export function createFigmaConverter(
   const domTraversal = config.domTraversal ?? lightDomTraversal;
 
   const fontCache = createFontCache(fontLoader);
-  const imageCache = createImageCache(imageLoader);
+  const imageCache = createImageCache(imageLoader, config.imageSourceResolver);
 
-  const convert = async (input: ConvertInput): Promise<ConvertResult> => {
+  const convert = async (
+    input: ConvertInput,
+    signal?: AbortSignal
+  ): Promise<ConvertResult> => {
     const nodeChanges: Array<FigmaNodeChange> = [];
     const blobManager = new BlobManager();
     let idCounter = ROOT_RESERVED_GUIDS;
@@ -159,6 +185,9 @@ export function createFigmaConverter(
       registerBlob: (blob) => blobManager.registerBlob(blob),
       fontCache,
       imageCache,
+      backgroundRasterizer: config.backgroundRasterizer,
+      onBackgroundDiagnostic: config.onBackgroundDiagnostic,
+      signal,
       appendChanges: (changes) => {
         for (const change of changes) {
           nodeChanges.push(change);

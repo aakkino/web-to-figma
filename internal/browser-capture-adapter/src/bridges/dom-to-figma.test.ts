@@ -36,11 +36,21 @@ type TestPreparation = {
 type TestConverterConfig = {
   imageLoader(request: ImageRequest): Promise<ImageFile>;
   imagePreparation?: TestPreparation;
+  imageSourceResolver?: (element: HTMLImageElement) => string | null;
+  onBackgroundDiagnostic?: (diagnostic: {
+    mode: "native";
+    reason: string;
+    source?: string;
+  }) => void;
   classify?: CaptureClassifier;
   domTraversal?: DomTreeStrategy;
 };
 
-function createCoreFixture(createImagePreparation?: () => TestPreparation) {
+function createCoreFixture(
+  createImagePreparation?: () => TestPreparation,
+  supportsBackgroundImages = false,
+  convertError?: Error
+) {
   let config: TestConverterConfig | undefined;
   const clearCache = vi.fn(() => config?.imagePreparation?.clear());
   return {
@@ -49,14 +59,19 @@ function createCoreFixture(createImagePreparation?: () => TestPreparation) {
         config = nextConfig;
         return {
           convert: () =>
-            Promise.resolve({
-              toClipboardHtml: () => "<meta data-figit-test>",
-            }),
+            convertError
+              ? Promise.reject(convertError)
+              : Promise.resolve({
+                  toClipboardHtml: () => "<meta data-figit-test>",
+                }),
           clearCache,
         };
       },
       createDirectImageLoader: () => async () => imageFile(1),
       createFontsourceLoader: () => async () => ({ bytes: new ArrayBuffer(1) }),
+      ...(supportsBackgroundImages
+        ? { domToFigmaCapabilities: { cssBackgroundImages: true } }
+        : {}),
       ...(createImagePreparation ? { createImagePreparation } : {}),
     },
     clearCache,
@@ -94,6 +109,18 @@ function deferred<T>() {
 }
 
 describe("dom-to-figma capability boundary", () => {
+  it("negotiates CSS background support structurally", () => {
+    const stable = createCoreFixture();
+    const current = createCoreFixture(undefined, true);
+
+    expect(
+      createDomToFigmaBridgeForModule(stable.core).supportsBackgroundImages
+    ).toBe(false);
+    expect(
+      createDomToFigmaBridgeForModule(current.core).supportsBackgroundImages
+    ).toBe(true);
+  });
+
   it("passes the selected DOM traversal strategy to the converter", () => {
     const fixture = createCoreFixture();
     const domTraversal: DomTreeStrategy = {
@@ -125,6 +152,10 @@ describe("dom-to-figma capability boundary", () => {
     await expect(
       bridge.convert({ element: request.element, width: 10, height: 10 })
     ).resolves.toEqual({ clipboardHtml: "<meta data-figit-test>" });
+    expect(fixture.clearCache).toHaveBeenCalledOnce();
+    expect(
+      (await fixture.getConfig().imageLoader(request)).bytes.byteLength
+    ).not.toBe(7);
   });
 
   it("maps skipped and failed fallback resources to a transparent image", async () => {
@@ -151,6 +182,24 @@ describe("dom-to-figma capability boundary", () => {
     ).resolves.toMatchObject({
       mimeType: "image/png",
     });
+  });
+
+  it("clears session resources when conversion fails", async () => {
+    const fixture = createCoreFixture(
+      undefined,
+      true,
+      new Error("conversion failed")
+    );
+    const bridge = createDomToFigmaBridgeForModule(fixture.core);
+
+    await expect(
+      bridge.convert({
+        element: imageRequest().element,
+        width: 10,
+        height: 10,
+      })
+    ).rejects.toThrow("conversion failed");
+    expect(fixture.clearCache).toHaveBeenCalledOnce();
   });
 
   it("honours cancellation and does not publish late fallback results", async () => {

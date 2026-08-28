@@ -1,6 +1,11 @@
 import type { DomTraversalStrategy, Position } from "../../dom";
 import { getElementSize } from "../../dom";
 import type { FontCache } from "../../font-cache";
+import type { ImageCache } from "../../image-cache";
+import type {
+  BackgroundDiagnostic,
+  BackgroundRasterizer,
+} from "../../styles/background";
 import type {
   FigmaBlob,
   FigmaGuid,
@@ -24,6 +29,10 @@ type FormElementParams = {
   fontCache: FontCache;
   createGuid: () => FigmaGuid;
   domTraversal: DomTraversalStrategy;
+  imageCache: ImageCache;
+  backgroundRasterizer?: BackgroundRasterizer;
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
+  signal?: AbortSignal;
 };
 
 /**
@@ -176,6 +185,10 @@ export async function elementToFormNodeChange(
     fontCache,
     createGuid,
     domTraversal,
+    imageCache,
+    backgroundRasterizer,
+    onBackgroundDiagnostic,
+    signal,
   } = params;
 
   const placeholderText = element.getAttribute("placeholder")?.trim();
@@ -186,13 +199,18 @@ export async function elementToFormNodeChange(
   const nodeChanges: Array<FigmaNodeChange> = [];
 
   // Create the frame for the form element (border, background, etc.)
-  const frameResult = elementToFrameNodeChange(element, {
+  const frameResult = await elementToFrameNodeChange(element, {
     guid,
     parentGuid,
     childIndex,
     position,
     composedParent,
+    registerBlob,
     domTraversal,
+    imageCache,
+    backgroundRasterizer,
+    onBackgroundDiagnostic,
+    signal,
   });
 
   nodeChanges.push(frameResult.nodeChange);

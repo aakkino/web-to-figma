@@ -7,7 +7,7 @@ import {
 
 const THREE_IMAGE_NODES = 3;
 const TWO_IMAGE_RESOURCES = 2;
-const ONE_UNSUPPORTED_BACKGROUND = 1;
+const THREE_RESOURCES_WITH_BACKGROUND = 3;
 
 describe("capture resource inventory", () => {
   it("counts composed img nodes and unique currentSrc resources without fetching", () => {
@@ -40,14 +40,56 @@ describe("capture resource inventory", () => {
       expect(inventory.analysis.plan.uniqueImageResourceCount).toBe(
         TWO_IMAGE_RESOURCES
       );
-      expect(inventory.analysis.plan.unsupportedBackgroundImageCount).toBe(
-        ONE_UNSUPPORTED_BACKGROUND
+      expect(inventory.analysis.plan.unsupportedBackgroundImageCount).toBe(0);
+      expect(inventory.analysis.plan.uniqueResourceCount).toBe(
+        THREE_RESOURCES_WITH_BACKGROUND
       );
       expect(fetchCalls).toBe(0);
-      expect(inventory.resources[0]?.nodeCount).toBe(2);
+      expect(
+        inventory.resources.find((resource) =>
+          resource.src.endsWith("/shared.png")
+        )?.nodeCount
+      ).toBe(2);
+      expect(
+        inventory.resources.find(
+          (resource) => resource.kind === "background-image"
+        )
+      ).toMatchObject({
+        kind: "background-image",
+        nodeCount: 1,
+        usages: [{ kind: "background-image", layerIndex: 0, owner: root }],
+      });
     } finally {
       globalThis.fetch = previousFetch;
     }
+  });
+
+  it("selects a static image-set candidate and deduplicates background usages", () => {
+    document.body.innerHTML = `
+      <div id="root" style="background-image:image-set(url('/one.png') 1x, url('/two.png') 2x)">
+        <div style="background-image:url('/two.png'), linear-gradient(red, blue)"></div>
+      </div>`;
+    const root = document.querySelector("#root");
+    if (!(root instanceof HTMLElement)) {
+      throw new Error("root not found");
+    }
+    Object.defineProperty(window, "devicePixelRatio", {
+      configurable: true,
+      value: 2,
+    });
+
+    const inventory = analyzeCaptureTarget({ element: root });
+
+    expect(inventory.resources).toHaveLength(1);
+    expect(inventory.resources[0]).toMatchObject({
+      src: new URL("/two.png", document.baseURI).toString(),
+      kind: "background-image",
+      nodeCount: 2,
+    });
+    expect(
+      inventory.resources[0]?.usages.map((usage) => usage.layerIndex)
+    ).toEqual([0, 0]);
+    expect(inventory.analysis.plan.backgroundImageLayerCount).toBe(3);
   });
 
   it("requires review when the resource set changes but only updates counts for references", () => {
