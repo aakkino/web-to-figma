@@ -9,6 +9,7 @@ import type {
   BridgeCaptureResult,
   CaptureClassifier,
   ConversionBridge,
+  ConversionContext,
   DomToFigmaBridgeOptions,
   FontLoader,
   ImageFile,
@@ -43,6 +44,8 @@ export function createDomToFigmaBridgeForModule(
   > = [];
   const fontLoader =
     options.fontLoader ?? toAdapterFontLoader(core.createFontsourceLoader());
+  let activeBackgroundSources: ReadonlyMap<Element, string> | undefined;
+  let conversionInProgress = false;
   const converter = core.createFigmaConverter({
     imageLoader: strategy.converterImageLoader,
     ...(strategy.upstreamPreparation
@@ -50,6 +53,10 @@ export function createDomToFigmaBridgeForModule(
       : {}),
     imageSourceResolver: (element: HTMLImageElement) =>
       strategy.resolveElementSource(element),
+    backgroundImageResolver: (element: Element) => {
+      const source = activeBackgroundSources?.get(element);
+      return source ? toCssBackgroundImage(source) : null;
+    },
     backgroundRasterizer: options.backgroundRasterizer,
     onBackgroundDiagnostic: (diagnostic) => {
       backgroundDiagnostics.push(diagnostic);
@@ -67,19 +74,31 @@ export function createDomToFigmaBridgeForModule(
     fontLoader,
     supportsBackgroundImages:
       core.domToFigmaCapabilities?.cssBackgroundImages === true,
-    async convert(input, signal): Promise<BridgeCaptureResult> {
+    async convert(
+      input,
+      signal,
+      context?: ConversionContext
+    ): Promise<BridgeCaptureResult> {
       throwIfAborted(signal, "Capture conversion aborted");
+      if (conversionInProgress) {
+        throw new Error("A capture conversion is already in progress");
+      }
+      conversionInProgress = true;
       backgroundDiagnostics.length = 0;
+      activeBackgroundSources = context?.backgroundSources;
       try {
         const result = await converter.convert(input, signal);
         throwIfAborted(signal, "Capture conversion aborted");
         return { clipboardHtml: result.toClipboardHtml() };
       } finally {
+        activeBackgroundSources = undefined;
+        conversionInProgress = false;
         strategy.clearBeforeConverter();
         converter.clearCache();
       }
     },
     clearCache() {
+      activeBackgroundSources = undefined;
       backgroundDiagnostics.length = 0;
       strategy.clearBeforeConverter();
       converter.clearCache();
@@ -173,6 +192,7 @@ type UpstreamCoreModule = {
     layout?: DomToFigmaBridgeOptions["layout"];
     domTraversal?: DomToFigmaBridgeOptions["domTraversal"];
     imageSourceResolver?: (element: HTMLImageElement) => string | null;
+    backgroundImageResolver?: (element: Element) => string | null;
     backgroundRasterizer?: BackgroundRasterizer;
     onBackgroundDiagnostic?: (
       diagnostic: BackgroundDiagnostic & { source?: string }
@@ -193,6 +213,14 @@ type ImageStrategy = {
   resolveElementSource(element: HTMLImageElement): string | null;
   clearBeforeConverter(): void;
 };
+
+function toCssBackgroundImage(source: string): string {
+  const escaped = source.replace(
+    /["\\\n\r]/gu,
+    (character) => `\\${character}`
+  );
+  return `url("${escaped}")`;
+}
 
 function assertSupportedCore(module: unknown): UpstreamCoreModule {
   if (!isRecord(module)) {

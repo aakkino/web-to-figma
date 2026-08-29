@@ -324,13 +324,19 @@ export type BridgeCaptureResult = {
   clipboardHtml: string;
 };
 
+/** Session-local data supplied to the converter for one capture only. */
+export type ConversionContext = {
+  backgroundSources?: ReadonlyMap<Element, string>;
+};
+
 export type ConversionBridge = {
   readonly imagePreparation: ImagePreparationPort;
   readonly fontLoader: FontLoader;
   readonly supportsBackgroundImages?: boolean;
   convert(
     input: BridgeCaptureInput,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    context?: ConversionContext
   ): Promise<BridgeCaptureResult>;
   clearCache(): void;
   getBackgroundDiagnostics?: () => ReadonlyArray<

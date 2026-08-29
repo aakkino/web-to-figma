@@ -100,6 +100,9 @@ export type BackgroundRasterizer = (
   request: BackgroundRasterizerRequest
 ) => Promise<ImageFile>;
 
+/** Supplies a frozen CSS background-image expression for an element. */
+export type BackgroundImageResolver = (element: Element) => string | null;
+
 export type BackgroundDiagnostic = {
   mode: "native" | "raster-fallback" | "unsupported" | "failed";
   reason: string;
@@ -1215,12 +1218,18 @@ export function makeBackgroundSnapshotFromStyle(
   element: Element,
   computedStyle: CSSStyleDeclaration,
   width: number,
-  height: number
+  height: number,
+  backgroundImageResolver?: BackgroundImageResolver
 ): BackgroundSnapshot {
   const view = element.ownerDocument.defaultView;
+  const computedBackgroundImage = computedStyle.backgroundImage;
+  const backgroundImage =
+    computedBackgroundImage && computedBackgroundImage !== "none"
+      ? computedBackgroundImage
+      : (backgroundImageResolver?.(element) ?? computedBackgroundImage);
   return createBackgroundSnapshot({
     backgroundColor: computedStyle.backgroundColor,
-    backgroundImage: computedStyle.backgroundImage,
+    backgroundImage,
     backgroundSize: computedStyle.backgroundSize,
     backgroundPosition: computedStyle.backgroundPosition,
     backgroundRepeat: computedStyle.backgroundRepeat,

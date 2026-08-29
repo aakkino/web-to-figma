@@ -152,9 +152,10 @@ export function createCaptureEngine(
 
   return engine;
 
-  function analyze(target: CaptureInput): Promise<CaptureAnalysis> {
+  async function analyze(target: CaptureInput): Promise<CaptureAnalysis> {
     if (current && !isTerminal(current.state.phase)) {
       current.controller.abort();
+      await current.runPromise;
     }
     const session = createSession(mergeSettings(defaultSettings));
     current = session;
@@ -175,19 +176,17 @@ export function createCaptureEngine(
         imageStage: session.diagnostics.images,
         decision: "review",
       });
-      return Promise.resolve(inventory.analysis);
+      return inventory.analysis;
     } catch (error) {
       fail(
         session,
         "target-lost",
         safeMessage(error, "Unable to analyze target")
       );
-      return Promise.reject(
-        new CaptureError(
-          session.state.failure?.message ?? "Unable to analyze target",
-          session.diagnostics,
-          "target-lost"
-        )
+      throw new CaptureError(
+        session.state.failure?.message ?? "Unable to analyze target",
+        session.diagnostics,
+        "target-lost"
       );
     }
   }
@@ -553,7 +552,8 @@ export function createCaptureEngine(
       update(session, { phase: "converting", decision: undefined });
       const bridgeResult = await options.bridge.convert(
         toBridgeInput(inventory.analysis.plan.target.input, root),
-        session.controller.signal
+        session.controller.signal,
+        { backgroundSources: inventory.backgroundSources }
       );
       session.diagnostics.backgrounds = collectBackgroundDiagnostics(
         inventory,
@@ -622,6 +622,12 @@ export function createCaptureEngine(
     } finally {
       if (session.runPromise === promise) {
         session.runPromise = undefined;
+      }
+      if (
+        session.state.phase === "failed" ||
+        session.state.phase === "canceled"
+      ) {
+        options.bridge.clearCache();
       }
     }
   }

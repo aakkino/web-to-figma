@@ -1,6 +1,8 @@
 import type { DomTreeStrategy } from "@aakkino/composed-dom";
 import { openComposedDomTree } from "@aakkino/composed-dom";
 
+import { resolveLazyBackgroundSource } from "./lazy-background";
+
 import type {
   CaptureAnalysis,
   CaptureInput,
@@ -36,6 +38,7 @@ export type CaptureInventory = {
   analysis: CaptureAnalysis;
   resources: ReadonlyArray<CaptureInventoryResource>;
   elementSources: WeakMap<HTMLImageElement, string>;
+  backgroundSources: ReadonlyMap<Element, string>;
 };
 
 export type CaptureInventoryOptions = {
@@ -58,6 +61,7 @@ export function analyzeCaptureTarget(
   const domTraversal = options.domTraversal ?? openComposedDomTree;
   const resourcesBySource = new Map<string, MutableInventoryResource>();
   const elementSources = new WeakMap<HTMLImageElement, string>();
+  const backgroundSources = new Map<Element, string>();
   let imageNodeCount = 0;
   let unsupportedBackgroundImageCount = 0;
   let backgroundImageLayerCount = 0;
@@ -101,6 +105,31 @@ export function analyzeCaptureTarget(
         element.ownerDocument.createElement("img")
       );
     }
+    if (!background.hasImageLayer) {
+      const view = element.ownerDocument.defaultView;
+      const lazyBackground = resolveLazyBackgroundSource(
+        element.getAttribute("data-bgset"),
+        {
+          baseUrl: root.ownerDocument.baseURI,
+          renderedWidth: readElementWidth(element),
+          devicePixelRatio: view?.devicePixelRatio ?? 1,
+        }
+      );
+      if (lazyBackground) {
+        addResourceUsage(
+          resourcesBySource,
+          lazyBackground.source,
+          {
+            kind: "background-image",
+            owner: element,
+            layerIndex: background.layerCount,
+          },
+          element.ownerDocument.createElement("img")
+        );
+        backgroundSources.set(element, lazyBackground.source);
+        backgroundImageLayerCount += 1;
+      }
+    }
   };
 
   visit(root);
@@ -135,6 +164,7 @@ export function analyzeCaptureTarget(
     analysis: { plan, analyzedAt: Date.now() },
     resources,
     elementSources,
+    backgroundSources,
   };
 }
 
@@ -264,20 +294,36 @@ function collectBackgroundSources(
 ): {
   layerCount: number;
   unsupportedCount: number;
+  hasImageLayer: boolean;
   usages: Array<{ source: string; layerIndex: number }>;
 } {
   const view = element.ownerDocument.defaultView;
   if (!view) {
-    return { layerCount: 0, unsupportedCount: 0, usages: [] };
+    return {
+      layerCount: 0,
+      unsupportedCount: 0,
+      hasImageLayer: false,
+      usages: [],
+    };
   }
   let backgroundImage: string;
   try {
     backgroundImage = view.getComputedStyle(element).backgroundImage;
   } catch {
-    return { layerCount: 0, unsupportedCount: 0, usages: [] };
+    return {
+      layerCount: 0,
+      unsupportedCount: 0,
+      hasImageLayer: false,
+      usages: [],
+    };
   }
   if (!backgroundImage || backgroundImage === "none") {
-    return { layerCount: 0, unsupportedCount: 0, usages: [] };
+    return {
+      layerCount: 0,
+      unsupportedCount: 0,
+      hasImageLayer: false,
+      usages: [],
+    };
   }
   const layers = splitCssTopLevelList(backgroundImage);
   const usages: Array<{ source: string; layerIndex: number }> = [];
@@ -291,7 +337,21 @@ function collectBackgroundSources(
       unsupportedCount += 1;
     }
   }
-  return { layerCount: layers.length, unsupportedCount, usages };
+  return {
+    layerCount: layers.length,
+    unsupportedCount,
+    hasImageLayer: true,
+    usages,
+  };
+}
+
+function readElementWidth(element: Element): number {
+  try {
+    const width = element.getBoundingClientRect().width;
+    return Number.isFinite(width) && width > 0 ? width : 1;
+  } catch {
+    return 1;
+  }
 }
 
 function extractLayerSource(

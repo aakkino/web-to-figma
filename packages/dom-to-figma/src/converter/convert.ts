@@ -12,6 +12,7 @@ import type { SVGChildElement } from "./nodes/vector/converter";
 import { elementToVectorNodeChange } from "./nodes/vector/converter";
 import type {
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundRasterizer,
 } from "./styles/background";
 import type {
@@ -47,6 +48,7 @@ export type ConvertContext = {
   fontCache: FontCache;
   imageCache: ImageCache;
   createGuid: () => FigmaGuid;
+  backgroundImageResolver?: BackgroundImageResolver;
   backgroundRasterizer?: BackgroundRasterizer;
   onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
   signal?: AbortSignal;
@@ -107,6 +109,7 @@ export async function convertElement(
     imageCache,
     createGuid,
     domTraversal,
+    backgroundImageResolver,
     backgroundRasterizer,
     onBackgroundDiagnostic,
     signal,
@@ -144,6 +147,7 @@ export async function convertElement(
         registerBlob,
         domTraversal,
         imageCache,
+        backgroundImageResolver,
         backgroundRasterizer,
         onBackgroundDiagnostic,
         signal,
@@ -247,6 +251,7 @@ export async function convertElement(
             createGuid,
             domTraversal,
             imageCache,
+            backgroundImageResolver,
             backgroundRasterizer,
             onBackgroundDiagnostic,
             signal,
