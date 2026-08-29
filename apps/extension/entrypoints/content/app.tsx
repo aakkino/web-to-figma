@@ -1171,7 +1171,7 @@ function outputCommandLabel(
   outputs: WorkspaceState["effectiveSettings"]["outputs"]
 ): string {
   if (outputs.clipboard && outputs.file) {
-    return "Copy and save";
+    return "Copy & Save";
   }
   if (outputs.file) {
     return "Save .figit";
