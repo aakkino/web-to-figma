@@ -1,12 +1,12 @@
 import { createRoot } from "react-dom/client";
-import { createShadowRootUi, defineContentScript } from "#imports";
+import { browser, createShadowRootUi, defineContentScript } from "#imports";
 import { DEFAULT_CAPTURE_SETTINGS } from "../../shared/capture-settings";
 import { createCaptureSettingsRepository } from "../../shared/capture-settings-storage";
 import { onMessage } from "../../shared/messaging";
 import { SHADOW_HOST_NAME } from "../../shared/triggers";
 import { App } from "./app";
+import { createCaptureOutputPort } from "./capture-output";
 import {
-  createClipboardOutputPort,
   createExtensionCaptureEngine,
   createExtensionFontSpecPort,
 } from "./convert";
@@ -29,11 +29,17 @@ export default defineContentScript({
       // Picker hot keys must not leak into the page underneath.
       isolateEvents: ["keydown", "keyup", "keypress"],
       onMount(container, _shadow, shadowHost) {
+        const outputPort = createCaptureOutputPort({
+          producer: {
+            name: "figit-extension",
+            version: browser.runtime.getManifest().version,
+          },
+        });
         const workspaceController = createWorkspaceController({
           engine: createExtensionCaptureEngine(DEFAULT_CAPTURE_SETTINGS),
           engineFactory: createExtensionCaptureEngine,
           settingsRepository: createCaptureSettingsRepository(),
-          outputPort: createClipboardOutputPort(),
+          outputPort,
           fontSpecPort: createExtensionFontSpecPort(),
         });
         controller = workspaceController;
@@ -42,7 +48,7 @@ export default defineContentScript({
           <App
             controller={workspaceController}
             ctx={ctx}
-            outputCapabilities={{ clipboard: true, file: false }}
+            outputCapabilities={outputPort.capabilities}
             shadowHost={shadowHost}
           />
         );

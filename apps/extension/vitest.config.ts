@@ -10,6 +10,8 @@ export default defineConfig({
           include: [
             "shared/resource-proxy.test.ts",
             "shared/capture-settings.test.ts",
+            "entrypoints/content/capture-artifact.test.ts",
+            "entrypoints/content/capture-output.test.ts",
             "entrypoints/content/workspace-controller.test.ts",
             "entrypoints/content/font-fallback.test.ts",
             "entrypoints/content/font-spec-projection.test.ts",

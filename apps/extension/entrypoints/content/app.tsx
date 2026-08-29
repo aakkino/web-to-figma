@@ -16,7 +16,13 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Toaster, toast } from "sonner";
 import type { ContentScriptContext } from "#imports";
 
@@ -33,6 +39,7 @@ import {
   subscribePageTheme,
   useResolvedTheme,
 } from "../../shared/theme";
+import { createCaptureSourceSnapshot } from "./capture-artifact";
 import { createElementCaptureTarget, createPageCaptureTarget } from "./convert";
 import { Picker } from "./picker";
 import type {
@@ -42,6 +49,7 @@ import type {
   WorkspaceState,
   WorkspaceView,
 } from "./workspace-controller";
+import { shouldConfirmArtifactDiscard } from "./workspace-controller";
 
 const MILLISECONDS_PER_SECOND = 1000;
 // biome-ignore lint/style/noMagicNumbers: Binary unit conversion is explicit here.
@@ -89,7 +97,16 @@ export function App({
   }, [state.capture.phase]);
 
   const handlePageCapture = useCallback(() => {
-    ignorePromise(controller.analyzeTarget(createPageCaptureTarget()));
+    const target = createPageCaptureTarget();
+    ignorePromise(
+      controller.analyzeTarget(
+        target,
+        createCaptureSourceSnapshot(location.href, document.title, {
+          kind: "page",
+          ...(target.name ? { label: target.name } : {}),
+        })
+      )
+    );
   }, [controller]);
 
   const handlePickerStart = useCallback(() => {
@@ -102,7 +119,15 @@ export function App({
         const target = createElementCaptureTarget(element);
         restorePickedBackground.current?.();
         restorePickedBackground.current = target.restore;
-        ignorePromise(controller.analyzeTarget(target.input));
+        ignorePromise(
+          controller.analyzeTarget(
+            target.input,
+            createCaptureSourceSnapshot(location.href, document.title, {
+              kind: "element",
+              ...(target.input.name ? { label: target.input.name } : {}),
+            })
+          )
+        );
       } catch (error) {
         toast.error(
           error instanceof Error
@@ -176,8 +201,20 @@ function WorkspacePanel({
   onPickerStart,
   state,
 }: WorkspacePanelProps) {
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const locked =
     isCaptureBusy(state.capture.phase) || state.fontSpec.status === "running";
+  const handleNewCapture = () => {
+    if (shouldConfirmArtifactDiscard(state)) {
+      setConfirmDiscard(true);
+      return;
+    }
+    controller.startNewCapture();
+  };
+  const discardAndStart = () => {
+    setConfirmDiscard(false);
+    controller.startNewCapture();
+  };
   return (
     <section
       aria-labelledby="figit-workspace-title"
@@ -243,10 +280,14 @@ function WorkspacePanel({
         {state.view === "ready-to-output" ||
         state.view === "output" ||
         state.view === "output-partial" ? (
-          <ReadyView controller={controller} state={state} />
+          <ReadyView
+            controller={controller}
+            onNewCapture={handleNewCapture}
+            state={state}
+          />
         ) : null}
         {state.view === "error" ? (
-          <ErrorView onPageCapture={onPageCapture} state={state} />
+          <ErrorView onNewCapture={handleNewCapture} state={state} />
         ) : null}
         {state.view === "opening" ? <OpeningView /> : null}
 
@@ -254,11 +295,17 @@ function WorkspacePanel({
           <SettingsSection
             capabilities={capabilities}
             controller={controller}
-            disabled={locked || state.view === "ready-to-output"}
+            disabled={locked || isArtifactLifecycleView(state.view)}
             state={state}
           />
         ) : null}
       </div>
+      {confirmDiscard ? (
+        <DiscardConfirmation
+          onCancel={() => setConfirmDiscard(false)}
+          onConfirm={discardAndStart}
+        />
+      ) : null}
     </section>
   );
 }
@@ -567,9 +614,11 @@ function FontRecoveryView({
 
 function ReadyView({
   controller,
+  onNewCapture,
   state,
 }: {
   controller: WorkspaceController;
+  onNewCapture: () => void;
   state: WorkspaceState;
 }) {
   const outputs = state.effectiveSettings.outputs;
@@ -594,6 +643,15 @@ function ReadyView({
         {label}
       </Button>
       <OutputResults controller={controller} output={state.output} />
+      <Button
+        className="w-full"
+        disabled={state.output.status === "running"}
+        onClick={onNewCapture}
+        variant="outline"
+      >
+        <ArrowClockwiseIcon />
+        New capture
+      </Button>
     </div>
   );
 }
@@ -647,10 +705,10 @@ function OutputResults({
 }
 
 function ErrorView({
-  onPageCapture,
+  onNewCapture,
   state,
 }: {
-  onPageCapture: () => void;
+  onNewCapture: () => void;
   state: WorkspaceState;
 }) {
   return (
@@ -664,10 +722,52 @@ function ErrorView({
           state.capture.failure?.message ??
           "Unknown capture error."}
       </p>
-      <Button className="w-full" onClick={onPageCapture} variant="outline">
+      <Button className="w-full" onClick={onNewCapture} variant="outline">
         <ArrowClockwiseIcon />
-        Start a new capture
+        New capture
       </Button>
+    </div>
+  );
+}
+
+function DiscardConfirmation({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      aria-labelledby="figit-discard-title"
+      aria-modal="true"
+      className="absolute inset-0 z-10 flex items-end bg-background/85 p-4 backdrop-blur-sm"
+      role="alertdialog"
+    >
+      <div className="w-full space-y-3 border-border border-t bg-background pt-4">
+        <div className="flex items-start gap-3">
+          <WarningCircleIcon className="mt-0.5 size-5 shrink-0 text-destructive" />
+          <div className="min-w-0 space-y-1">
+            <h2
+              className="font-heading font-semibold text-sm"
+              id="figit-discard-title"
+            >
+              Discard this capture?
+            </h2>
+            <p className="text-muted-foreground text-xs">
+              One or more selected outputs have not succeeded.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={onCancel} variant="outline">
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} variant="destructive">
+            Discard and start
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -945,7 +1045,17 @@ function isProgressView(view: WorkspaceView): boolean {
     view === "image-progress" ||
     view === "font-progress" ||
     view === "settling" ||
-    view === "converting"
+    view === "converting" ||
+    view === "artifact-preparing"
+  );
+}
+
+function isArtifactLifecycleView(view: WorkspaceView): boolean {
+  return (
+    view === "artifact-preparing" ||
+    view === "ready-to-output" ||
+    view === "output" ||
+    view === "output-partial"
   );
 }
 
@@ -986,6 +1096,8 @@ function phaseLabel(view: WorkspaceView): string {
       return "Waiting for page stability...";
     case "converting":
       return "Converting page...";
+    case "artifact-preparing":
+      return "Preparing capture package...";
     default:
       return "Working...";
   }

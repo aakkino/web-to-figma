@@ -16,11 +16,6 @@ import type { CjkFallbackVariant } from "./font-fallback";
 import { createFixedCjkFallbackLoader } from "./font-fallback";
 import type { FontSpecPort } from "./font-spec";
 import { createFontSpecPort } from "./font-spec";
-import type {
-  OutputPort,
-  OutputRunResult,
-  OutputSinkResult,
-} from "./workspace-controller";
 
 const RGBA_COLOR_PATTERN = /^rgba?\(([^)]+)\)$/;
 const RGBA_COMPONENT_COUNT = 4;
@@ -80,33 +75,6 @@ export function createExtensionFontSpecPort(): FontSpecPort {
           };
     },
   });
-}
-
-export function createClipboardOutputPort(): OutputPort {
-  return {
-    capabilities: { clipboard: true, file: false },
-    async execute(capture, outputs): Promise<OutputRunResult> {
-      const results: Array<OutputSinkResult> = [];
-      if (outputs.clipboard) {
-        results.push(await writeClipboardAsync(capture.clipboardHtml));
-      }
-      if (outputs.file) {
-        results.push(unavailableFileResult());
-      }
-      return { results };
-    },
-    retry(capture, sink): Promise<OutputSinkResult> {
-      if (sink === "clipboard") {
-        return writeClipboardAsync(capture.clipboardHtml);
-      }
-      return Promise.resolve(unavailableFileResult());
-    },
-    open(): Promise<null> {
-      return Promise.reject(
-        new Error("Capture package opening is not available yet.")
-      );
-    },
-  };
 }
 
 export function createElementCaptureTarget(element: HTMLElement): {
@@ -184,17 +152,17 @@ function isSameOriginIframe(iframe: HTMLIFrameElement): boolean {
   }
 }
 
-function clipboardAvailability(): OutputSinkResult {
+function clipboardAvailability(): {
+  status: "success" | "failed";
+  message: string;
+} {
   if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
     return {
-      sink: "clipboard",
       status: "failed",
-      code: "clipboard-unavailable",
       message: "Clipboard output is unavailable on this page.",
     };
   }
   return {
-    sink: "clipboard",
     status: "success",
     message: "Clipboard output queued.",
   };
@@ -202,7 +170,7 @@ function clipboardAvailability(): OutputSinkResult {
 
 export async function writeClipboardAsync(
   clipboardHtml: string
-): Promise<OutputSinkResult> {
+): Promise<{ status: "success" | "failed"; message: string }> {
   const availability = clipboardAvailability();
   if (availability.status === "failed") {
     return availability;
@@ -216,21 +184,10 @@ export async function writeClipboardAsync(
     return availability;
   } catch {
     return {
-      sink: "clipboard",
       status: "failed",
-      code: "clipboard-write-failed",
       message: "Clipboard write was rejected by the browser.",
     };
   }
-}
-
-function unavailableFileResult(): OutputSinkResult {
-  return {
-    sink: "file",
-    status: "failed",
-    code: "file-output-unavailable",
-    message: "Local capture packages are not available in this build yet.",
-  };
 }
 
 /**

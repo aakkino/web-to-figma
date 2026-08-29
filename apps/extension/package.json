@@ -19,6 +19,7 @@
     "@figit/browser-capture-adapter": "workspace:*",
     "@aakkino/dom-to-figma": "workspace:*",
     "@figit/ui": "workspace:*",
+    "@noble/hashes": "^1.8.0",
     "@phosphor-icons/react": "2.1.10",
     "@webext-core/messaging": "^2.3.0",
     "react": "^19.2.4",
