@@ -20,6 +20,7 @@ export { CaptureError } from "./capture-engine";
 const DEFAULT_SETTLE_TIMEOUT_MS = 5000;
 const DEFAULT_MOTION = "freeze" as const;
 const DEFAULT_LINE_BREAKS = "auto" as const;
+const DEFAULT_LAZY_ACTIVATION = "auto" as const;
 const DEFAULT_FONT_MODE = "compatible" as const;
 
 export function createBrowserCaptureAdapter(
@@ -55,6 +56,7 @@ export function createBrowserCaptureAdapter(
       settleTimeoutMs: options.settleTimeoutMs ?? DEFAULT_SETTLE_TIMEOUT_MS,
       motion: options.motion ?? DEFAULT_MOTION,
       lineBreaks: options.lineBreaks ?? DEFAULT_LINE_BREAKS,
+      lazyActivation: options.lazyActivation ?? DEFAULT_LAZY_ACTIVATION,
       fontMode: normalizeFontMode(options.fontFailure),
     },
     domTraversal,

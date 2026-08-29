@@ -33,6 +33,14 @@ describe("capture artifact codec", () => {
       format: "figit.capture",
       version: 1,
       source: { url: "https://example.com/path/page" },
+      settings: { lazyActivation: "auto" },
+      diagnostics: {
+        activation: {
+          mode: "auto",
+          status: "completed",
+          errorCount: 1,
+        },
+      },
       payload: { type: "figma-clipboard-html", html: HTML_FIXTURE },
     });
     expect(artifact.package.payload.sha256).toMatch(SHA256_HEX_PATTERN);
@@ -100,6 +108,28 @@ describe("capture artifact codec", () => {
       parseCapturePackage(JSON.stringify(unsafeSource)),
       "invalid-structure"
     );
+
+    const invalidActivationSetting = decodeArtifact(artifact.serializedJson);
+    (
+      invalidActivationSetting.settings as Record<string, unknown>
+    ).lazyActivation = "always";
+    await expectArtifactError(
+      parseCapturePackage(JSON.stringify(invalidActivationSetting)),
+      "invalid-structure"
+    );
+
+    const invalidActivationDiagnostics = decodeArtifact(
+      artifact.serializedJson
+    );
+    const diagnostics = invalidActivationDiagnostics.diagnostics as Record<
+      string,
+      unknown
+    >;
+    (diagnostics.activation as Record<string, unknown>).containersVisited = -1;
+    await expectArtifactError(
+      parseCapturePackage(JSON.stringify(invalidActivationDiagnostics)),
+      "invalid-structure"
+    );
   });
 
   it("rejects oversized input before File.text and oversized builds", async () => {
@@ -127,6 +157,7 @@ describe("capture artifact codec", () => {
     expect(serialized).not.toContain("Secret Font");
     expect(serialized).not.toContain("image-source-1");
     expect(serialized).not.toContain("cleanup failed at");
+    expect(serialized).not.toContain("private activation detail");
     expect(artifact.package.diagnostics.cleanupFailureCount).toBe(1);
     expect(
       artifact.package.diagnostics.images.resources[0]?.resourceId
@@ -194,11 +225,26 @@ function createPreparedCapture(): PreparedCapture {
       layout: "auto",
       motion: "freeze",
       lineBreaks: "auto",
+      lazyActivation: "auto",
       settleTimeoutMs: 5000,
       images: "process",
       fontMode: "compatible",
     },
     diagnostics: {
+      activation: {
+        mode: "auto",
+        scope: "element",
+        status: "completed",
+        passes: 2,
+        scrollSteps: 4,
+        containersVisited: 3,
+        discoveredNodes: 8,
+        discoveredResources: 2,
+        elapsedMs: 120,
+        restored: true,
+        resourceSetChanged: false,
+        errors: ["private activation detail"],
+      },
       settle: {
         timeoutMs: 5000,
         timedOut: false,

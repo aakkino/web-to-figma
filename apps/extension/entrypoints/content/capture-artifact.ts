@@ -43,12 +43,36 @@ export type CaptureSettingsV1 = {
   layout: "absolute" | "auto";
   motion: "freeze" | "live";
   lineBreaks: "auto" | "off";
+  lazyActivation: "auto" | "off";
   settleTimeoutMs: number;
   images: "process" | "skip" | "best-effort";
   fontMode: "compatible" | "fast-local" | "strict";
 };
 
 export type CaptureDiagnosticsV1 = {
+  activation?: {
+    mode: "auto" | "off";
+    scope: "page" | "element" | "canvas";
+    status:
+      | "off"
+      | "not-applicable"
+      | "completed"
+      | "budget-exhausted"
+      | "timed-out"
+      | "canceled"
+      | "target-lost"
+      | "restore-failed"
+      | "resource-set-changed";
+    passes: number;
+    scrollSteps: number;
+    containersVisited: number;
+    discoveredNodes: number;
+    discoveredResources: number;
+    elapsedMs: number;
+    restored: boolean;
+    resourceSetChanged: boolean;
+    errorCount: number;
+  };
   settle: {
     timeoutMs: number;
     timedOut: boolean;
@@ -339,6 +363,7 @@ function projectSettings(settings: EngineCaptureSettings): CaptureSettingsV1 {
     layout: settings.layout,
     motion: settings.motion,
     lineBreaks: settings.lineBreaks,
+    lazyActivation: settings.lazyActivation ?? "auto",
     settleTimeoutMs: settings.settleTimeoutMs,
     images: settings.images,
     fontMode: settings.fontMode,
@@ -371,6 +396,24 @@ async function sanitizeDiagnostics(
     }))
   );
   return {
+    ...(diagnostics.activation
+      ? {
+          activation: {
+            mode: diagnostics.activation.mode,
+            scope: diagnostics.activation.scope,
+            status: diagnostics.activation.status,
+            passes: diagnostics.activation.passes,
+            scrollSteps: diagnostics.activation.scrollSteps,
+            containersVisited: diagnostics.activation.containersVisited,
+            discoveredNodes: diagnostics.activation.discoveredNodes,
+            discoveredResources: diagnostics.activation.discoveredResources,
+            elapsedMs: diagnostics.activation.elapsedMs,
+            restored: diagnostics.activation.restored,
+            resourceSetChanged: diagnostics.activation.resourceSetChanged,
+            errorCount: diagnostics.activation.errors.length,
+          },
+        }
+      : {}),
     settle: {
       timeoutMs: diagnostics.settle.timeoutMs,
       timedOut: diagnostics.settle.timedOut,
@@ -501,6 +544,7 @@ function readSettings(value: unknown): CaptureSettingsV1 {
     layout: requireEnum(record.layout, ["absolute", "auto"]),
     motion: requireEnum(record.motion, ["freeze", "live"]),
     lineBreaks: requireEnum(record.lineBreaks, ["auto", "off"]),
+    lazyActivation: requireEnum(record.lazyActivation, ["auto", "off"]),
     settleTimeoutMs: requireNonNegativeNumber(record.settleTimeoutMs),
     images: requireEnum(record.images, ["process", "skip", "best-effort"]),
     fontMode: requireEnum(record.fontMode, [
@@ -513,6 +557,10 @@ function readSettings(value: unknown): CaptureSettingsV1 {
 
 function readDiagnostics(value: unknown): CaptureDiagnosticsV1 {
   const record = requireRecord(value);
+  const activation =
+    record.activation === undefined
+      ? undefined
+      : readActivationDiagnostics(record.activation);
   const settle = requireRecord(record.settle);
   const motion = requireRecord(record.motion);
   const lineBreaks = requireRecord(record.lineBreaks);
@@ -557,6 +605,7 @@ function readDiagnostics(value: unknown): CaptureDiagnosticsV1 {
     };
   });
   return {
+    ...(activation === undefined ? {} : { activation }),
     settle: {
       timeoutMs: requireNonNegativeNumber(settle.timeoutMs),
       timedOut: requireBoolean(settle.timedOut),
@@ -612,6 +661,38 @@ function readDiagnostics(value: unknown): CaptureDiagnosticsV1 {
     },
     backgrounds,
     cleanupFailureCount: requireNonNegativeNumber(record.cleanupFailureCount),
+  };
+}
+
+function readActivationDiagnostics(
+  value: unknown
+): NonNullable<CaptureDiagnosticsV1["activation"]> {
+  const activation = requireRecord(value);
+  return {
+    mode: requireEnum(activation.mode, ["auto", "off"]),
+    scope: requireEnum(activation.scope, ["page", "element", "canvas"]),
+    status: requireEnum(activation.status, [
+      "off",
+      "not-applicable",
+      "completed",
+      "budget-exhausted",
+      "timed-out",
+      "canceled",
+      "target-lost",
+      "restore-failed",
+      "resource-set-changed",
+    ]),
+    passes: requireNonNegativeNumber(activation.passes),
+    scrollSteps: requireNonNegativeNumber(activation.scrollSteps),
+    containersVisited: requireNonNegativeNumber(activation.containersVisited),
+    discoveredNodes: requireNonNegativeNumber(activation.discoveredNodes),
+    discoveredResources: requireNonNegativeNumber(
+      activation.discoveredResources
+    ),
+    elapsedMs: requireNonNegativeNumber(activation.elapsedMs),
+    restored: requireBoolean(activation.restored),
+    resourceSetChanged: requireBoolean(activation.resourceSetChanged),
+    errorCount: requireNonNegativeNumber(activation.errorCount),
   };
 }
 

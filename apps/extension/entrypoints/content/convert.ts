@@ -32,6 +32,7 @@ export function createExtensionCaptureEngine(
     settleTimeoutMs: settings.advanced.settleTimeoutMs,
     motion: settings.advanced.motion,
     lineBreaks: settings.advanced.lineBreaks,
+    lazyActivation: settings.advanced.lazyActivation,
     fontFailure: settings.font.mode,
     fonts: {
       fallbackLoader: createFixedCjkFallbackLoader(loadBundledCjkFont),
@@ -58,6 +59,7 @@ export function createExtensionFontSpecPort(): FontSpecPort {
           ...settings.advanced,
           motion: "live",
           lineBreaks: "off",
+          lazyActivation: "off",
           settleTimeoutMs: 0,
         },
       });
