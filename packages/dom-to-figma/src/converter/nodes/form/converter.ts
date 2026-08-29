@@ -4,6 +4,7 @@ import type { FontCache } from "../../font-cache";
 import type { ImageCache } from "../../image-cache";
 import type {
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundRasterizer,
 } from "../../styles/background";
 import type {
@@ -30,6 +31,7 @@ type FormElementParams = {
   createGuid: () => FigmaGuid;
   domTraversal: DomTraversalStrategy;
   imageCache: ImageCache;
+  backgroundImageResolver?: BackgroundImageResolver;
   backgroundRasterizer?: BackgroundRasterizer;
   onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
   signal?: AbortSignal;
@@ -186,6 +188,7 @@ export async function elementToFormNodeChange(
     createGuid,
     domTraversal,
     imageCache,
+    backgroundImageResolver,
     backgroundRasterizer,
     onBackgroundDiagnostic,
     signal,
@@ -208,6 +211,7 @@ export async function elementToFormNodeChange(
     registerBlob,
     domTraversal,
     imageCache,
+    backgroundImageResolver,
     backgroundRasterizer,
     onBackgroundDiagnostic,
     signal,

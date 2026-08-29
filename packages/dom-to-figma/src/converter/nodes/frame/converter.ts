@@ -11,6 +11,7 @@ import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
 import type {
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundRasterizer,
 } from "../../styles/background";
 import {
@@ -240,6 +241,7 @@ type Params = {
   registerBlob: (blob: FigmaBlob) => number;
   domTraversal?: DomTraversalStrategy;
   imageCache: ImageCache;
+  backgroundImageResolver?: BackgroundImageResolver;
   backgroundRasterizer?: BackgroundRasterizer;
   onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
   signal?: AbortSignal;
@@ -392,6 +394,7 @@ export async function elementToFrameNodeChange(
     registerBlob,
     domTraversal,
     imageCache,
+    backgroundImageResolver,
     backgroundRasterizer,
     onBackgroundDiagnostic,
     signal,
@@ -419,7 +422,6 @@ export async function elementToFrameNodeChange(
   const width = rect.width;
   const height = rect.height;
 
-  const backgroundImage = computedStyle.backgroundImage;
   const backgroundColor = cssColorToFigmaColor(computedStyle.backgroundColor);
   const backgroundClip = computedStyle.backgroundClip;
   const isTextClipped = backgroundClip === "text";
@@ -551,8 +553,10 @@ export async function elementToFrameNodeChange(
     element,
     computedStyle,
     width,
-    height
+    height,
+    backgroundImageResolver
   );
+  const backgroundImage = background.backgroundImage;
   const backgroundPaints = await resolveBackgroundPaints({
     element,
     snapshot: background,

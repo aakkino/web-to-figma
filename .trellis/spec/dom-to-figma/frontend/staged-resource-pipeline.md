@@ -233,3 +233,117 @@ const inventory = analyzeCaptureTarget({ element: document.body });
 await prepareAll(inventory.resources);
 await bridge.convert({ element: document.body, width: 100, height: 100 });
 ```
+
+## Scenario: Explicit Lazy Background Sources (BG2)
+
+### 1. Scope / Trigger
+
+- Trigger: an element declares an image source through explicit `data-bgset`
+  metadata while computed `background-image` is empty or `none`.
+- Scope: pure metadata parsing, adapter inventory/scheduling, capture-local
+  owner mapping, and the existing BG1 Core paint pipeline.
+- Exclusion: scrolling, observer activation, arbitrary `data-*` inference, and
+  page lazy-loader execution.
+
+### 2. Signatures
+
+```ts
+type CaptureInventory = {
+  backgroundSources: ReadonlyMap<Element, string>;
+};
+
+type ConversionContext = {
+  backgroundSources?: ReadonlyMap<Element, string>;
+};
+
+type FigmaConverterConfig = {
+  backgroundImageResolver?: (element: Element) => string | null;
+};
+```
+
+### 3. Contracts
+
+- The adapter inspects only `data-bgset`. Parsing accepts plain URLs,
+  srcset-like width/density candidates, and the evidenced `-xs-` encoding.
+- Parsing and analysis perform no fetch, style/attribute assignment, DOM
+  insertion, scrolling, or page-script execution. URLs resolve against the
+  owner document and only data/blob/HTTP(S) schemes are allowed.
+- Existing computed `background-image` always wins. Lazy metadata adds one
+  background usage only when computed CSS has no image expression.
+- Canonical URLs deduplicate across ordinary images, computed backgrounds, and
+  lazy backgrounds in the existing scheduler before fonts and conversion.
+- The bridge exposes the owner mapping to Core only for the active conversion.
+  It clears the mapping on success, failure, abort, and explicit cache reset.
+- Starting a replacement analysis aborts and awaits the previous session's work
+  before publishing the new session. Direct overlapping bridge conversions are
+  rejected so one resolver context cannot replace another.
+- Core knows only the generic optional resolver. Its returned CSS expression
+  enters the BG1 snapshot, IMAGE paint/raster fallback, prepared-only loader,
+  diagnostics, and cancellation paths.
+- A stable Core without BG1 support keeps ordinary images working and reports
+  each planned lazy background as unsupported; it must not fetch late.
+
+### 4. Validation & Error Matrix
+
+| Condition | Required behavior | Forbidden behavior |
+| --- | --- | --- |
+| Valid explicit metadata | Canonicalize and stage once | Activate the page lazy-loader |
+| Computed image exists | Keep computed CSS only | Add a duplicate lazy layer |
+| Candidate is malformed or unsafe | Omit it from inventory | Guess or fetch it |
+| Conversion fails or aborts | Clear owner mapping and prepared state | Reuse it in another capture |
+| Core lacks support | Preserve ordinary images and report unsupported | Fetch during conversion |
+
+### 5. Good / Base / Bad Cases
+
+- Good: the adapter parses one explicit `data-bgset` source, stages its
+  canonical URL once, and supplies a frozen resolver entry only for the active
+  conversion.
+- Base: an element without explicit metadata retains computed-style behavior,
+  and a direct Core consumer that omits `backgroundImageResolver` behaves as
+  before.
+- Good: replacement analysis waits for canceled work to finish before it
+  publishes a new owner map.
+- Bad: partially accept a malformed candidate list, infer an arbitrary lazy
+  attribute, or replace the resolver context of an overlapping conversion.
+
+### 6. Tests Required
+
+- Pure parser tests cover plain, `-xs-`, width, density, malformed, base URL,
+  scheme, payload-comma `data:` URLs, and mixed-descriptor rejection.
+- Inventory/browser tests prove no fetch or DOM mutation, computed precedence,
+  cross-kind deduplication, ordering, placeholders, and offscreen capture.
+- Bridge/Core tests prove IMAGE output, prepared-only loading, escaping,
+  success/failure/reset cleanup, replacement-session waiting, overlap
+  rejection, and direct-consumer compatibility.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+activeBackgroundSources = context?.backgroundSources;
+return converter.convert(input, signal);
+```
+
+This lets overlapping conversion replace the resolver context used by work
+that is already in flight.
+
+#### Correct
+
+```ts
+if (conversionInProgress) {
+  throw new Error("A capture conversion is already in progress");
+}
+
+conversionInProgress = true;
+activeBackgroundSources = context?.backgroundSources;
+try {
+  return await converter.convert(input, signal);
+} finally {
+  activeBackgroundSources = undefined;
+  conversionInProgress = false;
+}
+```
+
+The bridge admits one capture-local resolver context at a time and clears it
+for every terminal path.

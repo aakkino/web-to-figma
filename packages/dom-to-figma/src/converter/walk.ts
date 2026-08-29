@@ -24,6 +24,7 @@ import type { InferredChildStack } from "./layout/infer";
 import { nodeToTextNodeChange } from "./nodes/text";
 import type {
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundRasterizer,
 } from "./styles/background";
 import type { TraceEntry, TraceRecorder } from "./trace";
@@ -47,6 +48,7 @@ export type WalkContext = {
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
   imageCache: ImageCache;
+  backgroundImageResolver?: BackgroundImageResolver;
   backgroundRasterizer?: BackgroundRasterizer;
   onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
   signal?: AbortSignal;
@@ -241,6 +243,7 @@ async function walkNode(
       imageCache: ctx.imageCache,
       createGuid: ctx.createGuid,
       domTraversal: ctx.domTraversal,
+      backgroundImageResolver: ctx.backgroundImageResolver,
       backgroundRasterizer: ctx.backgroundRasterizer,
       onBackgroundDiagnostic: ctx.onBackgroundDiagnostic,
       signal: ctx.signal,

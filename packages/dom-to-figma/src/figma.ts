@@ -20,6 +20,7 @@ import type { FontLoader } from "./converter/nodes/text/primitives/font/loader";
 import { createFontsourceLoader } from "./converter/nodes/text/primitives/font/loader";
 import type {
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundRasterizer,
 } from "./converter/styles/background";
 import type { ConvertTrace, TraceEntry } from "./converter/trace";
@@ -54,6 +55,7 @@ export { createFontsourceLoader } from "./converter/nodes/text/primitives/font/l
 export type {
   BackgroundBox,
   BackgroundDiagnostic,
+  BackgroundImageResolver,
   BackgroundLayer,
   BackgroundRasterizer,
   BackgroundSnapshot,
@@ -82,6 +84,8 @@ export type FigmaConverterConfig = {
   imageLoader?: ImageLoader;
   /** Resolve an already staged image source without mutating the DOM. */
   imageSourceResolver?: ImageSourceResolver;
+  /** Resolve a frozen CSS background expression without mutating the DOM. */
+  backgroundImageResolver?: BackgroundImageResolver;
   /** Optional host rasterizer for dynamic CSS image functions. */
   backgroundRasterizer?: BackgroundRasterizer;
   /** Receives structured background conversion outcomes. */
@@ -185,6 +189,7 @@ export function createFigmaConverter(
       registerBlob: (blob) => blobManager.registerBlob(blob),
       fontCache,
       imageCache,
+      backgroundImageResolver: config.backgroundImageResolver,
       backgroundRasterizer: config.backgroundRasterizer,
       onBackgroundDiagnostic: config.onBackgroundDiagnostic,
       signal,

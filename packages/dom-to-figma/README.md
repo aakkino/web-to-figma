@@ -122,6 +122,20 @@ const figma = createFigmaConverter({
 
 Repeated `convert()` calls on the same converter reuse cached fonts and images. Call `figma.clearCache()` to drop them.
 
+Hosts that stage background resources outside the DOM can provide a frozen CSS
+`background-image` expression for elements whose computed style is empty:
+
+```ts
+const figma = createFigmaConverter({
+  backgroundImageResolver: (element) =>
+    frozenBackgrounds.get(element) ?? null,
+});
+```
+
+Computed `background-image` always takes precedence. The resolver should return
+a complete expression such as `url("https://example.com/image.png")`; resource
+loading still uses the configured `imageLoader`.
+
 ### Fonts
 
 Default: `createFontsourceLoader()` pulls fonts from fontsource via jsDelivr's CDN. Covers all Google Fonts plus other open-source families. No API key required.

@@ -5,19 +5,26 @@ import { createFontResolver } from "./font-resolver";
 import type {
   BridgeCaptureInput,
   ConversionBridge,
+  ConversionContext,
   FontResolver,
 } from "./types";
 
 const LATIN_A_CODE_POINT = "A".codePointAt(0) ?? 0;
 const LATIN_B_CODE_POINT = "B".codePointAt(0) ?? 0;
 const CJK_CODE_POINT = "中".codePointAt(0) ?? 0;
+const TINY_RED_PNG_DATA_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 
 function createFakeBridge(
-  onConvert?: (input: BridgeCaptureInput) => void
+  onConvert?: (input: BridgeCaptureInput, context?: ConversionContext) => void,
+  onPrepare?: (src: string) => void
 ): ConversionBridge {
   return {
     imagePreparation: {
-      prepare: async () => ({ status: "prepared", byteLength: 0 }),
+      prepare: (request) => {
+        onPrepare?.(request.src);
+        return Promise.resolve({ status: "prepared", byteLength: 0 });
+      },
       setPlaceholder() {
         // no-op test capability
       },
@@ -26,8 +33,8 @@ function createFakeBridge(
       },
     },
     fontLoader: async () => ({ bytes: new ArrayBuffer(0) }),
-    convert(input) {
-      onConvert?.(input);
+    convert(input, _signal, context) {
+      onConvert?.(input, context);
       return Promise.resolve({ clipboardHtml: "" });
     },
     clearCache() {
@@ -99,6 +106,54 @@ describe("browser capture adapter", () => {
     expect(result.diagnostics.lineBreaks.changedNodes).toBeGreaterThanOrEqual(
       1
     );
+  });
+
+  it("captures real bytes from an offscreen data-bgset owner without activation", async () => {
+    document.body.innerHTML = `
+      <div id="target" style="width:120px;height:80px">
+        <a id="card" data-bgset="${TINY_RED_PNG_DATA_URL}-xs-/card-original.jpg"
+          style="position:absolute;top:5000px;width:120px;height:80px"></a>
+      </div>
+    `;
+    const target = document.querySelector("#target");
+    const card = document.querySelector("#card");
+    if (!(target instanceof HTMLElement && card instanceof HTMLElement)) {
+      throw new Error("data-bgset fixture not found");
+    }
+    const before = target.outerHTML;
+    const requested: Array<string> = [];
+    const adapter = createBrowserCaptureAdapter({
+      bridgeOptions: {
+        imageLoader: async (request) => {
+          requested.push(request.src);
+          const response = await fetch(request.src);
+          return {
+            bytes: await response.arrayBuffer(),
+            mimeType: "image/png",
+          };
+        },
+      },
+      fontResolver: createNoopFontResolver(),
+      settleTimeoutMs: 0,
+      lineBreaks: "off",
+      motion: "live",
+    });
+
+    const result = await adapter.capture({
+      element: target,
+      width: 120,
+      height: 80,
+    });
+
+    expect(requested).toEqual([TINY_RED_PNG_DATA_URL]);
+    expect(result.diagnostics.images.progress.total).toBe(1);
+    expect(result.diagnostics.images.progress.preparedBytes).toBeGreaterThan(0);
+    expect(result.diagnostics.backgrounds).toEqual([
+      expect.objectContaining({ mode: "native", layerIndex: 0 }),
+    ]);
+    expect(result.clipboardHtml).toContain("figmeta");
+    expect(window.scrollY).toBe(0);
+    expect(target.outerHTML).toBe(before);
   });
 
   it("fails before conversion when strict font preflight is not exact", async () => {

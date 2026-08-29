@@ -73,6 +73,7 @@ export type {
   CaptureState,
   CaptureTarget,
   ConversionBridge,
+  ConversionContext,
   ConverterLayout,
   DomToFigmaBridgeOptions,
   DomTreeStrategy,

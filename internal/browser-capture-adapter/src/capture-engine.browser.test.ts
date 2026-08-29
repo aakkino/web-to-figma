@@ -16,6 +16,7 @@ type BridgeHarness = {
   prepareCalls: Array<string>;
   placeholders: Array<{ src: string; reason: string; element?: Element }>;
   convertCalls: number;
+  clearCalls: number;
   phases: Array<CaptureEvent["state"]["phase"]>;
 };
 
@@ -29,6 +30,7 @@ function createHarness(
   const prepareCalls: Array<string> = [];
   const placeholders: BridgeHarness["placeholders"] = [];
   let convertCalls = 0;
+  let clearCalls = 0;
   const imagePreparation: ImagePreparationPort = {
     prepare(request, signal) {
       prepareCalls.push(request.src);
@@ -74,7 +76,7 @@ function createHarness(
       return Promise.resolve({ clipboardHtml: "<figma>capture</figma>" });
     },
     clearCache() {
-      // no-op test bridge
+      clearCalls += 1;
     },
   };
   const phases: BridgeHarness["phases"] = [];
@@ -84,6 +86,9 @@ function createHarness(
     placeholders,
     get convertCalls() {
       return convertCalls;
+    },
+    get clearCalls() {
+      return clearCalls;
     },
     phases,
   };
@@ -165,11 +170,9 @@ describe("capture engine", () => {
     ]);
   });
 
-  it("reports a blocked stable-core background once as a placeholder", async () => {
+  it("reports a blocked stable-core lazy background once as a placeholder", async () => {
     const source = "https://example.test/blocked-background.png";
-    const target = createTarget(
-      `<div style="background-image:url(${source})"></div>`
-    );
+    const target = createTarget(`<div data-bgset="${source}"></div>`);
     const harness = createHarness({
       failFirstSource: source,
       supportsBackgroundImages: false,
@@ -286,6 +289,32 @@ describe("capture engine", () => {
 
     expect(engine.getState().phase).toBe("canceled");
     expect(harness.convertCalls).toBe(0);
+    expect(harness.clearCalls).toBe(1);
+  });
+
+  it("waits for canceled work before publishing a replacement analysis", async () => {
+    const firstTarget = createTarget(
+      '<div><img src="https://example.test/pending.png"></div>'
+    );
+    const harness = createHarness({ pendingImages: true });
+    const engine = createEngine(harness);
+    await engine.analyze(inputFor(firstTarget));
+    const firstSessionId = engine.getState().sessionId;
+    const starting = engine.dispatch({
+      type: "start",
+      sessionId: firstSessionId,
+    });
+    await waitFor(() => harness.prepareCalls.length === 1);
+
+    const secondTarget = document.createElement("div");
+    document.body.append(secondTarget);
+    await engine.analyze(inputFor(secondTarget));
+    await starting;
+
+    expect(engine.getState().sessionId).not.toBe(firstSessionId);
+    expect(engine.getState().phase).toBe("review");
+    expect(harness.convertCalls).toBe(0);
+    expect(harness.clearCalls).toBe(1);
   });
 
   it("pauses strict font failure and resumes after switching to compatible", async () => {

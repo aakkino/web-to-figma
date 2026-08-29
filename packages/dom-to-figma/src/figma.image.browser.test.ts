@@ -258,6 +258,46 @@ describe("image rendering with inline PNG", () => {
     expect(imagePaints(direct.document.nodeChanges)).toHaveLength(2);
     expect(direct.document.blobs).toHaveLength(1);
   });
+
+  it("uses a frozen background resolver only when computed style has no image", async () => {
+    const element = await mountElement(
+      '<div data-bg-source="https://example.test/lazy-background.png" style="width:120px;height:80px"></div>'
+    );
+    const bytes = await (await fetch(TINY_RED_PNG_DATA_URL)).arrayBuffer();
+    let requested = "";
+    const result = await createFigmaConverter({
+      imageLoader: (request) => {
+        requested = request.src;
+        return Promise.resolve({ bytes, mimeType: "image/png" });
+      },
+      backgroundImageResolver: (candidate) => {
+        const source = candidate.getAttribute("data-bg-source");
+        return source ? `url("${source}")` : null;
+      },
+    }).convert({ element, width: 120, height: 80 });
+
+    const paint = result.document.nodeChanges
+      .filter((change) => change.type === "FRAME")
+      .flatMap((change) => change.fillPaints ?? [])
+      .find((candidate) => candidate.type === "IMAGE");
+
+    expect(requested).toBe("https://example.test/lazy-background.png");
+    expect(paint?.type).toBe("IMAGE");
+    expect(element.style.backgroundImage).toBe("");
+
+    const loadedElement = await mountElement(
+      '<div style="width:120px;height:80px;background-image:url(https://example.test/loaded.png)" data-bg-source="https://example.test/lazy-background.png"></div>'
+    );
+    let resolverCalls = 0;
+    await createFigmaConverter({
+      backgroundImageResolver: () => {
+        resolverCalls += 1;
+        return 'url("https://example.test/lazy-background.png")';
+      },
+      imageLoader: () => Promise.resolve({ bytes, mimeType: "image/png" }),
+    }).convert({ element: loadedElement, width: 120, height: 80 });
+    expect(resolverCalls).toBe(0);
+  });
 });
 
 function imagePaints(
