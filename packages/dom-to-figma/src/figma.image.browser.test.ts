@@ -44,6 +44,80 @@ afterEach(() => {
 });
 
 describe("image rendering with inline PNG", () => {
+  it("emits a prepared CSS raster background as an IMAGE paint", async () => {
+    const element = await mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;background-image:url('${TINY_RED_PNG_DATA_URL}');background-repeat:no-repeat;background-size:40px 40px;background-position:20px 30px"></div>`
+    );
+    const diagnostics: Array<string> = [];
+
+    const result = await createFigmaConverter({
+      onBackgroundDiagnostic: (diagnostic) => diagnostics.push(diagnostic.mode),
+    }).convert({ element, width: FRAME_WIDTH, height: FRAME_HEIGHT });
+    const paint = result.document.nodeChanges
+      .flatMap((change) =>
+        "fillPaints" in change ? (change.fillPaints ?? []) : []
+      )
+      .find((candidate) => candidate.type === "IMAGE");
+
+    expect(paint).toMatchObject({
+      type: "IMAGE",
+      imageScaleMode: "STRETCH",
+      originalImageWidth: 1,
+      originalImageHeight: 1,
+    });
+    expect(paint?.transform?.m00).toBeCloseTo(FRAME_WIDTH / 40);
+    expect(paint?.transform?.m02).toBeCloseTo(-20 / 40);
+    expect(diagnostics).toContain("native");
+  });
+
+  it("rasterizes one-axis repetition into one bounded IMAGE paint", async () => {
+    const element = await mountElement(
+      `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;background-image:url('${TINY_RED_PNG_DATA_URL}');background-repeat:repeat-x;background-size:20px 20px"></div>`
+    );
+    const diagnostics: Array<string> = [];
+
+    const result = await createFigmaConverter({
+      onBackgroundDiagnostic: (diagnostic) => diagnostics.push(diagnostic.mode),
+    }).convert({ element, width: FRAME_WIDTH, height: FRAME_HEIGHT });
+    const imagePaints = result.document.nodeChanges.flatMap((change) =>
+      "fillPaints" in change
+        ? (change.fillPaints ?? []).filter((paint) => paint.type === "IMAGE")
+        : []
+    );
+
+    expect(imagePaints).toHaveLength(1);
+    expect(imagePaints[0]).toMatchObject({
+      type: "IMAGE",
+      imageScaleMode: "STRETCH",
+      originalImageWidth: FRAME_WIDTH,
+      originalImageHeight: FRAME_HEIGHT,
+    });
+    expect(diagnostics).toContain("raster-fallback");
+  });
+
+  it("passes cancellation into capture-state rasterization", async () => {
+    const element = await mountElement(
+      `<div style="box-sizing:border-box;width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px;border:4px solid black;background-image:url('${TINY_RED_PNG_DATA_URL}');background-repeat:no-repeat;background-size:20px 20px"></div>`
+    );
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | undefined;
+
+    await createFigmaConverter({
+      async backgroundRasterizer(request) {
+        receivedSignal = request.signal;
+        return {
+          bytes: await (await fetch(TINY_RED_PNG_DATA_URL)).arrayBuffer(),
+          mimeType: "image/png",
+        };
+      },
+    }).convert(
+      { element, width: FRAME_WIDTH, height: FRAME_HEIGHT },
+      controller.signal
+    );
+
+    expect(receivedSignal).toBe(controller.signal);
+  });
+
   it("emits an IMAGE fillPaint and registers the image bytes as a blob", async () => {
     const element = await mountElement(
       `<div style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px"><img src="${TINY_RED_PNG_DATA_URL}" width="40" height="40" alt="red"></div>`
@@ -183,6 +257,46 @@ describe("image rendering with inline PNG", () => {
     expect(directLoads).toBe(1);
     expect(imagePaints(direct.document.nodeChanges)).toHaveLength(2);
     expect(direct.document.blobs).toHaveLength(1);
+  });
+
+  it("uses a frozen background resolver only when computed style has no image", async () => {
+    const element = await mountElement(
+      '<div data-bg-source="https://example.test/lazy-background.png" style="width:120px;height:80px"></div>'
+    );
+    const bytes = await (await fetch(TINY_RED_PNG_DATA_URL)).arrayBuffer();
+    let requested = "";
+    const result = await createFigmaConverter({
+      imageLoader: (request) => {
+        requested = request.src;
+        return Promise.resolve({ bytes, mimeType: "image/png" });
+      },
+      backgroundImageResolver: (candidate) => {
+        const source = candidate.getAttribute("data-bg-source");
+        return source ? `url("${source}")` : null;
+      },
+    }).convert({ element, width: 120, height: 80 });
+
+    const paint = result.document.nodeChanges
+      .filter((change) => change.type === "FRAME")
+      .flatMap((change) => change.fillPaints ?? [])
+      .find((candidate) => candidate.type === "IMAGE");
+
+    expect(requested).toBe("https://example.test/lazy-background.png");
+    expect(paint?.type).toBe("IMAGE");
+    expect(element.style.backgroundImage).toBe("");
+
+    const loadedElement = await mountElement(
+      '<div style="width:120px;height:80px;background-image:url(https://example.test/loaded.png)" data-bg-source="https://example.test/lazy-background.png"></div>'
+    );
+    let resolverCalls = 0;
+    await createFigmaConverter({
+      backgroundImageResolver: () => {
+        resolverCalls += 1;
+        return 'url("https://example.test/lazy-background.png")';
+      },
+      imageLoader: () => Promise.resolve({ bytes, mimeType: "image/png" }),
+    }).convert({ element: loadedElement, width: 120, height: 80 });
+    expect(resolverCalls).toBe(0);
   });
 });
 

@@ -5,9 +5,19 @@ import {
   isTextNode,
   lightDomTraversal,
 } from "../../dom";
+import type { ImageCache } from "../../image-cache";
 import type { InferredChildStack } from "../../layout/infer";
 import { inferAutoLayout } from "../../layout/infer";
 import { getNodeNameFromElement } from "../../naming";
+import type {
+  BackgroundDiagnostic,
+  BackgroundImageResolver,
+  BackgroundRasterizer,
+} from "../../styles/background";
+import {
+  makeBackgroundSnapshotFromStyle,
+  resolveBackgroundPaints,
+} from "../../styles/background";
 import {
   cssBackdropFilterToFigmaEffects,
   cssFilterToFigmaEffects,
@@ -19,7 +29,6 @@ import {
   applyCssColorMatrixFilters,
   hasColorMatrixFilter,
 } from "../../styles/filter-color";
-import { cssBackgroundToFigmaPaints } from "../../styles/gradient";
 import { parseOpacity } from "../../styles/opacity";
 import type { OutlineSpec } from "../../styles/outline";
 import { parseOutlineFromComputedStyle } from "../../styles/outline";
@@ -229,8 +238,13 @@ type Params = {
   rootFill?: { width: number; height: number };
   /** Allocates guids/blobs for synthetic border children. */
   createGuid?: () => FigmaGuid;
-  registerBlob?: (blob: FigmaBlob) => number;
+  registerBlob: (blob: FigmaBlob) => number;
   domTraversal?: DomTraversalStrategy;
+  imageCache: ImageCache;
+  backgroundImageResolver?: BackgroundImageResolver;
+  backgroundRasterizer?: BackgroundRasterizer;
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
+  signal?: AbortSignal;
 };
 
 type FrameResult = {
@@ -362,10 +376,10 @@ function isComposedVisualLeaf(
   return true;
 }
 
-export function elementToFrameNodeChange(
+export async function elementToFrameNodeChange(
   element: Element,
   options: Params
-): FrameResult {
+): Promise<FrameResult> {
   const {
     guid,
     parentGuid,
@@ -379,6 +393,11 @@ export function elementToFrameNodeChange(
     createGuid,
     registerBlob,
     domTraversal,
+    imageCache,
+    backgroundImageResolver,
+    backgroundRasterizer,
+    onBackgroundDiagnostic,
+    signal,
   } = options;
 
   // Inferred auto-layout, spread onto the node change last so it overrides
@@ -394,12 +413,15 @@ export function elementToFrameNodeChange(
       : null;
 
   const rect = element.getBoundingClientRect();
-  const computedStyle = window.getComputedStyle(element);
+  const view = element.ownerDocument.defaultView;
+  if (!view) {
+    throw new Error("Frame element has no owning window");
+  }
+  const computedStyle = view.getComputedStyle(element);
 
   const width = rect.width;
   const height = rect.height;
 
-  const backgroundImage = computedStyle.backgroundImage;
   const backgroundColor = cssColorToFigmaColor(computedStyle.backgroundColor);
   const backgroundClip = computedStyle.backgroundClip;
   const isTextClipped = backgroundClip === "text";
@@ -478,7 +500,7 @@ export function elementToFrameNodeChange(
   // Skipped for inferred stacks (children would be laid out by the stack) and
   // transformed frames (size differs from the measured rect used for geometry).
   const borderChildren =
-    createGuid && registerBlob && !(inferred || transformOverride)
+    createGuid && !(inferred || transformOverride)
       ? decomposePerSideBorder({
           computedStyle,
           width,
@@ -527,9 +549,27 @@ export function elementToFrameNodeChange(
   const fillPaints: Array<FigmaPaint> = [];
   let textGradient: Array<FigmaPaint> | undefined;
 
+  const background = makeBackgroundSnapshotFromStyle(
+    element,
+    computedStyle,
+    width,
+    height,
+    backgroundImageResolver
+  );
+  const backgroundImage = background.backgroundImage;
+  const backgroundPaints = await resolveBackgroundPaints({
+    element,
+    snapshot: background,
+    imageCache,
+    registerBlob,
+    backgroundRasterizer,
+    onDiagnostic: onBackgroundDiagnostic,
+    signal,
+  });
+
   // Bake color-matrix filters only when this solid fill is the element's whole
   // visual appearance. The traversal check includes shadow roots and slots.
-  if (backgroundColor) {
+  if (backgroundColor && !backgroundPaints.containsRasterFallback) {
     const canBakeFilter =
       isComposedVisualLeaf(element, domTraversal ?? lightDomTraversal) &&
       (!backgroundImage || backgroundImage === "none") &&
@@ -543,17 +583,17 @@ export function elementToFrameNodeChange(
     fillPaints.push(createSolidPaint(fillColor, backgroundColor.opacity));
   }
 
-  // Add background-image on top (top layer)
-  if (backgroundImage && backgroundImage !== "none") {
-    const gradientPaints = cssBackgroundToFigmaPaints(backgroundImage, {
-      width,
-      height,
-    });
-
-    if (isTextClipped) {
-      textGradient = gradientPaints;
+  // Add background-image on top (top layer). Text clipping only propagates
+  // gradient paints; raster layers remain frame fills.
+  if (backgroundPaints.paints.length > 0) {
+    const onlyGradients = backgroundPaints.paints.every(
+      (paint) =>
+        paint.type === "GRADIENT_LINEAR" || paint.type === "GRADIENT_RADIAL"
+    );
+    if (isTextClipped && onlyGradients) {
+      textGradient = backgroundPaints.paints;
     } else {
-      fillPaints.push(...gradientPaints);
+      fillPaints.push(...backgroundPaints.paints);
     }
   }
 

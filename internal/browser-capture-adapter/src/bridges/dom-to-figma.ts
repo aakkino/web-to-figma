@@ -3,10 +3,13 @@ import { openComposedDomTree } from "@aakkino/composed-dom";
 import * as domToFigma from "@aakkino/dom-to-figma";
 
 import type {
+  BackgroundDiagnostic,
+  BackgroundRasterizer,
   BridgeCaptureInput,
   BridgeCaptureResult,
   CaptureClassifier,
   ConversionBridge,
+  ConversionContext,
   DomToFigmaBridgeOptions,
   FontLoader,
   ImageFile,
@@ -36,13 +39,28 @@ export function createDomToFigmaBridgeForModule(
   const imageLoader =
     options.imageLoader ?? toAdapterImageLoader(core.createDirectImageLoader());
   const strategy = createImageStrategy(core, imageLoader);
+  const backgroundDiagnostics: Array<
+    BackgroundDiagnostic & { source?: string }
+  > = [];
   const fontLoader =
     options.fontLoader ?? toAdapterFontLoader(core.createFontsourceLoader());
+  let activeBackgroundSources: ReadonlyMap<Element, string> | undefined;
+  let conversionInProgress = false;
   const converter = core.createFigmaConverter({
     imageLoader: strategy.converterImageLoader,
     ...(strategy.upstreamPreparation
       ? { imagePreparation: strategy.upstreamPreparation }
       : {}),
+    imageSourceResolver: (element: HTMLImageElement) =>
+      strategy.resolveElementSource(element),
+    backgroundImageResolver: (element: Element) => {
+      const source = activeBackgroundSources?.get(element);
+      return source ? toCssBackgroundImage(source) : null;
+    },
+    backgroundRasterizer: options.backgroundRasterizer,
+    onBackgroundDiagnostic: (diagnostic) => {
+      backgroundDiagnostics.push(diagnostic);
+    },
     fontLoader: toUpstreamFontLoader(fontLoader),
     classify: options.classify
       ? toUpstreamClassifier(options.classify)
@@ -54,15 +72,39 @@ export function createDomToFigmaBridgeForModule(
   return {
     imagePreparation: strategy.preparation,
     fontLoader,
-    async convert(input, signal): Promise<BridgeCaptureResult> {
+    supportsBackgroundImages:
+      core.domToFigmaCapabilities?.cssBackgroundImages === true,
+    async convert(
+      input,
+      signal,
+      context?: ConversionContext
+    ): Promise<BridgeCaptureResult> {
       throwIfAborted(signal, "Capture conversion aborted");
-      const result = await converter.convert(input);
-      throwIfAborted(signal, "Capture conversion aborted");
-      return { clipboardHtml: result.toClipboardHtml() };
+      if (conversionInProgress) {
+        throw new Error("A capture conversion is already in progress");
+      }
+      conversionInProgress = true;
+      backgroundDiagnostics.length = 0;
+      activeBackgroundSources = context?.backgroundSources;
+      try {
+        const result = await converter.convert(input, signal);
+        throwIfAborted(signal, "Capture conversion aborted");
+        return { clipboardHtml: result.toClipboardHtml() };
+      } finally {
+        activeBackgroundSources = undefined;
+        conversionInProgress = false;
+        strategy.clearBeforeConverter();
+        converter.clearCache();
+      }
     },
     clearCache() {
+      activeBackgroundSources = undefined;
+      backgroundDiagnostics.length = 0;
       strategy.clearBeforeConverter();
       converter.clearCache();
+    },
+    getBackgroundDiagnostics() {
+      return [...backgroundDiagnostics];
     },
   };
 }
@@ -134,7 +176,10 @@ type UpstreamImagePreparationFactory = (
 ) => UpstreamImagePreparation;
 
 type UpstreamConverter = {
-  convert(input: BridgeCaptureInput): Promise<{ toClipboardHtml(): string }>;
+  convert(
+    input: BridgeCaptureInput,
+    signal?: AbortSignal
+  ): Promise<{ toClipboardHtml(): string }>;
   clearCache(): void;
 };
 
@@ -146,18 +191,36 @@ type UpstreamCoreModule = {
     classify?: CaptureClassifier;
     layout?: DomToFigmaBridgeOptions["layout"];
     domTraversal?: DomToFigmaBridgeOptions["domTraversal"];
+    imageSourceResolver?: (element: HTMLImageElement) => string | null;
+    backgroundImageResolver?: (element: Element) => string | null;
+    backgroundRasterizer?: BackgroundRasterizer;
+    onBackgroundDiagnostic?: (
+      diagnostic: BackgroundDiagnostic & { source?: string }
+    ) => void;
   }): UpstreamConverter;
   createDirectImageLoader(): UpstreamImageLoader;
   createFontsourceLoader(): UpstreamFontLoader;
   createImagePreparation?: UpstreamImagePreparationFactory;
+  domToFigmaCapabilities?: {
+    cssBackgroundImages?: boolean;
+  };
 };
 
 type ImageStrategy = {
   preparation: ImagePreparationPort;
   converterImageLoader: UpstreamImageLoader;
   upstreamPreparation?: UpstreamImagePreparation;
+  resolveElementSource(element: HTMLImageElement): string | null;
   clearBeforeConverter(): void;
 };
+
+function toCssBackgroundImage(source: string): string {
+  const escaped = source.replace(
+    /["\\\n\r]/gu,
+    (character) => `\\${character}`
+  );
+  return `url("${escaped}")`;
+}
 
 function assertSupportedCore(module: unknown): UpstreamCoreModule {
   if (!isRecord(module)) {
@@ -180,6 +243,7 @@ function createImageStrategy(
   imageLoader: ImageLoader
 ): ImageStrategy {
   const upstreamLoader = toUpstreamImageLoader(imageLoader);
+  let elementSources = new WeakMap<HTMLImageElement, string>();
   if (typeof core.createImagePreparation !== "function") {
     return createAdapterImageStrategy(imageLoader);
   }
@@ -188,6 +252,7 @@ function createImageStrategy(
   assertImagePreparation(upstreamPreparation);
   const preparation: ImagePreparationPort = {
     async prepare(request, signal) {
+      elementSources.set(request.element, request.src);
       const resolution = await upstreamPreparation.prepare(
         toUpstreamImageRequest(request, signal),
         signal
@@ -199,9 +264,13 @@ function createImageStrategy(
       };
     },
     setPlaceholder(request, reason) {
+      if (request.element) {
+        elementSources.set(request.element, request.src);
+      }
       upstreamPreparation.setPlaceholder(request, reason);
     },
     clear() {
+      elementSources = new WeakMap();
       upstreamPreparation.clear();
     },
   };
@@ -210,6 +279,9 @@ function createImageStrategy(
     preparation,
     converterImageLoader: upstreamLoader,
     upstreamPreparation,
+    resolveElementSource(element) {
+      return elementSources.get(element) ?? null;
+    },
     clearBeforeConverter() {
       // Native converters own and clear the preparation passed in their config.
     },
@@ -298,6 +370,9 @@ function createAdapterImageStrategy(imageLoader: ImageLoader): ImageStrategy {
   return {
     preparation,
     converterImageLoader,
+    resolveElementSource(element) {
+      return elementSources.get(element) ?? null;
+    },
     clearBeforeConverter() {
       preparation.clear();
     },

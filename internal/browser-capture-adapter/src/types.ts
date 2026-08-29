@@ -186,12 +186,52 @@ export type LineBreakDiagnostics = {
   measurementFailures: ReadonlyArray<string>;
 };
 
+export type LazyActivationMode = "auto" | "off";
+
+export type ActivationScope = "page" | "element" | "canvas";
+
+export type ActivationStatus =
+  | "off"
+  | "not-applicable"
+  | "completed"
+  | "budget-exhausted"
+  | "timed-out"
+  | "canceled"
+  | "target-lost"
+  | "restore-failed"
+  | "resource-set-changed";
+
+export type ActivationProgress = {
+  pass: number;
+  maxPasses: number;
+  step: number;
+  maxSteps: number;
+  containersVisited: number;
+  elapsedMs: number;
+};
+
+export type ActivationDiagnostics = {
+  mode: LazyActivationMode;
+  scope: ActivationScope;
+  status: ActivationStatus;
+  passes: number;
+  scrollSteps: number;
+  containersVisited: number;
+  discoveredNodes: number;
+  discoveredResources: number;
+  elapsedMs: number;
+  restored: boolean;
+  resourceSetChanged: boolean;
+  errors: ReadonlyArray<string>;
+};
+
 export type ImageDecision = "process" | "skip" | "best-effort";
 
 export type CaptureSettings = {
   layout: ConverterLayout;
   motion: MotionMode;
   lineBreaks: LineBreakMode;
+  lazyActivation?: LazyActivationMode;
   settleTimeoutMs: number;
   images: ImageDecision;
   fontMode: FontMode;
@@ -230,6 +270,16 @@ export type CaptureResourceSummary = {
   /** Stable in-memory identifier; this is not the source URL. */
   resourceId: string;
   nodeCount: number;
+  kind?: CaptureResourceKind;
+  usageCount?: number;
+};
+
+export type CaptureResourceKind = "image" | "background-image";
+
+export type CaptureResourceUsage = {
+  kind: CaptureResourceKind;
+  owner: Element;
+  layerIndex?: number;
 };
 
 export type CapturePlan = {
@@ -237,6 +287,8 @@ export type CapturePlan = {
   imageNodeCount: number;
   uniqueImageResourceCount: number;
   unsupportedBackgroundImageCount: number;
+  backgroundImageLayerCount?: number;
+  uniqueResourceCount?: number;
   resources: ReadonlyArray<CaptureResourceSummary>;
   revision: string;
 };
@@ -312,19 +364,37 @@ export type BridgeCaptureResult = {
   clipboardHtml: string;
 };
 
+/** Session-local data supplied to the converter for one capture only. */
+export type ConversionContext = {
+  backgroundSources?: ReadonlyMap<Element, string>;
+};
+
 export type ConversionBridge = {
   readonly imagePreparation: ImagePreparationPort;
   readonly fontLoader: FontLoader;
+  readonly supportsBackgroundImages?: boolean;
   convert(
     input: BridgeCaptureInput,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    context?: ConversionContext
   ): Promise<BridgeCaptureResult>;
   clearCache(): void;
+  getBackgroundDiagnostics?: () => ReadonlyArray<
+    BackgroundDiagnostic & { source?: string }
+  >;
 };
+
+export type BackgroundRasterizer = (request: {
+  element: Element;
+  snapshot: unknown;
+  loadImage(source: string): Promise<ImageFile>;
+  signal?: AbortSignal;
+}) => Promise<ImageFile>;
 
 export type DomToFigmaBridgeOptions = {
   imageLoader?: ImageLoader;
   fontLoader?: FontLoader;
+  backgroundRasterizer?: BackgroundRasterizer;
   classify?: CaptureClassifier;
   layout?: ConverterLayout;
   domTraversal?: DomTreeStrategy;
@@ -374,12 +444,22 @@ export type ImageStageDiagnostics = {
 };
 
 export type CaptureDiagnostics = {
+  /** Additive for consumers compiled against pre-activation adapter builds. */
+  activation?: ActivationDiagnostics;
   settle: PageSettleDiagnostics;
   motion: MotionDiagnostics;
   lineBreaks: LineBreakDiagnostics;
   fonts: ReadonlyArray<FontDiagnostic>;
   images: ImageStageDiagnostics;
+  backgrounds?: ReadonlyArray<BackgroundDiagnostic>;
   cleanupFailures: ReadonlyArray<string>;
+};
+
+export type BackgroundDiagnostic = {
+  mode: "native" | "raster-fallback" | "unsupported" | "failed" | "placeholder";
+  reason: string;
+  resourceId?: string;
+  layerIndex?: number;
 };
 
 export type PreparedCapture = {
@@ -395,6 +475,7 @@ export type CapturePhase =
   | "analyzing"
   | "review"
   | "revalidating"
+  | "activating"
   | "preparing-images"
   | "image-recovery"
   | "image-budget-review"
@@ -434,6 +515,7 @@ export type CaptureState = {
   phase: CapturePhase;
   settings: CaptureSettings;
   analysis?: CaptureAnalysis;
+  activationProgress?: ActivationProgress;
   progress?: ImageStageProgress;
   fontProgress?: FontStageProgress;
   imageStage?: ImageStageDiagnostics;
@@ -472,6 +554,7 @@ export type BrowserCaptureAdapterOptions = {
   settleTimeoutMs?: number;
   motion?: MotionMode;
   lineBreaks?: LineBreakMode;
+  lazyActivation?: LazyActivationMode;
   fontFailure?: FontFailureMode;
   domTraversal?: DomTreeStrategy;
   isExcluded?: (element: Element) => boolean;

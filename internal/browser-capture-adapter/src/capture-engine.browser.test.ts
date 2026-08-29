@@ -10,21 +10,28 @@ import type {
 } from "./types";
 
 const CAPTURE_WAIT_TIMEOUT_MS = 1000;
+const ACTIVATION_SCROLL_THRESHOLD = 100;
 
 type BridgeHarness = {
   bridge: ConversionBridge;
   prepareCalls: Array<string>;
   placeholders: Array<{ src: string; reason: string; element?: Element }>;
   convertCalls: number;
+  clearCalls: number;
   phases: Array<CaptureEvent["state"]["phase"]>;
 };
 
 function createHarness(
-  options: { failFirstSource?: string; pendingImages?: boolean } = {}
+  options: {
+    failFirstSource?: string;
+    pendingImages?: boolean;
+    supportsBackgroundImages?: boolean;
+  } = {}
 ): BridgeHarness {
   const prepareCalls: Array<string> = [];
   const placeholders: BridgeHarness["placeholders"] = [];
   let convertCalls = 0;
+  let clearCalls = 0;
   const imagePreparation: ImagePreparationPort = {
     prepare(request, signal) {
       prepareCalls.push(request.src);
@@ -62,12 +69,15 @@ function createHarness(
   const bridge: ConversionBridge = {
     imagePreparation,
     fontLoader: async () => ({ bytes: new ArrayBuffer(0) }),
+    ...(options.supportsBackgroundImages === undefined
+      ? {}
+      : { supportsBackgroundImages: options.supportsBackgroundImages }),
     convert(_input: BridgeCaptureInput) {
       convertCalls += 1;
       return Promise.resolve({ clipboardHtml: "<figma>capture</figma>" });
     },
     clearCache() {
-      // no-op test bridge
+      clearCalls += 1;
     },
   };
   const phases: BridgeHarness["phases"] = [];
@@ -77,6 +87,9 @@ function createHarness(
     placeholders,
     get convertCalls() {
       return convertCalls;
+    },
+    get clearCalls() {
+      return clearCalls;
     },
     phases,
   };
@@ -93,6 +106,7 @@ function createEngine(
       settleTimeoutMs: 0,
       motion: "live",
       lineBreaks: "off",
+      lazyActivation: "off",
       fontMode: options.fontMode ?? "compatible",
     },
   });
@@ -129,6 +143,55 @@ function inputFor(target: Element) {
 }
 
 describe("capture engine", () => {
+  it("stages duplicate CSS backgrounds once before fonts and reports an unsupported stable core", async () => {
+    const target = createTarget(
+      '<div style="background-image:url(https://example.test/shared-background.png)"><div style="background-image:url(https://example.test/shared-background.png)"></div></div>'
+    );
+    const harness = createHarness({ supportsBackgroundImages: false });
+    const engine = createEngine(harness);
+
+    await engine.start(inputFor(target));
+
+    expect(harness.prepareCalls).toEqual([
+      "https://example.test/shared-background.png",
+    ]);
+    expect(harness.phases.indexOf("preparing-images")).toBeLessThan(
+      harness.phases.indexOf("preparing-fonts")
+    );
+    expect(engine.getState().prepared?.diagnostics.backgrounds).toEqual([
+      expect.objectContaining({
+        mode: "unsupported",
+        reason: "installed core lacks CSS background image capability",
+        layerIndex: 0,
+      }),
+      expect.objectContaining({
+        mode: "unsupported",
+        reason: "installed core lacks CSS background image capability",
+        layerIndex: 0,
+      }),
+    ]);
+  });
+
+  it("reports a blocked stable-core lazy background once as a placeholder", async () => {
+    const source = "https://example.test/blocked-background.png";
+    const target = createTarget(`<div data-bgset="${source}"></div>`);
+    const harness = createHarness({
+      failFirstSource: source,
+      supportsBackgroundImages: false,
+    });
+    const engine = createEngine(harness);
+
+    const sessionId = await engine.start(inputFor(target));
+    await engine.dispatch({
+      type: "continue-with-placeholders",
+      sessionId,
+    });
+
+    expect(engine.getState().prepared?.diagnostics.backgrounds).toEqual([
+      expect.objectContaining({ mode: "placeholder", layerIndex: 0 }),
+    ]);
+  });
+
   it("prepares unique images before fonts and retries only failed resources", async () => {
     const target = createTarget(
       '<div><img src="https://example.test/good.png"><img src="https://example.test/good.png"><img src="https://example.test/retry.png"></div>'
@@ -149,7 +212,12 @@ describe("capture engine", () => {
         preflight: async (requests) => ({ requests, failures: [] }),
         getDiagnostics: () => [],
       },
-      settings: { settleTimeoutMs: 0, motion: "live", lineBreaks: "off" },
+      settings: {
+        settleTimeoutMs: 0,
+        motion: "live",
+        lineBreaks: "off",
+        lazyActivation: "off",
+      },
     });
     const phases: Array<string> = [];
     engine.subscribe((event) => phases.push(event.state.phase));
@@ -212,6 +280,42 @@ describe("capture engine", () => {
     expect(harness.prepareCalls).toHaveLength(0);
   });
 
+  it("activates before staging and prepares a newly discovered source once", async () => {
+    document.body.style.height = "2200px";
+    document.body.innerHTML = '<img id="lazy" style="margin-top:1800px">';
+    const image = document.querySelector("#lazy");
+    if (!(image instanceof HTMLImageElement)) {
+      throw new Error("activation engine fixture not found");
+    }
+    const scrollingElement =
+      document.scrollingElement ?? document.documentElement;
+    const onScroll = () => {
+      if (scrollingElement.scrollTop > ACTIVATION_SCROLL_THRESHOLD) {
+        image.src = "https://example.test/activated-engine.png";
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    const harness = createHarness();
+    const engine = createEngine(harness);
+
+    await engine.start(inputFor(document.body), { lazyActivation: "auto" });
+
+    window.removeEventListener("scroll", onScroll);
+    expect(harness.phases.indexOf("activating")).toBeLessThan(
+      harness.phases.indexOf("preparing-images")
+    );
+    expect(harness.prepareCalls).toEqual([
+      "https://example.test/activated-engine.png",
+    ]);
+    expect(engine.getState().prepared?.diagnostics.activation).toMatchObject({
+      mode: "auto",
+      scope: "page",
+      discoveredResources: 1,
+      restored: true,
+    });
+    document.body.removeAttribute("style");
+  });
+
   it("cancels active image work and never enters conversion", async () => {
     const target = createTarget(
       '<div><img src="https://example.test/pending.png"></div>'
@@ -228,6 +332,32 @@ describe("capture engine", () => {
 
     expect(engine.getState().phase).toBe("canceled");
     expect(harness.convertCalls).toBe(0);
+    expect(harness.clearCalls).toBe(1);
+  });
+
+  it("waits for canceled work before publishing a replacement analysis", async () => {
+    const firstTarget = createTarget(
+      '<div><img src="https://example.test/pending.png"></div>'
+    );
+    const harness = createHarness({ pendingImages: true });
+    const engine = createEngine(harness);
+    await engine.analyze(inputFor(firstTarget));
+    const firstSessionId = engine.getState().sessionId;
+    const starting = engine.dispatch({
+      type: "start",
+      sessionId: firstSessionId,
+    });
+    await waitFor(() => harness.prepareCalls.length === 1);
+
+    const secondTarget = document.createElement("div");
+    document.body.append(secondTarget);
+    await engine.analyze(inputFor(secondTarget));
+    await starting;
+
+    expect(engine.getState().sessionId).not.toBe(firstSessionId);
+    expect(engine.getState().phase).toBe("review");
+    expect(harness.convertCalls).toBe(0);
+    expect(harness.clearCalls).toBe(1);
   });
 
   it("pauses strict font failure and resumes after switching to compatible", async () => {
@@ -271,6 +401,7 @@ describe("capture engine", () => {
         settleTimeoutMs: 0,
         motion: "live",
         lineBreaks: "off",
+        lazyActivation: "off",
         fontMode: "strict",
       },
     });

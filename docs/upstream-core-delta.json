@@ -30,8 +30,17 @@
       "capabilities": [
         "composed-dom-traversal",
         "nowrap-text-sizing",
-        "upstream-rendering-parity"
+        "upstream-rendering-parity",
+        "css-background-images"
       ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/image-cache.ts",
+      "capabilities": ["responsive-shadow-dom", "css-background-images"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+      "capabilities": ["composed-dom-traversal", "css-background-images"]
     },
     {
       "path": "packages/dom-to-figma/src/converter/dom.ts",
@@ -47,7 +56,11 @@
     },
     {
       "path": "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
-      "capabilities": ["composed-dom-traversal", "upstream-rendering-parity"]
+      "capabilities": [
+        "composed-dom-traversal",
+        "upstream-rendering-parity",
+        "css-background-images"
+      ]
     },
     {
       "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
@@ -68,11 +81,19 @@
     },
     {
       "path": "packages/dom-to-figma/src/converter/walk.ts",
-      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+      "capabilities": [
+        "responsive-shadow-dom",
+        "composed-dom-traversal",
+        "css-background-images"
+      ]
     },
     {
       "path": "packages/dom-to-figma/src/figma.ts",
-      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+      "capabilities": [
+        "responsive-shadow-dom",
+        "composed-dom-traversal",
+        "css-background-images"
+      ]
     }
   ],
   "absorbedUpstreamPaths": [
@@ -89,6 +110,30 @@
     "packages/dom-to-figma/src/converter/types/paint.ts"
   ],
   "capabilities": [
+    {
+      "id": "css-background-images",
+      "capability": "Computed CSS raster background discovery and conversion",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["d663c6bee734382c75062ec4067e809b92345f12"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+        "packages/dom-to-figma/src/converter/styles/background.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/converter/styles/background.test.ts",
+        "packages/dom-to-figma/src/figma.image.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "local-rebuild",
+      "removeWhen": "the selected upstream baseline converts prepared computed CSS raster backgrounds with equivalent geometry, fallback, diagnostics, and adapter compatibility",
+      "patchFingerprint": "sha256:20b1f1ddcca535b964e1e39d15d4fa066599e5efa24899b1365aa1e9c6a2b584"
+    },
     {
       "id": "responsive-shadow-dom",
       "capability": "Responsive geometry and open Shadow DOM conversion",
@@ -107,7 +152,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "split-draft-pending",
       "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
-      "patchFingerprint": "sha256:8a1061cee00b30be3ae4dae515279de9f08f14b2f9228a1ebe093c70af8f9fe3"
+      "patchFingerprint": "sha256:a572d6aa4eba1f0db6230d99bd5f6ce75f2762881725de86d80256d1c6e84f4a"
     },
     {
       "id": "composed-dom-traversal",
@@ -132,7 +177,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "pr-draft-pending",
       "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
-      "patchFingerprint": "sha256:357faeec2f3f3f4f47926dbb47e2dad72d651544df5100ee44fdca65b349f175"
+      "patchFingerprint": "sha256:ea6cd13d58d59a76a292d8309bef8219cd70e8c0d979ceec2ca878a53e4fe1ad"
     },
     {
       "id": "glyph-aware-font-fallback",
@@ -205,7 +250,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "upstream-ready-local",
       "removeWhen": "selected upstream baseline preserves measured nowrap width and single-line height with parity",
-      "patchFingerprint": "sha256:f361cf06b6d6d921d0a6655d05f041b0b2184c02dd9c4a24f57697cfc5dd4159"
+      "patchFingerprint": "sha256:7929209eddc1e5b6b0dadcfbc4a8f52a7f0453fbba9932a0573f6986a3947b33"
     },
     {
       "id": "upstream-rendering-parity",
@@ -252,7 +297,7 @@
       "reviewBy": "2026-10-31",
       "upstreamState": "adapted-upstream-main-final-tree",
       "removeWhen": "the selected upstream baseline can replace the shared frame, text, traversal, and geometry integration without regressing registered fork capabilities",
-      "patchFingerprint": "sha256:09b3410022920b2e31ced7db68d1227ccb1c523c275167e3ec796e93d7f7c75f"
+      "patchFingerprint": "sha256:27b117e9b137d45f80d78389213db22cc05024e7c23d97c2b4c73ed18e331fe3"
     }
   ]
 }

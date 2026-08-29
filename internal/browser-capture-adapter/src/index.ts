@@ -31,6 +31,15 @@ export {
   IMAGE_STAGE_CONCURRENCY,
   IMAGE_STAGE_TIMEOUT_MS,
 } from "./image-scheduler";
+export {
+  activateLazyResources,
+  LAZY_ACTIVATION_MAX_CONTAINERS,
+  LAZY_ACTIVATION_MAX_PASSES,
+  LAZY_ACTIVATION_MAX_SCROLL_STEPS,
+  LAZY_ACTIVATION_QUIET_WINDOW_MS,
+  LAZY_ACTIVATION_TIMEOUT_MS,
+  LAZY_ACTIVATION_TRAILING_WINDOW_MS,
+} from "./lazy-activation";
 export type { MotionSnapshot } from "./motion-snapshot";
 export { freezeCaptureMotion } from "./motion-snapshot";
 export { waitForPageToSettle } from "./page-stability";
@@ -41,6 +50,12 @@ export {
   prepareCjkLineBreaks,
 } from "./text-line-breaks";
 export type {
+  ActivationDiagnostics,
+  ActivationProgress,
+  ActivationScope,
+  ActivationStatus,
+  BackgroundDiagnostic,
+  BackgroundRasterizer,
   BridgeCaptureInput,
   BridgeCaptureResult,
   BrowserCaptureAdapter,
@@ -63,12 +78,15 @@ export type {
   CaptureInput,
   CapturePhase,
   CapturePlan,
+  CaptureResourceKind,
   CaptureResourceSummary,
+  CaptureResourceUsage,
   CaptureResult,
   CaptureSettings,
   CaptureState,
   CaptureTarget,
   ConversionBridge,
+  ConversionContext,
   ConverterLayout,
   DomToFigmaBridgeOptions,
   DomTreeStrategy,
@@ -96,6 +114,7 @@ export type {
   ImageResourceDiagnostic,
   ImageStageDiagnostics,
   ImageStageProgress,
+  LazyActivationMode,
   LineBreakDiagnostics,
   LineBreakMode,
   MotionDiagnostics,

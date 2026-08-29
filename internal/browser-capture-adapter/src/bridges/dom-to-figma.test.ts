@@ -36,11 +36,23 @@ type TestPreparation = {
 type TestConverterConfig = {
   imageLoader(request: ImageRequest): Promise<ImageFile>;
   imagePreparation?: TestPreparation;
+  imageSourceResolver?: (element: HTMLImageElement) => string | null;
+  backgroundImageResolver?: (element: Element) => string | null;
+  onBackgroundDiagnostic?: (diagnostic: {
+    mode: "native";
+    reason: string;
+    source?: string;
+  }) => void;
   classify?: CaptureClassifier;
   domTraversal?: DomTreeStrategy;
 };
 
-function createCoreFixture(createImagePreparation?: () => TestPreparation) {
+function createCoreFixture(
+  createImagePreparation?: () => TestPreparation,
+  supportsBackgroundImages = false,
+  convertError?: Error,
+  onConvert?: (config: TestConverterConfig) => void
+) {
   let config: TestConverterConfig | undefined;
   const clearCache = vi.fn(() => config?.imagePreparation?.clear());
   return {
@@ -48,15 +60,22 @@ function createCoreFixture(createImagePreparation?: () => TestPreparation) {
       createFigmaConverter(nextConfig: TestConverterConfig) {
         config = nextConfig;
         return {
-          convert: () =>
-            Promise.resolve({
-              toClipboardHtml: () => "<meta data-figit-test>",
-            }),
+          convert: () => {
+            onConvert?.(nextConfig);
+            return convertError
+              ? Promise.reject(convertError)
+              : Promise.resolve({
+                  toClipboardHtml: () => "<meta data-figit-test>",
+                });
+          },
           clearCache,
         };
       },
       createDirectImageLoader: () => async () => imageFile(1),
       createFontsourceLoader: () => async () => ({ bytes: new ArrayBuffer(1) }),
+      ...(supportsBackgroundImages
+        ? { domToFigmaCapabilities: { cssBackgroundImages: true } }
+        : {}),
       ...(createImagePreparation ? { createImagePreparation } : {}),
     },
     clearCache,
@@ -94,6 +113,18 @@ function deferred<T>() {
 }
 
 describe("dom-to-figma capability boundary", () => {
+  it("negotiates CSS background support structurally", () => {
+    const stable = createCoreFixture();
+    const current = createCoreFixture(undefined, true);
+
+    expect(
+      createDomToFigmaBridgeForModule(stable.core).supportsBackgroundImages
+    ).toBe(false);
+    expect(
+      createDomToFigmaBridgeForModule(current.core).supportsBackgroundImages
+    ).toBe(true);
+  });
+
   it("passes the selected DOM traversal strategy to the converter", () => {
     const fixture = createCoreFixture();
     const domTraversal: DomTreeStrategy = {
@@ -104,6 +135,80 @@ describe("dom-to-figma capability boundary", () => {
     createDomToFigmaBridgeForModule(fixture.core, { domTraversal });
 
     expect(fixture.getConfig().domTraversal).toBe(domTraversal);
+  });
+
+  it("scopes frozen background sources to one conversion and reset", async () => {
+    const owner = {} as Element;
+    const source = 'https://example.test/lazy"background.png';
+    let observedDuringConversion: string | null | undefined;
+    const fixture = createCoreFixture(undefined, true, undefined, (config) => {
+      observedDuringConversion = config.backgroundImageResolver?.(owner);
+    });
+    const bridge = createDomToFigmaBridgeForModule(fixture.core);
+
+    await bridge.convert({ element: owner, width: 10, height: 10 }, undefined, {
+      backgroundSources: new Map([[owner, source]]),
+    });
+
+    expect(observedDuringConversion).toBe(
+      'url("https://example.test/lazy\\"background.png")'
+    );
+    expect(fixture.getConfig().backgroundImageResolver?.(owner)).toBeNull();
+    bridge.clearCache();
+    expect(fixture.getConfig().backgroundImageResolver?.(owner)).toBeNull();
+  });
+
+  it("rejects overlapping conversions without replacing active context", async () => {
+    const firstOwner = {} as Element;
+    const secondOwner = {} as Element;
+    let releaseFirst: (() => void) | undefined;
+    let resolver: TestConverterConfig["backgroundImageResolver"];
+    const bridge = createDomToFigmaBridgeForModule({
+      createFigmaConverter(config: TestConverterConfig) {
+        resolver = config.backgroundImageResolver;
+        return {
+          convert: () =>
+            new Promise((resolve) => {
+              releaseFirst = () =>
+                resolve({ toClipboardHtml: () => "<meta data-figit-test>" });
+            }),
+          clearCache() {
+            // no-op test cache
+          },
+        };
+      },
+      createDirectImageLoader: () => async () => imageFile(1),
+      createFontsourceLoader: () => async () => ({
+        bytes: new ArrayBuffer(0),
+      }),
+    });
+    const first = bridge.convert(
+      { element: firstOwner, width: 10, height: 10 },
+      undefined,
+      {
+        backgroundSources: new Map([
+          [firstOwner, "https://example.test/first.png"],
+        ]),
+      }
+    );
+
+    await expect(
+      bridge.convert(
+        { element: secondOwner, width: 10, height: 10 },
+        undefined,
+        {
+          backgroundSources: new Map([
+            [secondOwner, "https://example.test/second.png"],
+          ]),
+        }
+      )
+    ).rejects.toThrow("already in progress");
+
+    expect(resolver?.(firstOwner)).toBe(
+      'url("https://example.test/first.png")'
+    );
+    releaseFirst?.();
+    await first;
   });
 
   it("uses adapter staging when the optional preparation export is absent", async () => {
@@ -125,6 +230,10 @@ describe("dom-to-figma capability boundary", () => {
     await expect(
       bridge.convert({ element: request.element, width: 10, height: 10 })
     ).resolves.toEqual({ clipboardHtml: "<meta data-figit-test>" });
+    expect(fixture.clearCache).toHaveBeenCalledOnce();
+    expect(
+      (await fixture.getConfig().imageLoader(request)).bytes.byteLength
+    ).not.toBe(7);
   });
 
   it("maps skipped and failed fallback resources to a transparent image", async () => {
@@ -151,6 +260,26 @@ describe("dom-to-figma capability boundary", () => {
     ).resolves.toMatchObject({
       mimeType: "image/png",
     });
+  });
+
+  it("clears session resources when conversion fails", async () => {
+    const fixture = createCoreFixture(
+      undefined,
+      true,
+      new Error("conversion failed")
+    );
+    const bridge = createDomToFigmaBridgeForModule(fixture.core);
+    const owner = imageRequest().element;
+
+    await expect(
+      bridge.convert({ element: owner, width: 10, height: 10 }, undefined, {
+        backgroundSources: new Map([
+          [owner, "https://example.test/failure.png"],
+        ]),
+      })
+    ).rejects.toThrow("conversion failed");
+    expect(fixture.getConfig().backgroundImageResolver?.(owner)).toBeNull();
+    expect(fixture.clearCache).toHaveBeenCalledOnce();
   });
 
   it("honours cancellation and does not publish late fallback results", async () => {

@@ -5,7 +5,6 @@ import type {
   CaptureInput,
   CapturePhase,
   CaptureState,
-  PreparedCapture,
 } from "@figit/browser-capture-adapter";
 import type {
   CaptureOutput,
@@ -18,7 +17,19 @@ import {
   hasSelectedOutput,
   mergeCaptureSettings,
 } from "../../shared/capture-settings";
+import type { CaptureSourceSnapshot, OutputArtifact } from "./capture-artifact";
+import type {
+  OutputPort,
+  OutputRunResult,
+  OutputSinkResult,
+} from "./capture-output";
 import type { FontSpecPort } from "./font-spec";
+
+export type {
+  OutputPort,
+  OutputRunResult,
+  OutputSinkResult,
+} from "./capture-output";
 
 export type WorkspaceSurface = "hidden" | "visible" | "minimized";
 
@@ -27,6 +38,7 @@ export type WorkspaceView =
   | "picking"
   | "analyzing"
   | "review"
+  | "activation-progress"
   | "image-progress"
   | "image-recovery"
   | "image-budget-review"
@@ -34,23 +46,13 @@ export type WorkspaceView =
   | "font-recovery"
   | "settling"
   | "converting"
+  | "artifact-preparing"
   | "opening"
   | "ready-to-output"
   | "output"
   | "output-partial"
   | "canceled"
   | "error";
-
-export type OutputSinkResult = {
-  sink: CaptureOutput;
-  status: "success" | "failed";
-  code?: string;
-  message?: string;
-};
-
-export type OutputRunResult = {
-  results: ReadonlyArray<OutputSinkResult>;
-};
 
 export type OutputRunState = {
   status: "idle" | "running" | "success" | "partial" | "failed";
@@ -62,19 +64,6 @@ export type FontSpecRunState = {
   message?: string;
 };
 
-export type OutputPort = {
-  capabilities: Readonly<Record<CaptureOutput, boolean>>;
-  execute(
-    capture: PreparedCapture,
-    outputs: CaptureSettings["outputs"]
-  ): Promise<OutputRunResult>;
-  retry(
-    capture: PreparedCapture,
-    sink: CaptureOutput
-  ): Promise<OutputSinkResult>;
-  open(): Promise<PreparedCapture | null>;
-};
-
 export type CaptureEngineFactory = (settings: CaptureSettings) => CaptureEngine;
 
 export type WorkspaceState = {
@@ -83,7 +72,8 @@ export type WorkspaceState = {
   draftSettings: CaptureSettings;
   effectiveSettings: CaptureSettings;
   capture: CaptureState;
-  prepared?: PreparedCapture;
+  sourceSnapshot?: CaptureSourceSnapshot;
+  artifact?: OutputArtifact;
   output: OutputRunState;
   fontSpec: FontSpecRunState;
   message?: {
@@ -102,7 +92,10 @@ export type WorkspaceController = {
   restore(): void;
   startPicker(): boolean;
   cancelPicker(): void;
-  analyzeTarget(target: CaptureInput): Promise<void>;
+  analyzeTarget(
+    target: CaptureInput,
+    source: CaptureSourceSnapshot
+  ): Promise<void>;
   startCapture(): Promise<void>;
   copyFontSpec(): Promise<void>;
   dispatchCapture(
@@ -119,6 +112,7 @@ export type WorkspaceController = {
   executeOutput(): Promise<void>;
   retryOutput(sink: CaptureOutput): Promise<void>;
   openPackage(): Promise<void>;
+  startNewCapture(): boolean;
   dispose(): void;
 };
 
@@ -139,8 +133,9 @@ export function createWorkspaceController(
   options: WorkspaceControllerOptions
 ): WorkspaceController {
   let activeEngine = options.engine;
-  let removeEngineListener = activeEngine.subscribe(handleCaptureEvent);
+  let removeEngineListener = subscribeToEngine(activeEngine);
   let disposed = false;
+  let artifactOperation = 0;
   const listeners = new Set<(state: WorkspaceState) => void>();
   let state: WorkspaceState = {
     surface: "hidden",
@@ -199,7 +194,11 @@ export function createWorkspaceController(
     startPicker() {
       if (
         isCaptureBusy(state.capture.phase) ||
-        state.fontSpec.status === "running"
+        state.fontSpec.status === "running" ||
+        state.view === "artifact-preparing" ||
+        state.view === "opening" ||
+        state.output.status === "running" ||
+        state.artifact !== undefined
       ) {
         return false;
       }
@@ -216,17 +215,25 @@ export function createWorkspaceController(
       }
       update({ surface: "visible", view: "idle" });
     },
-    async analyzeTarget(target) {
-      if (isCaptureBusy(state.capture.phase)) {
+    async analyzeTarget(target, source) {
+      if (
+        isCaptureBusy(state.capture.phase) ||
+        state.view === "artifact-preparing" ||
+        state.view === "opening" ||
+        state.output.status === "running" ||
+        state.artifact !== undefined
+      ) {
         return;
       }
       const settings = state.draftSettings;
+      invalidateArtifactOperations();
       replaceEngine(settings);
       update({
         surface: "visible",
         view: "analyzing",
         effectiveSettings: settings,
-        prepared: undefined,
+        sourceSnapshot: source,
+        artifact: undefined,
         output: createOutputState(),
         fontSpec: { status: "idle" },
         message: undefined,
@@ -245,7 +252,8 @@ export function createWorkspaceController(
     async startCapture() {
       if (
         state.capture.phase !== "review" ||
-        state.fontSpec.status === "running"
+        state.fontSpec.status === "running" ||
+        state.artifact !== undefined
       ) {
         return;
       }
@@ -293,6 +301,14 @@ export function createWorkspaceController(
       }
     },
     async dispatchCapture(type) {
+      if (
+        state.artifact !== undefined ||
+        state.view === "artifact-preparing" ||
+        state.view === "opening" ||
+        state.output.status === "running"
+      ) {
+        return;
+      }
       const sessionId = state.capture.sessionId;
       if (sessionId === "none") {
         return;
@@ -334,8 +350,8 @@ export function createWorkspaceController(
       }
     },
     async executeOutput() {
-      const capture = state.prepared;
-      if (!capture || state.output.status === "running") {
+      const artifact = state.artifact;
+      if (!artifact || state.output.status === "running") {
         return;
       }
       const outputs = state.effectiveSettings.outputs;
@@ -350,18 +366,25 @@ export function createWorkspaceController(
         output: { ...createOutputState(), status: "running" },
         message: undefined,
       });
+      const operation = beginArtifactOperation();
       try {
-        const result = await options.outputPort.execute(capture, outputs);
+        const result = await options.outputPort.execute(artifact, outputs);
+        if (!isCurrentArtifactOperation(operation, artifact)) {
+          return;
+        }
         applyOutputResult(result);
       } catch (error) {
+        if (!isCurrentArtifactOperation(operation, artifact)) {
+          return;
+        }
         reportError(error, "Output failed. The capture is still ready.");
         update({ view: "output-partial", output: markOutputFailed() });
       }
     },
     async retryOutput(sink) {
-      const capture = state.prepared;
+      const artifact = state.artifact;
       const previous = state.output.results[sink];
-      if (!(capture && previous) || previous.status !== "failed") {
+      if (!(artifact && previous) || previous.status !== "failed") {
         return;
       }
       update({
@@ -369,8 +392,12 @@ export function createWorkspaceController(
         output: { ...state.output, status: "running" },
         message: undefined,
       });
+      const operation = beginArtifactOperation();
       try {
-        const result = await options.outputPort.retry(capture, sink);
+        const result = await options.outputPort.retry(artifact, sink);
+        if (!isCurrentArtifactOperation(operation, artifact)) {
+          return;
+        }
         const results = { ...state.output.results, [sink]: result };
         const status = outputStatus(results, state.effectiveSettings.outputs);
         update({
@@ -378,36 +405,72 @@ export function createWorkspaceController(
           output: { status, results },
         });
       } catch (error) {
+        if (!isCurrentArtifactOperation(operation, artifact)) {
+          return;
+        }
         reportError(error, "Output retry failed. The capture is still ready.");
         update({ view: "output-partial", output: markOutputFailed(sink) });
       }
     },
     async openPackage() {
-      if (state.view === "opening") {
+      if (
+        !canOpenPackage(state) ||
+        isCaptureBusy(state.capture.phase) ||
+        state.output.status === "running"
+      ) {
         return;
       }
       const previousView = state.view;
+      const operation = beginArtifactOperation();
       update({ view: "opening", message: undefined });
       try {
-        const capture = await options.outputPort.open();
-        if (disposed || !capture) {
+        const artifact = await options.outputPort.open();
+        if (!isCurrentArtifactOperation(operation)) {
+          return;
+        }
+        if (!artifact) {
           update({ view: previousView });
           return;
         }
         update({
           view: "ready-to-output",
-          prepared: capture,
+          effectiveSettings: state.draftSettings,
+          sourceSnapshot: undefined,
+          artifact,
           output: createOutputState(),
           message: undefined,
         });
       } catch (error) {
+        if (!isCurrentArtifactOperation(operation)) {
+          return;
+        }
         reportError(error, "Unable to open that capture package.");
         update({ view: previousView });
       }
     },
+    startNewCapture() {
+      if (!(canStartNewCapture(state) && options.engineFactory)) {
+        return false;
+      }
+      invalidateArtifactOperations();
+      replaceEngine(state.draftSettings);
+      update({
+        view: "idle",
+        effectiveSettings: state.draftSettings,
+        capture: activeEngine.getState(),
+        sourceSnapshot: undefined,
+        artifact: undefined,
+        output: createOutputState(),
+        fontSpec: { status: "idle" },
+        message: undefined,
+      });
+      return true;
+    },
     dispose() {
       disposed = true;
+      invalidateArtifactOperations();
       removeEngineListener();
+      activeEngine.clearCache();
       listeners.clear();
     },
   };
@@ -419,9 +482,19 @@ export function createWorkspaceController(
       return;
     }
     removeEngineListener();
+    activeEngine.clearCache();
     activeEngine = options.engineFactory(settings);
-    removeEngineListener = activeEngine.subscribe(handleCaptureEvent);
+    removeEngineListener = subscribeToEngine(activeEngine);
     update({ capture: activeEngine.getState() });
+  }
+
+  function subscribeToEngine(engine: CaptureEngine): () => void {
+    return engine.subscribe((event) => {
+      if (engine !== activeEngine) {
+        return;
+      }
+      handleCaptureEvent(event);
+    });
   }
 
   function handleCaptureEvent(event: CaptureEvent): void {
@@ -432,7 +505,7 @@ export function createWorkspaceController(
     const current = state.capture;
     if (
       next.sessionId === current.sessionId &&
-      next.sequence < current.sequence
+      next.sequence <= current.sequence
     ) {
       return;
     }
@@ -446,16 +519,78 @@ export function createWorkspaceController(
     const patch: Partial<WorkspaceState> = {
       capture: next,
       view: viewForCapturePhase(next.phase),
-      message:
-        next.failure && next.phase === "failed"
-          ? { kind: "error", text: next.failure.message }
-          : undefined,
+      message: messageForCaptureState(next),
     };
     if (next.phase === "completed" && next.prepared) {
-      patch.prepared = next.prepared;
+      patch.view = "artifact-preparing";
+      patch.artifact = undefined;
       patch.output = createOutputState();
     }
     update(patch);
+    if (next.phase === "completed" && next.prepared) {
+      const source = state.sourceSnapshot;
+      if (!source) {
+        update({
+          view: "error",
+          message: {
+            kind: "error",
+            text: "Capture source metadata is unavailable.",
+          },
+        });
+        return;
+      }
+      prepareArtifact(next.prepared, source, next.sessionId).catch(
+        () => undefined
+      );
+    }
+  }
+
+  async function prepareArtifact(
+    capture: NonNullable<CaptureState["prepared"]>,
+    source: CaptureSourceSnapshot,
+    sessionId: string
+  ): Promise<void> {
+    const operation = beginArtifactOperation();
+    try {
+      const artifact = await options.outputPort.prepare(capture, source);
+      if (
+        !isCurrentArtifactOperation(operation) ||
+        state.capture.sessionId !== sessionId
+      ) {
+        return;
+      }
+      update({
+        view: "ready-to-output",
+        artifact,
+        output: createOutputState(),
+      });
+    } catch (error) {
+      if (!isCurrentArtifactOperation(operation)) {
+        return;
+      }
+      reportError(error, "Unable to prepare the capture artifact.");
+      update({ view: "error", artifact: undefined });
+    }
+  }
+
+  function beginArtifactOperation(): number {
+    artifactOperation += 1;
+    return artifactOperation;
+  }
+
+  function invalidateArtifactOperations(): void {
+    artifactOperation += 1;
+  }
+
+  function isCurrentArtifactOperation(
+    operation: number,
+    artifact?: OutputArtifact
+  ): boolean {
+    return (
+      !disposed &&
+      operation === artifactOperation &&
+      (artifact === undefined || state.artifact === artifact)
+    );
   }
 
   async function dispatchCaptureCommand(
@@ -559,6 +694,7 @@ function toEngineSettings(settings: CaptureSettings): {
   layout: CaptureSettings["advanced"]["layout"];
   motion: CaptureSettings["advanced"]["motion"];
   lineBreaks: CaptureSettings["advanced"]["lineBreaks"];
+  lazyActivation: CaptureSettings["advanced"]["lazyActivation"];
   settleTimeoutMs: number;
   images: CaptureSettings["image"]["mode"];
   fontMode: CaptureSettings["font"]["mode"];
@@ -567,6 +703,7 @@ function toEngineSettings(settings: CaptureSettings): {
     layout: settings.advanced.layout,
     motion: settings.advanced.motion,
     lineBreaks: settings.advanced.lineBreaks,
+    lazyActivation: settings.advanced.lazyActivation,
     settleTimeoutMs: settings.advanced.settleTimeoutMs,
     images: settings.image.mode,
     fontMode: settings.font.mode,
@@ -582,6 +719,8 @@ function viewForCapturePhase(phase: CapturePhase): WorkspaceView {
       return "analyzing";
     case "review":
       return "review";
+    case "activating":
+      return "activation-progress";
     case "preparing-images":
       return "image-progress";
     case "image-recovery":
@@ -597,7 +736,7 @@ function viewForCapturePhase(phase: CapturePhase): WorkspaceView {
     case "converting":
       return "converting";
     case "completed":
-      return "ready-to-output";
+      return "artifact-preparing";
     case "canceled":
     case "canceling":
       return "canceled";
@@ -608,10 +747,46 @@ function viewForCapturePhase(phase: CapturePhase): WorkspaceView {
   }
 }
 
+export function shouldConfirmArtifactDiscard(state: WorkspaceState): boolean {
+  if (!state.artifact) {
+    return false;
+  }
+  const selected = (
+    Object.keys(state.effectiveSettings.outputs) as Array<CaptureOutput>
+  ).filter((sink) => state.effectiveSettings.outputs[sink]);
+  return selected.some(
+    (sink) => state.output.results[sink]?.status !== "success"
+  );
+}
+
+function canStartNewCapture(state: WorkspaceState): boolean {
+  if (state.output.status === "running") {
+    return false;
+  }
+  return (
+    state.view === "ready-to-output" ||
+    state.view === "output" ||
+    state.view === "output-partial" ||
+    state.view === "error"
+  );
+}
+
+function canOpenPackage(state: WorkspaceState): boolean {
+  return (
+    state.view === "idle" ||
+    state.view === "canceled" ||
+    state.view === "ready-to-output" ||
+    state.view === "output" ||
+    state.view === "output-partial" ||
+    state.view === "error"
+  );
+}
+
 function isCaptureBusy(phase: CapturePhase): boolean {
   return (
     phase === "analyzing" ||
     phase === "revalidating" ||
+    phase === "activating" ||
     phase === "preparing-images" ||
     phase === "image-recovery" ||
     phase === "image-budget-review" ||
@@ -621,4 +796,45 @@ function isCaptureBusy(phase: CapturePhase): boolean {
     phase === "converting" ||
     phase === "canceling"
   );
+}
+
+function messageForCaptureState(
+  state: CaptureState
+): WorkspaceState["message"] {
+  if (state.failure && state.phase === "failed") {
+    return { kind: "error", text: state.failure.message };
+  }
+  if (state.phase !== "completed") {
+    return;
+  }
+  const activation = state.prepared?.diagnostics.activation;
+  switch (activation?.status) {
+    case "budget-exhausted":
+      return {
+        kind: "info",
+        text: "Lazy resource activation reached its scan limit.",
+      };
+    case "timed-out":
+      return {
+        kind: "info",
+        text: "Lazy resource activation reached its time limit.",
+      };
+    case "restore-failed":
+      return {
+        kind: "error",
+        text: "The page scroll position could not be fully restored.",
+      };
+    case "resource-set-changed":
+      return {
+        kind: "info",
+        text: "Page resources kept changing during capture.",
+      };
+    default:
+      return activation?.resourceSetChanged
+        ? {
+            kind: "info",
+            text: "Some activated resources changed after scroll restoration.",
+          }
+        : undefined;
+  }
 }

@@ -22,6 +22,11 @@ import type { FontCache } from "./font-cache";
 import type { ImageCache } from "./image-cache";
 import type { InferredChildStack } from "./layout/infer";
 import { nodeToTextNodeChange } from "./nodes/text";
+import type {
+  BackgroundDiagnostic,
+  BackgroundImageResolver,
+  BackgroundRasterizer,
+} from "./styles/background";
 import type { TraceEntry, TraceRecorder } from "./trace";
 import { elementDomPath, textDomPath } from "./trace";
 import type { FigmaBlob, FigmaGuid, FigmaNodeChange } from "./types";
@@ -43,6 +48,10 @@ export type WalkContext = {
   registerBlob: (blob: FigmaBlob) => number;
   fontCache: FontCache;
   imageCache: ImageCache;
+  backgroundImageResolver?: BackgroundImageResolver;
+  backgroundRasterizer?: BackgroundRasterizer;
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
+  signal?: AbortSignal;
   appendChanges: (changes: ReadonlyArray<FigmaNodeChange>) => void;
   /** Set only when the converter runs with `{ trace: true }`. */
   recordTrace?: TraceRecorder;
@@ -234,6 +243,10 @@ async function walkNode(
       imageCache: ctx.imageCache,
       createGuid: ctx.createGuid,
       domTraversal: ctx.domTraversal,
+      backgroundImageResolver: ctx.backgroundImageResolver,
+      backgroundRasterizer: ctx.backgroundRasterizer,
+      onBackgroundDiagnostic: ctx.onBackgroundDiagnostic,
+      signal: ctx.signal,
     });
 
     ctx.appendChanges(result.changes);

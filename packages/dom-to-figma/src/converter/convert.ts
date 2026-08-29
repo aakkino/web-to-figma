@@ -11,6 +11,11 @@ import { nodeToTextNodeChange } from "./nodes/text";
 import type { SVGChildElement } from "./nodes/vector/converter";
 import { elementToVectorNodeChange } from "./nodes/vector/converter";
 import type {
+  BackgroundDiagnostic,
+  BackgroundImageResolver,
+  BackgroundRasterizer,
+} from "./styles/background";
+import type {
   FigmaBlob,
   FigmaGuid,
   FigmaNodeChange,
@@ -43,6 +48,10 @@ export type ConvertContext = {
   fontCache: FontCache;
   imageCache: ImageCache;
   createGuid: () => FigmaGuid;
+  backgroundImageResolver?: BackgroundImageResolver;
+  backgroundRasterizer?: BackgroundRasterizer;
+  onBackgroundDiagnostic?: (diagnostic: BackgroundDiagnostic) => void;
+  signal?: AbortSignal;
 };
 
 export type ConversionResult = {
@@ -100,6 +109,10 @@ export async function convertElement(
     imageCache,
     createGuid,
     domTraversal,
+    backgroundImageResolver,
+    backgroundRasterizer,
+    onBackgroundDiagnostic,
+    signal,
   } = ctx;
 
   switch (kind) {
@@ -120,7 +133,7 @@ export async function convertElement(
       };
 
     case "frame": {
-      const frameResult = elementToFrameNodeChange(element, {
+      const frameResult = await elementToFrameNodeChange(element, {
         guid,
         parentGuid,
         childIndex,
@@ -133,6 +146,11 @@ export async function convertElement(
         createGuid,
         registerBlob,
         domTraversal,
+        imageCache,
+        backgroundImageResolver,
+        backgroundRasterizer,
+        onBackgroundDiagnostic,
+        signal,
       });
       const borderChildren = frameResult.borderChildren ?? [];
       const syntheticChildren = frameResult.syntheticChildren ?? [];
@@ -232,6 +250,11 @@ export async function convertElement(
             fontCache,
             createGuid,
             domTraversal,
+            imageCache,
+            backgroundImageResolver,
+            backgroundRasterizer,
+            onBackgroundDiagnostic,
+            signal,
           }),
           childStackSpec
         ),
