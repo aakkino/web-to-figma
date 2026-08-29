@@ -24,6 +24,7 @@ import type {
   CaptureFontMode,
   CaptureImageMode,
   CaptureLayout,
+  CaptureLazyActivation,
   CaptureLineBreaks,
   CaptureMotion,
   CaptureOutput,
@@ -401,6 +402,7 @@ function ProgressView({
 }) {
   const progress = state.capture.progress ?? state.capture.imageStage?.progress;
   const isImage = state.view === "image-progress";
+  const isActivation = state.view === "activation-progress";
   return (
     <div className="space-y-3">
       <StatusLine
@@ -425,6 +427,28 @@ function ProgressView({
           <p className="text-muted-foreground text-xs">
             Elapsed {formatElapsed(progress.elapsedMs)}
           </p>
+        </div>
+      ) : null}
+      {isActivation && state.capture.activationProgress ? (
+        <div className="space-y-2">
+          <progress
+            aria-label="Lazy resource activation progress"
+            className="h-2 w-full accent-primary"
+            max={Math.max(state.capture.activationProgress.maxSteps, 1)}
+            value={state.capture.activationProgress.step}
+          />
+          <div className="flex justify-between gap-3 text-muted-foreground text-xs">
+            <span>
+              Pass {state.capture.activationProgress.pass}/
+              {state.capture.activationProgress.maxPasses}
+            </span>
+            <span>
+              {state.capture.activationProgress.containersVisited} containers
+            </span>
+            <span>
+              {formatElapsed(state.capture.activationProgress.elapsedMs)}
+            </span>
+          </div>
         </div>
       ) : null}
       {!isImage && state.capture.fontProgress ? (
@@ -811,6 +835,20 @@ function SettingsSection({
             ]}
             value={settings.advanced.lineBreaks}
           />
+          <OutputToggle
+            checked={settings.advanced.lazyActivation === "auto"}
+            disabled={disabled}
+            label="Activate lazy-loaded media"
+            onChange={(checked) =>
+              controller.updateSettings({
+                advanced: {
+                  lazyActivation: (checked
+                    ? "auto"
+                    : "off") as CaptureLazyActivation,
+                },
+              })
+            }
+          />
           <label className="grid gap-1.5 font-medium text-xs">
             <span className="flex items-center justify-between gap-3">
               <span>Page settle timeout</span>
@@ -942,6 +980,7 @@ function Metric({ label, value }: { label: string; value: number }) {
 function isProgressView(view: WorkspaceView): boolean {
   return (
     view === "analyzing" ||
+    view === "activation-progress" ||
     view === "image-progress" ||
     view === "font-progress" ||
     view === "settling" ||
@@ -963,6 +1002,7 @@ function isCaptureBusy(phase: WorkspaceState["capture"]["phase"]): boolean {
   return (
     phase === "analyzing" ||
     phase === "revalidating" ||
+    phase === "activating" ||
     phase === "preparing-images" ||
     phase === "image-recovery" ||
     phase === "image-budget-review" ||
@@ -978,6 +1018,8 @@ function phaseLabel(view: WorkspaceView): string {
   switch (view) {
     case "analyzing":
       return "Analyzing target...";
+    case "activation-progress":
+      return "Activating lazy resources...";
     case "image-progress":
       return "Preparing images...";
     case "font-progress":

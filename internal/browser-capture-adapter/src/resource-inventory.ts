@@ -459,7 +459,7 @@ function fnv1a(value: string): string {
   return hash.toString(HEX_RADIX).padStart(REVISION_HASH_WIDTH, "0");
 }
 
-function isExcludedTreeElement(
+export function isExcludedTreeElement(
   element: Element,
   isExcluded: CaptureInventoryOptions["isExcluded"]
 ): boolean {

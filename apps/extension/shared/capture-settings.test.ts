@@ -47,4 +47,19 @@ describe("capture settings", () => {
       advanced: { settleTimeoutMs: 0 },
     });
   });
+
+  it("defaults missing activation settings to auto and persists off", async () => {
+    expect(
+      normalizeCaptureSettings({ advanced: {} }).advanced.lazyActivation
+    ).toBe("auto");
+    const repository = createMemorySettingsRepository();
+    await repository.save(
+      mergeCaptureSettings(DEFAULT_CAPTURE_SETTINGS, {
+        advanced: { lazyActivation: "off" },
+      })
+    );
+    await expect(repository.load()).resolves.toMatchObject({
+      advanced: { lazyActivation: "off" },
+    });
+  });
 });

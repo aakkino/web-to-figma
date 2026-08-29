@@ -150,6 +150,45 @@ describe("WorkspaceController", () => {
     expect(fontSpecPort.copyCount).toBe(2);
     controller.dispose();
   });
+
+  it("maps activation to a busy progress view and keeps cancel available", async () => {
+    const engine = createFakeEngine();
+    const controller = createWorkspaceController({
+      engine,
+      settingsRepository: createMemorySettingsRepository(),
+      outputPort: createFakeOutputPort(),
+      fontSpecPort: createFakeFontSpecPort(),
+    });
+    await controller.init();
+    controller.open();
+    engine.emitState({
+      ...engine.getState(),
+      sessionId: "session-1",
+      sequence: 1,
+      phase: "analyzing",
+    });
+    engine.emitState({
+      ...engine.getState(),
+      sequence: 2,
+      phase: "activating",
+      activationProgress: {
+        pass: 1,
+        maxPasses: 2,
+        step: 3,
+        maxSteps: 64,
+        containersVisited: 2,
+        elapsedMs: 120,
+      },
+    });
+
+    expect(controller.getSnapshot().view).toBe("activation-progress");
+    expect(controller.minimize()).toBeUndefined();
+    expect(controller.getSnapshot().surface).toBe("minimized");
+    controller.restore();
+    await controller.dispatchCapture("cancel");
+    expect(controller.getSnapshot().view).toBe("canceled");
+    controller.dispose();
+  });
 });
 
 function createTestController() {
@@ -189,6 +228,7 @@ function createFakeEngine(): CaptureEngine & {
       layout: "auto",
       motion: "freeze",
       lineBreaks: "auto",
+      lazyActivation: "auto",
       settleTimeoutMs: 5000,
       images: "process",
       fontMode: "compatible",
@@ -203,6 +243,7 @@ function createFakeEngine(): CaptureEngine & {
       layout: "auto",
       motion: "freeze",
       lineBreaks: "auto",
+      lazyActivation: "auto",
       settleTimeoutMs: 5000,
       images: "process",
       fontMode: "compatible",

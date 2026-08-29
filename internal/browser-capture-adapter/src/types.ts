@@ -186,12 +186,52 @@ export type LineBreakDiagnostics = {
   measurementFailures: ReadonlyArray<string>;
 };
 
+export type LazyActivationMode = "auto" | "off";
+
+export type ActivationScope = "page" | "element" | "canvas";
+
+export type ActivationStatus =
+  | "off"
+  | "not-applicable"
+  | "completed"
+  | "budget-exhausted"
+  | "timed-out"
+  | "canceled"
+  | "target-lost"
+  | "restore-failed"
+  | "resource-set-changed";
+
+export type ActivationProgress = {
+  pass: number;
+  maxPasses: number;
+  step: number;
+  maxSteps: number;
+  containersVisited: number;
+  elapsedMs: number;
+};
+
+export type ActivationDiagnostics = {
+  mode: LazyActivationMode;
+  scope: ActivationScope;
+  status: ActivationStatus;
+  passes: number;
+  scrollSteps: number;
+  containersVisited: number;
+  discoveredNodes: number;
+  discoveredResources: number;
+  elapsedMs: number;
+  restored: boolean;
+  resourceSetChanged: boolean;
+  errors: ReadonlyArray<string>;
+};
+
 export type ImageDecision = "process" | "skip" | "best-effort";
 
 export type CaptureSettings = {
   layout: ConverterLayout;
   motion: MotionMode;
   lineBreaks: LineBreakMode;
+  lazyActivation?: LazyActivationMode;
   settleTimeoutMs: number;
   images: ImageDecision;
   fontMode: FontMode;
@@ -404,6 +444,8 @@ export type ImageStageDiagnostics = {
 };
 
 export type CaptureDiagnostics = {
+  /** Additive for consumers compiled against pre-activation adapter builds. */
+  activation?: ActivationDiagnostics;
   settle: PageSettleDiagnostics;
   motion: MotionDiagnostics;
   lineBreaks: LineBreakDiagnostics;
@@ -433,6 +475,7 @@ export type CapturePhase =
   | "analyzing"
   | "review"
   | "revalidating"
+  | "activating"
   | "preparing-images"
   | "image-recovery"
   | "image-budget-review"
@@ -472,6 +515,7 @@ export type CaptureState = {
   phase: CapturePhase;
   settings: CaptureSettings;
   analysis?: CaptureAnalysis;
+  activationProgress?: ActivationProgress;
   progress?: ImageStageProgress;
   fontProgress?: FontStageProgress;
   imageStage?: ImageStageDiagnostics;
@@ -510,6 +554,7 @@ export type BrowserCaptureAdapterOptions = {
   settleTimeoutMs?: number;
   motion?: MotionMode;
   lineBreaks?: LineBreakMode;
+  lazyActivation?: LazyActivationMode;
   fontFailure?: FontFailureMode;
   domTraversal?: DomTreeStrategy;
   isExcluded?: (element: Element) => boolean;

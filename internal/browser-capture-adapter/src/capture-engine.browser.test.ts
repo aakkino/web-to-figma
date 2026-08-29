@@ -10,6 +10,7 @@ import type {
 } from "./types";
 
 const CAPTURE_WAIT_TIMEOUT_MS = 1000;
+const ACTIVATION_SCROLL_THRESHOLD = 100;
 
 type BridgeHarness = {
   bridge: ConversionBridge;
@@ -105,6 +106,7 @@ function createEngine(
       settleTimeoutMs: 0,
       motion: "live",
       lineBreaks: "off",
+      lazyActivation: "off",
       fontMode: options.fontMode ?? "compatible",
     },
   });
@@ -210,7 +212,12 @@ describe("capture engine", () => {
         preflight: async (requests) => ({ requests, failures: [] }),
         getDiagnostics: () => [],
       },
-      settings: { settleTimeoutMs: 0, motion: "live", lineBreaks: "off" },
+      settings: {
+        settleTimeoutMs: 0,
+        motion: "live",
+        lineBreaks: "off",
+        lazyActivation: "off",
+      },
     });
     const phases: Array<string> = [];
     engine.subscribe((event) => phases.push(event.state.phase));
@@ -271,6 +278,42 @@ describe("capture engine", () => {
     expect(engine.getState().phase).toBe("review");
     expect(engine.getState().decision).toBe("review");
     expect(harness.prepareCalls).toHaveLength(0);
+  });
+
+  it("activates before staging and prepares a newly discovered source once", async () => {
+    document.body.style.height = "2200px";
+    document.body.innerHTML = '<img id="lazy" style="margin-top:1800px">';
+    const image = document.querySelector("#lazy");
+    if (!(image instanceof HTMLImageElement)) {
+      throw new Error("activation engine fixture not found");
+    }
+    const scrollingElement =
+      document.scrollingElement ?? document.documentElement;
+    const onScroll = () => {
+      if (scrollingElement.scrollTop > ACTIVATION_SCROLL_THRESHOLD) {
+        image.src = "https://example.test/activated-engine.png";
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    const harness = createHarness();
+    const engine = createEngine(harness);
+
+    await engine.start(inputFor(document.body), { lazyActivation: "auto" });
+
+    window.removeEventListener("scroll", onScroll);
+    expect(harness.phases.indexOf("activating")).toBeLessThan(
+      harness.phases.indexOf("preparing-images")
+    );
+    expect(harness.prepareCalls).toEqual([
+      "https://example.test/activated-engine.png",
+    ]);
+    expect(engine.getState().prepared?.diagnostics.activation).toMatchObject({
+      mode: "auto",
+      scope: "page",
+      discoveredResources: 1,
+      restored: true,
+    });
+    document.body.removeAttribute("style");
   });
 
   it("cancels active image work and never enters conversion", async () => {
@@ -358,6 +401,7 @@ describe("capture engine", () => {
         settleTimeoutMs: 0,
         motion: "live",
         lineBreaks: "off",
+        lazyActivation: "off",
         fontMode: "strict",
       },
     });

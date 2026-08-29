@@ -9,6 +9,11 @@ import {
   IMAGE_STAGE_CONCURRENCY,
   IMAGE_STAGE_TIMEOUT_MS,
 } from "./image-scheduler";
+import {
+  activateLazyResources,
+  LAZY_ACTIVATION_MAX_PASSES,
+  LAZY_ACTIVATION_MAX_SCROLL_STEPS,
+} from "./lazy-activation";
 import { freezeCaptureMotion } from "./motion-snapshot";
 import { waitForPageToSettle } from "./page-stability";
 import type { CaptureInventory } from "./resource-inventory";
@@ -43,6 +48,7 @@ const DEFAULT_SETTINGS: CaptureSettings = {
   layout: "auto",
   motion: "freeze",
   lineBreaks: "auto",
+  lazyActivation: "auto",
   settleTimeoutMs: 5000,
   images: "process",
   fontMode: "compatible",
@@ -267,6 +273,53 @@ export function createCaptureEngine(
       fail(session, "target-lost", "Capture target has not been analyzed");
       return;
     }
+    if (
+      session.state.settings.lazyActivation === "auto" &&
+      inventory.analysis.plan.target.kind === "element"
+    ) {
+      update(session, {
+        phase: "activating",
+        activationProgress: {
+          pass: 0,
+          maxPasses: LAZY_ACTIVATION_MAX_PASSES,
+          step: 0,
+          maxSteps: LAZY_ACTIVATION_MAX_SCROLL_STEPS,
+          containersVisited: 0,
+          elapsedMs: 0,
+        },
+        decision: undefined,
+      });
+      const activation = await activateLazyResources(inventory, {
+        mode: "auto",
+        domTraversal,
+        isExcluded: options.isExcluded,
+        signal: session.controller.signal,
+        onProgress(activationProgress) {
+          update(session, { phase: "activating", activationProgress });
+        },
+      });
+      session.inventory = activation.inventory;
+      session.diagnostics = createDiagnostics(
+        session.state.settings,
+        activation.inventory
+      );
+      session.diagnostics.activation = activation.diagnostics;
+      update(session, {
+        analysis: activation.inventory.analysis,
+        activationProgress: undefined,
+        imageStage: session.diagnostics.images,
+      });
+      if (activation.diagnostics.status === "canceled") {
+        update(session, { phase: "canceled", decision: undefined });
+        return;
+      }
+      if (activation.diagnostics.status === "target-lost") {
+        fail(session, "target-lost", "Capture target is no longer connected");
+        return;
+      }
+      await runImageStage(session, activation.inventory, false);
+      return;
+    }
     update(session, { phase: "revalidating", decision: undefined });
     const revalidation = revalidateCapturePlan(inventory, {
       domTraversal,
@@ -289,6 +342,16 @@ export function createCaptureEngine(
       session.state.settings,
       revalidation.inventory
     );
+    const inactiveActivation = await activateLazyResources(
+      revalidation.inventory,
+      {
+        mode: session.state.settings.lazyActivation ?? "auto",
+        domTraversal,
+        isExcluded: options.isExcluded,
+        signal: session.controller.signal,
+      }
+    );
+    session.diagnostics.activation = inactiveActivation.diagnostics;
     update(session, {
       analysis: revalidation.inventory.analysis,
       imageStage: session.diagnostics.images,
@@ -363,6 +426,7 @@ export function createCaptureEngine(
       return;
     }
     update(session, { phase: "preparing-images", decision: undefined });
+    update(session, { activationProgress: undefined });
     if (session.state.settings.images === "skip") {
       for (const resource of selectedResources) {
         options.bridge.imagePreparation.setPlaceholder(
@@ -549,6 +613,7 @@ export function createCaptureEngine(
       );
       session.diagnostics.lineBreaks = lineBreakPreparation.diagnostics;
       cleanup.push(() => lineBreakPreparation.restore());
+      recordLateActivationChange(session, inventory, domTraversal, options);
       update(session, { phase: "converting", decision: undefined });
       const bridgeResult = await options.bridge.convert(
         toBridgeInput(inventory.analysis.plan.target.input, root),
@@ -906,10 +971,47 @@ function mergeSettings(
   return {
     ...base,
     ...override,
+    lazyActivation:
+      override?.lazyActivation === "auto" || override?.lazyActivation === "off"
+        ? override.lazyActivation
+        : base.lazyActivation,
     settleTimeoutMs: Math.max(
       0,
       Math.min(MAX_SETTLE_TIMEOUT_MS, settleTimeoutMs)
     ),
+  };
+}
+
+function recordLateActivationChange(
+  session: RuntimeSession,
+  inventory: CaptureInventory,
+  domTraversal: NonNullable<CaptureEngineOptions["domTraversal"]>,
+  options: CaptureEngineOptions
+): void {
+  const activation = session.diagnostics.activation;
+  if (
+    !activation ||
+    activation.mode !== "auto" ||
+    activation.scope === "canvas"
+  ) {
+    return;
+  }
+  const revalidation = revalidateCapturePlan(inventory, {
+    domTraversal,
+    isExcluded: options.isExcluded,
+  });
+  if (revalidation.status !== "resource-set-changed") {
+    return;
+  }
+  const keepPrimaryStatus =
+    activation.status === "restore-failed" ||
+    activation.status === "timed-out" ||
+    activation.status === "budget-exhausted";
+  session.diagnostics.activation = {
+    ...activation,
+    status: keepPrimaryStatus ? activation.status : "resource-set-changed",
+    resourceSetChanged: true,
+    errors: [...activation.errors, "late-resource-set-changed"],
   };
 }
 
