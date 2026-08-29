@@ -27,6 +27,7 @@ export type WorkspaceView =
   | "picking"
   | "analyzing"
   | "review"
+  | "activation-progress"
   | "image-progress"
   | "image-recovery"
   | "image-budget-review"
@@ -446,10 +447,7 @@ export function createWorkspaceController(
     const patch: Partial<WorkspaceState> = {
       capture: next,
       view: viewForCapturePhase(next.phase),
-      message:
-        next.failure && next.phase === "failed"
-          ? { kind: "error", text: next.failure.message }
-          : undefined,
+      message: messageForCaptureState(next),
     };
     if (next.phase === "completed" && next.prepared) {
       patch.prepared = next.prepared;
@@ -559,6 +557,7 @@ function toEngineSettings(settings: CaptureSettings): {
   layout: CaptureSettings["advanced"]["layout"];
   motion: CaptureSettings["advanced"]["motion"];
   lineBreaks: CaptureSettings["advanced"]["lineBreaks"];
+  lazyActivation: CaptureSettings["advanced"]["lazyActivation"];
   settleTimeoutMs: number;
   images: CaptureSettings["image"]["mode"];
   fontMode: CaptureSettings["font"]["mode"];
@@ -567,6 +566,7 @@ function toEngineSettings(settings: CaptureSettings): {
     layout: settings.advanced.layout,
     motion: settings.advanced.motion,
     lineBreaks: settings.advanced.lineBreaks,
+    lazyActivation: settings.advanced.lazyActivation,
     settleTimeoutMs: settings.advanced.settleTimeoutMs,
     images: settings.image.mode,
     fontMode: settings.font.mode,
@@ -582,6 +582,8 @@ function viewForCapturePhase(phase: CapturePhase): WorkspaceView {
       return "analyzing";
     case "review":
       return "review";
+    case "activating":
+      return "activation-progress";
     case "preparing-images":
       return "image-progress";
     case "image-recovery":
@@ -612,6 +614,7 @@ function isCaptureBusy(phase: CapturePhase): boolean {
   return (
     phase === "analyzing" ||
     phase === "revalidating" ||
+    phase === "activating" ||
     phase === "preparing-images" ||
     phase === "image-recovery" ||
     phase === "image-budget-review" ||
@@ -621,4 +624,45 @@ function isCaptureBusy(phase: CapturePhase): boolean {
     phase === "converting" ||
     phase === "canceling"
   );
+}
+
+function messageForCaptureState(
+  state: CaptureState
+): WorkspaceState["message"] {
+  if (state.failure && state.phase === "failed") {
+    return { kind: "error", text: state.failure.message };
+  }
+  if (state.phase !== "completed") {
+    return;
+  }
+  const activation = state.prepared?.diagnostics.activation;
+  switch (activation?.status) {
+    case "budget-exhausted":
+      return {
+        kind: "info",
+        text: "Lazy resource activation reached its scan limit.",
+      };
+    case "timed-out":
+      return {
+        kind: "info",
+        text: "Lazy resource activation reached its time limit.",
+      };
+    case "restore-failed":
+      return {
+        kind: "error",
+        text: "The page scroll position could not be fully restored.",
+      };
+    case "resource-set-changed":
+      return {
+        kind: "info",
+        text: "Page resources kept changing during capture.",
+      };
+    default:
+      return activation?.resourceSetChanged
+        ? {
+            kind: "info",
+            text: "Some activated resources changed after scroll restoration.",
+          }
+        : undefined;
+  }
 }

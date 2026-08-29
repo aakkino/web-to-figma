@@ -3,6 +3,7 @@ export type CaptureFontMode = "compatible" | "fast-local" | "strict";
 export type CaptureLayout = "auto" | "absolute";
 export type CaptureMotion = "freeze" | "live";
 export type CaptureLineBreaks = "auto" | "off";
+export type CaptureLazyActivation = "auto" | "off";
 export type CaptureOutput = "clipboard" | "file";
 
 export type CaptureSettings = {
@@ -21,6 +22,7 @@ export type CaptureSettings = {
     layout: CaptureLayout;
     motion: CaptureMotion;
     lineBreaks: CaptureLineBreaks;
+    lazyActivation: CaptureLazyActivation;
     settleTimeoutMs: number;
   };
 };
@@ -48,6 +50,7 @@ export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
     layout: "auto",
     motion: "freeze",
     lineBreaks: "auto",
+    lazyActivation: "auto",
     settleTimeoutMs: 5000,
   },
 };
@@ -97,6 +100,11 @@ export function normalizeCaptureSettings(value: unknown): CaptureSettings {
         advanced.lineBreaks,
         ["auto", "off"],
         DEFAULT_CAPTURE_SETTINGS.advanced.lineBreaks
+      ),
+      lazyActivation: oneOf(
+        advanced.lazyActivation,
+        ["auto", "off"],
+        DEFAULT_CAPTURE_SETTINGS.advanced.lazyActivation
       ),
       settleTimeoutMs: boundedInteger(
         advanced.settleTimeoutMs,
