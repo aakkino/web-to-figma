@@ -46,6 +46,33 @@ ids, reads optional size hints, and sorts by id. Scene ids connect source HTML,
 run artifact stems, report findings, scoreboard entries, and ledger exemplars.
 Renaming an id is therefore a data migration, not cosmetic cleanup.
 
+### Scene Registration Contract
+
+Adding, removing, renaming, or resizing a scene changes two independent
+committed projections:
+
+1. `src/__snapshots__/scenes.test.ts.snap` records the complete, sorted
+   discovery manifest as `{ id, width, height }` objects.
+2. `baseline/scoreboard.json` records the parity ratchet for discovered scenes.
+
+Update and review both projections when their inputs change. A new manifest
+object must use the scene's discovered slash-separated id and resolved size,
+and must appear in id sort order. Do not hand-edit unrelated snapshot or
+scoreboard entries to make a gate pass.
+
+`pnpm oracle:parity` validates the scoreboard but does not prove that the scene
+discovery manifest snapshot is current. Run the harness unit suite as a
+separate required gate.
+
+~~~text
+# Wrong: parity can pass while the stable discovery manifest is stale.
+pnpm oracle:parity
+
+# Correct: validate registration and parity independently.
+pnpm --filter @figit/oracle-harness test
+pnpm oracle:parity
+~~~
+
 ## Determinism
 
 `snapshot.ts` disables animation, transition, caret, and scrollbars; fixes DPR

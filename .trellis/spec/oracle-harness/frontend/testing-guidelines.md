@@ -16,6 +16,12 @@ Pure modules should cover:
 - environment/session classification;
 - deterministic file ordering and newline-terminated serialization.
 
+The scene discovery snapshot is a required corpus registration test. When a
+scene is added, removed, renamed, or resized, assert that
+`src/scenes.test.ts > produces a stable id/size manifest` passes with the exact
+sorted `{ id, width, height }` projection. `pnpm oracle:parity` is not a
+substitute for this test because it checks the separate scoreboard ratchet.
+
 Filesystem tests use temporary directories and clean them in `afterAll`. Prefer
 injectable base directories over writing repository artifacts.
 
