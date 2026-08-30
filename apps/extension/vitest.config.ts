@@ -14,6 +14,7 @@ export default defineConfig({
             "entrypoints/content/capture-output.test.ts",
             "entrypoints/content/workspace-controller.test.ts",
             "entrypoints/content/font-fallback.test.ts",
+            "entrypoints/content/font-recovery-diagnostics.test.tsx",
             "entrypoints/content/font-spec-projection.test.ts",
             "entrypoints/content/font-spec.test.ts",
           ],
