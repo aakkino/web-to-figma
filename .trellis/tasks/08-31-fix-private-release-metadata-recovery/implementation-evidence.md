@@ -71,3 +71,20 @@ merge and independent review, the parent task must record the new current
 `origin/main` SHA, reconfirm the immutable private Registry state, obtain fresh
 environment approval, and only then dispatch the ordinary Release workflow
 with explicit recovery enabled.
+
+## Live Recovery Debug Follow-Up
+
+The subsequently authorized run `33364693324` exposed a bounded adapter defect
+before metadata writes: the commits API returns HTTP 422, rather than 404, when
+asked to resolve the absent `@aakkino/dom-to-figma@0.4.0` tag directly.
+`inspectGitHubTag()` now establishes absence through the exact Git-ref endpoint
+before using the commits endpoint only to dereference an existing validated
+ref. Hard-checking further restricts ref objects to `commit|tag`, requires a
+lightweight ref's object SHA to match its resolved commit, and preserves
+annotated-tag dereferencing. Regression tests distinguish exact-ref 404 from
+non-404 and commit failures, and reject malformed or inconsistent states while
+preserving fail-closed behavior. `pnpm test:release` passes 59 tests; release
+policy and type checks also pass. Full reproduction and remote state evidence
+is recorded in
+`research/release-run-33364693324-absent-tag-debug.md`. The failed workflow was
+not retried and no remote state was mutated during debugging.

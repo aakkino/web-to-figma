@@ -22,6 +22,7 @@ import {
   githubPackageApiPath,
   githubPackageLeafName,
   inspectDownloadedRegistryArtifact,
+  inspectGitHubTag,
   isExplicitAccessDenial,
   npmPublishArguments,
   ownerRegistryEnvironment,
@@ -802,6 +803,173 @@ test("an empty normal selection performs no metadata reads", async () => {
     },
   });
   assert.deepEqual(calls, []);
+});
+
+test("GitHub tag inspection treats only an exact-ref 404 as missing", () => {
+  const tag = "@aakkino/dom-to-figma@0.4.0";
+  const calls = [];
+  const inspected = inspectGitHubTag(tag, (endpoint) => {
+    calls.push(endpoint);
+    return {
+      status: 1,
+      stdout: "",
+      stderr: "gh: Not Found (HTTP 404)",
+    };
+  });
+  assert.equal(inspected, null);
+  assert.deepEqual(calls, [
+    "repos/aakkino/web-to-figma/git/ref/tags/%40aakkino%2Fdom-to-figma%400.4.0",
+  ]);
+  assert.throws(
+    () =>
+      inspectGitHubTag(tag, () => ({
+        status: 1,
+        stdout: "",
+        stderr: "gh: Conflict (HTTP 409)",
+      })),
+    /tag reference inspection failed.*HTTP 409/u
+  );
+});
+
+test("GitHub tag inspection dereferences lightweight and annotated refs", () => {
+  const tag = "@aakkino/dom-to-figma@0.4.0";
+  for (const [type, referenceSha, commitSha] of [
+    ["commit", "a".repeat(40), "a".repeat(40)],
+    ["tag", "b".repeat(40), "c".repeat(40)],
+  ]) {
+    const calls = [];
+    const inspected = inspectGitHubTag(tag, (endpoint) => {
+      calls.push(endpoint);
+      if (endpoint.includes("/git/ref/tags/")) {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            ref: `refs/tags/${tag}`,
+            object: { type, sha: referenceSha },
+          }),
+          stderr: "",
+        };
+      }
+      return {
+        status: 0,
+        stdout: JSON.stringify({ sha: commitSha }),
+        stderr: "",
+      };
+    });
+    assert.deepEqual(inspected, { sha: commitSha });
+    assert.deepEqual(calls, [
+      "repos/aakkino/web-to-figma/git/ref/tags/%40aakkino%2Fdom-to-figma%400.4.0",
+      "repos/aakkino/web-to-figma/commits/%40aakkino%2Fdom-to-figma%400.4.0",
+    ]);
+  }
+});
+
+test("GitHub tag inspection rejects malformed refs and commit failures", async () => {
+  const tag = "@aakkino/dom-to-figma@0.4.0";
+  const validReference = {
+    status: 0,
+    stdout: JSON.stringify({
+      ref: `refs/tags/${tag}`,
+      object: { type: "commit", sha: "a".repeat(40) },
+    }),
+    stderr: "",
+  };
+  for (const object of [
+    { type: "commit", sha: "not-a-ref" },
+    { type: "tree", sha: "a".repeat(40) },
+  ]) {
+    assert.throws(
+      () =>
+        inspectGitHubTag(tag, () => ({
+          ...validReference,
+          stdout: JSON.stringify({ ref: `refs/tags/${tag}`, object }),
+        })),
+      /invalid tag reference/u
+    );
+  }
+  assert.throws(
+    () =>
+      inspectGitHubTag(tag, () => ({
+        ...validReference,
+        stdout: JSON.stringify({
+          ref: "refs/tags/unowned@0.4.0",
+          object: { type: "commit", sha: "a".repeat(40) },
+        }),
+      })),
+    /invalid tag reference/u
+  );
+  assert.throws(
+    () =>
+      inspectGitHubTag(tag, (endpoint) =>
+        endpoint.includes("/git/ref/tags/")
+          ? validReference
+          : {
+              status: 0,
+              stdout: JSON.stringify({ sha: "not-a-commit" }),
+              stderr: "",
+            }
+      ),
+    /Tag inspection returned an invalid commit SHA/u
+  );
+  assert.throws(
+    () =>
+      inspectGitHubTag(tag, (endpoint) =>
+        endpoint.includes("/git/ref/tags/")
+          ? validReference
+          : {
+              status: 1,
+              stdout: "",
+              stderr: "gh: No commit found (HTTP 422)",
+            }
+      ),
+    /tag inspection failed.*HTTP 422/u
+  );
+  assert.throws(
+    () =>
+      inspectGitHubTag(tag, (endpoint) =>
+        endpoint.includes("/git/ref/tags/")
+          ? validReference
+          : {
+              status: 0,
+              stdout: JSON.stringify({ sha: "b".repeat(40) }),
+              stderr: "",
+            }
+      ),
+    /changed during tag inspection/u
+  );
+
+  const downstreamCalls = [];
+  await assert.rejects(
+    reconcileMetadata({
+      artifacts: [manifestArtifacts[2]],
+      sourceSha,
+      github: {
+        inspectTag() {
+          return inspectGitHubTag(tag, (endpoint) =>
+            endpoint.includes("/git/ref/tags/")
+              ? validReference
+              : {
+                  status: 1,
+                  stdout: "",
+                  stderr: "gh: No commit found (HTTP 422)",
+                }
+          );
+        },
+        inspectRelease() {
+          downstreamCalls.push("inspect-release");
+          return null;
+        },
+        createTag() {
+          downstreamCalls.push("create-tag");
+        },
+        createRelease() {
+          downstreamCalls.push("create-release");
+        },
+      },
+    }),
+    /tag inspection failed.*HTTP 422/u
+  );
+  assert.deepEqual(downstreamCalls, []);
 });
 
 function recoveryGitHub(overrides = {}) {
