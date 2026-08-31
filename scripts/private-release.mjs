@@ -936,15 +936,9 @@ function shellRegistry() {
 function shellGitHub() {
   return {
     inspectTag(tag) {
-      const result = spawnCapture("gh", [
-        "api",
-        `repos/${ownedRepository}/commits/${encodeURIComponent(tag)}`,
-      ]);
-      if (result.status !== 0 && /HTTP 404/u.test(result.stderr)) {
-        return null;
-      }
-      assertCommand(result, "tag inspection");
-      return { sha: JSON.parse(result.stdout).sha };
+      return inspectGitHubTag(tag, (endpoint) =>
+        spawnCapture("gh", ["api", endpoint])
+      );
     },
     createTag(tag, sha) {
       runInherited("gh", [
@@ -1023,6 +1017,38 @@ function shellGitHub() {
       assertCommand(result, "tag ancestry inspection");
     },
   };
+}
+
+export function inspectGitHubTag(tag, request) {
+  const reference = request(
+    `repos/${ownedRepository}/git/ref/tags/${encodeURIComponent(tag)}`
+  );
+  if (reference.status !== 0 && /HTTP 404/u.test(reference.stderr)) {
+    return null;
+  }
+  assertCommand(reference, "tag reference inspection");
+  const parsedReference = JSON.parse(reference.stdout);
+  const referenceType = parsedReference?.object?.type;
+  const referenceSha = parsedReference?.object?.sha;
+  if (
+    parsedReference?.ref !== `refs/tags/${tag}` ||
+    (referenceType !== "commit" && referenceType !== "tag") ||
+    typeof referenceSha !== "string" ||
+    !/^[0-9a-f]{40}$/u.test(referenceSha)
+  ) {
+    throw new Error(`${tag} returned an invalid tag reference`);
+  }
+
+  const commit = request(
+    `repos/${ownedRepository}/commits/${encodeURIComponent(tag)}`
+  );
+  assertCommand(commit, "tag inspection");
+  const inspected = { sha: JSON.parse(commit.stdout).sha };
+  assertInspectedTag(inspected, tag);
+  if (referenceType === "commit" && inspected.sha !== referenceSha) {
+    throw new Error(`${tag} changed during tag inspection`);
+  }
+  return inspected;
 }
 
 function readReleaseManifest(args, { verifyTarballs = true } = {}) {
