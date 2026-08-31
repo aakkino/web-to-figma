@@ -11,6 +11,14 @@ function workflowSecret(variable, secret) {
   return [variable, ": $", "{{ secrets.", secret, " }}"].join("");
 }
 
+function metadataRecoveryCommand() {
+  return [
+    'run: pnpm release:metadata --recover-missing-metadata "$',
+    "{{ inputs.recover_missing_metadata }}",
+    '"',
+  ].join("");
+}
+
 function validEntries() {
   return [
     ...releasePackages.map(({ name, path }) => ({
@@ -122,12 +130,42 @@ function validReleaseSurfaces() {
       "Manage Actions access",
     ].join("\n"),
     ".github/workflows/release.yml": [
-      "run: pnpm release:publish",
-      "packages: read",
-      workflowSecret("NODE_AUTH_TOKEN", "PACKAGE_PUBLISH_TOKEN"),
-      workflowSecret("GH_TOKEN", "PACKAGE_PUBLISH_TOKEN"),
-      workflowSecret("ACTIONS_PACKAGE_TOKEN", "GITHUB_TOKEN"),
-      workflowSecret("GH_TOKEN", "GITHUB_TOKEN"),
+      "on:",
+      "  workflow_dispatch:",
+      "    inputs:",
+      "      recover_missing_metadata:",
+      "        default: false",
+      "        type: boolean",
+      "jobs:",
+      "  publish:",
+      "    permissions:",
+      "      packages: read",
+      "    steps:",
+      "      - run: pnpm release:publish",
+      "        env:",
+      `          ${workflowSecret("NODE_AUTH_TOKEN", "PACKAGE_PUBLISH_TOKEN")}`,
+      `          ${workflowSecret("GH_TOKEN", "PACKAGE_PUBLISH_TOKEN")}`,
+      `          ${workflowSecret("ACTIONS_PACKAGE_TOKEN", "GITHUB_TOKEN")}`,
+      "      - uses: actions/upload-artifact@v4",
+      "        with:",
+      "          path: |",
+      "            .artifacts/private-release/manifest.json",
+      "            .artifacts/private-release/result.json",
+      "  metadata:",
+      "    steps:",
+      "      - uses: actions/checkout@v6",
+      "        with:",
+      ["          ref: $", "{{ inputs.source_sha }}"].join(""),
+      "          fetch-depth: 0",
+      "      - uses: actions/download-artifact@v4",
+      "        with:",
+      [
+        "          name: private-release-manifest-$",
+        "{{ inputs.source_sha }}",
+      ].join(""),
+      `      - ${metadataRecoveryCommand()}`,
+      "        env:",
+      `          ${workflowSecret("GH_TOKEN", "GITHUB_TOKEN")}`,
     ].join("\n"),
     ".github/workflows/pkg-pr-new.yml": "run: pnpm release:preflight",
     ".github/workflows/recover-public-fig-kiwi.yml": [
@@ -190,6 +228,27 @@ test("rejects GITHUB_TOKEN publication or missing PAT isolation", () => {
   assert.match(errors, /classic PAT visibility authentication/u);
   assert.match(errors, /independent repository Actions authentication/u);
   assert.match(errors, /never publish with GITHUB_TOKEN/u);
+});
+
+test("rejects a weakened publish-result metadata handoff", () => {
+  const surfaces = validReleaseSurfaces();
+  surfaces[".github/workflows/release.yml"] = surfaces[
+    ".github/workflows/release.yml"
+  ]
+    .replace("  default: false", "  default: true")
+    .replace("fetch-depth: 0", "fetch-depth: 1")
+    .replace(
+      "  .artifacts/private-release/result.json",
+      "  .artifacts/private-release/*.tgz"
+    )
+    .replace(metadataRecoveryCommand(), "run: pnpm release:metadata");
+  const errors = validateReleaseSurfaces(surfaces).join("\n");
+  assert.match(errors, /default-off metadata recovery input/u);
+  assert.match(errors, /manifest and publish-result artifact handoff/u);
+  assert.match(errors, /explicit recovery selection/u);
+  assert.match(errors, /never upload candidate tarballs/u);
+  assert.match(errors, /metadata-job full-history/u);
+  assert.match(errors, /confine recover_missing_metadata/u);
 });
 
 test("rejects an Actions-access token fallback in the release script", () => {

@@ -15,6 +15,19 @@ export const releasePackages = [
 
 export const ownedRegistry = "https://npm.pkg.github.com";
 
+function workflowJob(source, name) {
+  const marker = new RegExp(`^  ${name}:\\s*$`, "mu").exec(source);
+  if (!marker) {
+    return "";
+  }
+  const remainder = source.slice(marker.index + marker[0].length);
+  const nextJob = /^ {2}[a-zA-Z0-9_-]+:\s*$/mu.exec(remainder);
+  return source.slice(
+    marker.index,
+    nextJob ? marker.index + marker[0].length + nextJob.index : source.length
+  );
+}
+
 const releaseSurfacePaths = [
   "package.json",
   ".changeset/config.json",
@@ -158,6 +171,8 @@ export function validateReleaseSurfaces(surfaces) {
   }
 
   const releaseWorkflow = surfaces[".github/workflows/release.yml"] ?? "";
+  const publishJob = workflowJob(releaseWorkflow, "publish");
+  const metadataJob = workflowJob(releaseWorkflow, "metadata");
   for (const [pattern, label] of [
     [
       /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.PACKAGE_PUBLISH_TOKEN \}\}/u,
@@ -176,10 +191,47 @@ export function validateReleaseSurfaces(surfaces) {
       "repository metadata authentication",
     ],
     [/packages:\s*read/u, "repository package read permission"],
+    [
+      /recover_missing_metadata:\s*[\s\S]*?default:\s*false[\s\S]*?type:\s*boolean/u,
+      "default-off metadata recovery input",
+    ],
   ]) {
     if (!pattern.test(releaseWorkflow)) {
       errors.push(`release workflow must retain ${label}`);
     }
+  }
+  for (const [source, pattern, label] of [
+    [
+      publishJob,
+      /pnpm release:publish[\s\S]*?actions\/upload-artifact@v4[\s\S]*?path:\s*\|\s*\n\s*\.artifacts\/private-release\/manifest\.json\s*\n\s*\.artifacts\/private-release\/result\.json/u,
+      "publish-job manifest and publish-result artifact handoff",
+    ],
+    [
+      metadataJob,
+      /actions\/checkout@v6[\s\S]*?ref:\s*\$\{\{ inputs\.source_sha \}\}[\s\S]*?fetch-depth:\s*0/u,
+      "metadata-job full-history reviewed checkout",
+    ],
+    [
+      metadataJob,
+      /actions\/download-artifact@v4[\s\S]*?name:\s*private-release-manifest-\$\{\{ inputs\.source_sha \}\}/u,
+      "metadata-job publish-result download",
+    ],
+    [
+      metadataJob,
+      /pnpm release:metadata --recover-missing-metadata "\$\{\{ inputs\.recover_missing_metadata \}\}"/u,
+      "metadata-job explicit recovery selection",
+    ],
+  ]) {
+    if (!pattern.test(source)) {
+      errors.push(`release workflow must retain ${label}`);
+    }
+  }
+  if (
+    (releaseWorkflow.match(/recover_missing_metadata/gu) ?? []).length !== 2
+  ) {
+    errors.push(
+      "release workflow must confine recover_missing_metadata to its input and metadata command"
+    );
   }
   if (
     /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.GITHUB_TOKEN \}\}/u.test(
@@ -190,6 +242,11 @@ export function validateReleaseSurfaces(surfaces) {
   }
   if (/packages:\s*write/u.test(releaseWorkflow)) {
     errors.push("release workflow GITHUB_TOKEN must remain packages: read");
+  }
+  if (
+    /\.artifacts\/private-release\/(?:\*|[^\s]*\.tgz)/u.test(releaseWorkflow)
+  ) {
+    errors.push("release workflow must never upload candidate tarballs");
   }
   if (
     (releaseWorkflow.match(/secrets\.PACKAGE_PUBLISH_TOKEN/gu) ?? []).length !==

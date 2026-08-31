@@ -15,7 +15,9 @@ import {
   actionsRegistryEnvironment,
   anonymousRegistryEnvironment,
   assertPrivatePackageRecord,
+  assertPublishResult,
   assertStagedArtifact,
+  buildPublishResult,
   compareRegistryArtifact,
   githubPackageApiPath,
   githubPackageLeafName,
@@ -24,8 +26,11 @@ import {
   npmPublishArguments,
   ownerRegistryEnvironment,
   ownerVisibilityEnvironment,
+  publishAndPersistResult,
   publishSerially,
   reconcileMetadata,
+  resolveReleaseTarget,
+  selectMetadataArtifacts,
 } from "./private-release.mjs";
 
 const artifact = {
@@ -54,6 +59,25 @@ const matching = {
     exports: artifact.exports,
   },
 };
+
+function matchingRegistryArtifact(current) {
+  return {
+    metadata: {
+      name: current.name,
+      version: current.version,
+      integrity: current.integrity,
+    },
+    tarballIntegrity: current.integrity,
+    packageManifest: {
+      name: current.name,
+      version: current.version,
+      repository: current.repository,
+      dependencies: current.dependencies,
+      peerDependencies: current.peerDependencies,
+      exports: current.exports,
+    },
+  };
+}
 const registryConflict = /conflicts with registry state/u;
 const unauthorizedAccess = /available without authorization/u;
 const actionsAccess = /Manage Actions access/u;
@@ -544,5 +568,491 @@ test("metadata reconciliation checks every tag before creating any refs", async 
     }),
     tagConflict
   );
+  assert.deepEqual(created, []);
+});
+
+const sourceSha = "a".repeat(40);
+const manifestArtifacts = [
+  artifact,
+  { ...artifact, name: "@aakkino/composed-dom", version: "0.1.1" },
+  { ...artifact, name: "@aakkino/dom-to-figma", version: "0.4.0" },
+];
+
+function publishResult(states = ["matching", "matching", "absent"]) {
+  return buildPublishResult(
+    { sourceSha, artifacts: manifestArtifacts },
+    manifestArtifacts.map(({ name, version, integrity }, index) => ({
+      name,
+      version,
+      integrity,
+      state: states[index],
+    }))
+  );
+}
+
+test("validates a source-bound complete publish result", () => {
+  const manifest = { sourceSha, artifacts: manifestArtifacts };
+  const result = publishResult();
+  assert.equal(assertPublishResult({ manifest, result }), true);
+  assert.throws(
+    () =>
+      assertPublishResult({
+        manifest,
+        result: { ...result, sourceSha: "b".repeat(40) },
+      }),
+    /source SHA does not match/u
+  );
+  assert.throws(
+    () =>
+      assertPublishResult({
+        manifest,
+        result: {
+          ...result,
+          artifacts: result.artifacts.slice(1),
+        },
+      }),
+    /every manifest artifact/u
+  );
+  assert.throws(
+    () =>
+      assertPublishResult({
+        manifest,
+        result: {
+          ...result,
+          artifacts: result.artifacts.map((entry, index) =>
+            index === 1 ? { ...entry, state: "unknown" } : entry
+          ),
+        },
+      }),
+    /invalid initial Registry state/u
+  );
+  assert.throws(
+    () =>
+      assertPublishResult({
+        manifest,
+        result: {
+          ...result,
+          artifacts: result.artifacts.map((entry, index) =>
+            index === 1 ? { ...entry, integrity: "sha512-other" } : entry
+          ),
+        },
+      }),
+    /does not match manifest position/u
+  );
+  for (const artifacts of [
+    [result.artifacts[1], result.artifacts[0], result.artifacts[2]],
+    [result.artifacts[0], result.artifacts[0], result.artifacts[2]],
+    [
+      result.artifacts[0],
+      { ...result.artifacts[1], name: "@aakkino/unknown" },
+      result.artifacts[2],
+    ],
+    [result.artifacts[0], null, result.artifacts[2]],
+  ]) {
+    assert.throws(
+      () =>
+        assertPublishResult({
+          manifest,
+          result: { ...result, artifacts },
+        }),
+      /[Pp]ublish result artifact/u
+    );
+  }
+  assert.throws(
+    () =>
+      assertPublishResult({
+        manifest,
+        result: { ...result, unexpected: true },
+      }),
+    /unexpected fields/u
+  );
+});
+
+test("persists publish results only after every promotion succeeds", async () => {
+  const manifest = { sourceSha, artifacts: manifestArtifacts };
+  const states = manifestArtifacts.flatMap((current) => [
+    null,
+    matchingRegistryArtifact(current),
+  ]);
+  const boundary = registry(states);
+  const persisted = [];
+  const result = await publishAndPersistResult({
+    manifest,
+    registry: boundary,
+    persistResult(value) {
+      boundary.calls.push("persist-result");
+      persisted.push(value);
+    },
+  });
+  assert.deepEqual(
+    result.artifacts.map(({ state }) => state),
+    ["absent", "absent", "absent"]
+  );
+  assert.deepEqual(persisted, [result]);
+  assert.deepEqual(boundary.calls.slice(-4), [
+    "promote:@aakkino/fig-kiwi",
+    "promote:@aakkino/composed-dom",
+    "promote:@aakkino/dom-to-figma",
+    "persist-result",
+  ]);
+
+  const failing = registry([
+    matchingRegistryArtifact(manifestArtifacts[0]),
+    {
+      ...matchingRegistryArtifact(manifestArtifacts[1]),
+      tarballIntegrity: "sha512-conflict",
+    },
+  ]);
+  let wroteFailure = false;
+  await assert.rejects(
+    publishAndPersistResult({
+      manifest,
+      registry: failing,
+      persistResult() {
+        wroteFailure = true;
+      },
+    }),
+    registryConflict
+  );
+  assert.equal(wroteFailure, false);
+});
+
+test("publish-result selection prevents the historical-tag failure", async () => {
+  const calls = [];
+  const manifest = { sourceSha, artifacts: manifestArtifacts };
+  const historicalSha = "dd91f18346d7326ab71c1a77769bfe7aed310af3";
+  const unfilteredCalls = [];
+  await assert.rejects(
+    reconcileMetadata({
+      artifacts: manifestArtifacts,
+      sourceSha,
+      github: {
+        inspectTag(tag) {
+          unfilteredCalls.push(`inspect-tag:${tag}`);
+          return tag.endsWith("dom-to-figma@0.4.0")
+            ? null
+            : { sha: historicalSha };
+        },
+        inspectRelease(tag) {
+          unfilteredCalls.push(`inspect-release:${tag}`);
+          return { tag, sha: historicalSha };
+        },
+      },
+    }),
+    tagConflict
+  );
+  assert.deepEqual(unfilteredCalls, ["inspect-tag:@aakkino/fig-kiwi@0.2.0"]);
+
+  const selected = await selectMetadataArtifacts({
+    manifest,
+    result: publishResult(),
+  });
+  assert.deepEqual(selected, [manifestArtifacts[2]]);
+  await reconcileMetadata({
+    artifacts: selected,
+    sourceSha,
+    github: {
+      inspectTag(tag) {
+        calls.push(`inspect-tag:${tag}`);
+        return tag.endsWith("dom-to-figma@0.4.0")
+          ? null
+          : { sha: historicalSha };
+      },
+      inspectRelease(tag) {
+        calls.push(`inspect-release:${tag}`);
+        return tag.endsWith("dom-to-figma@0.4.0")
+          ? null
+          : { tag, sha: historicalSha };
+      },
+      createTag(tag) {
+        calls.push(`create-tag:${tag}`);
+      },
+      createRelease(tag) {
+        calls.push(`create-release:${tag}`);
+      },
+    },
+  });
+  assert.deepEqual(calls, [
+    "inspect-tag:@aakkino/dom-to-figma@0.4.0",
+    "inspect-release:@aakkino/dom-to-figma@0.4.0",
+    "create-tag:@aakkino/dom-to-figma@0.4.0",
+    "create-release:@aakkino/dom-to-figma@0.4.0",
+  ]);
+});
+
+test("an empty normal selection performs no metadata reads", async () => {
+  const calls = [];
+  const manifest = { sourceSha, artifacts: manifestArtifacts };
+  const selected = await selectMetadataArtifacts({
+    manifest,
+    result: publishResult(["matching", "matching", "matching"]),
+    github: {
+      inspectTag(tag) {
+        calls.push(tag);
+      },
+    },
+  });
+  await reconcileMetadata({
+    artifacts: selected,
+    sourceSha,
+    github: {
+      inspectTag(tag) {
+        calls.push(tag);
+      },
+    },
+  });
+  assert.deepEqual(calls, []);
+});
+
+function recoveryGitHub(overrides = {}) {
+  const calls = [];
+  const boundary = {
+    calls,
+    inspectTag(tag) {
+      calls.push(`tag:${tag}`);
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? null
+        : { sha: "1".repeat(40) };
+    },
+    inspectRelease(tag) {
+      calls.push(`release:${tag}`);
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? null
+        : { tag, sha: "1".repeat(40) };
+    },
+    listPackageTags(name) {
+      calls.push(`history:${name}`);
+      return [{ tag: `${name}@0.3.0`, sha: "2".repeat(40) }];
+    },
+    isAncestor() {
+      calls.push("ancestor");
+      return true;
+    },
+    ...overrides,
+  };
+  return boundary;
+}
+
+test("explicit recovery selects only matching untagged dom 0.4.0", async () => {
+  const github = recoveryGitHub();
+  const selected = await selectMetadataArtifacts({
+    manifest: { sourceSha, artifacts: manifestArtifacts },
+    result: publishResult(["matching", "matching", "matching"]),
+    recoverMissingMetadata: true,
+    github,
+  });
+  assert.deepEqual(selected, [manifestArtifacts[2]]);
+  assert.deepEqual(
+    github.calls.filter((call) => call.startsWith("history:")),
+    ["history:@aakkino/dom-to-figma"]
+  );
+});
+
+test("recovery rejects an internally conflicting Tag and Release pair", async () => {
+  const github = recoveryGitHub({
+    inspectTag(tag) {
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? { sha: sourceSha }
+        : { sha: "1".repeat(40) };
+    },
+    inspectRelease(tag) {
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? { tag, sha: "b".repeat(40) }
+        : { tag, sha: "1".repeat(40) };
+    },
+  });
+  await assert.rejects(
+    selectMetadataArtifacts({
+      manifest: { sourceSha, artifacts: manifestArtifacts },
+      result: publishResult(["matching", "matching", "matching"]),
+      recoverMissingMetadata: true,
+      github,
+    }),
+    /conflicting existing metadata/u
+  );
+  assert.equal(
+    github.calls.some((call) => call.startsWith("history:")),
+    false
+  );
+});
+
+test("recovery rejects incomplete, regressed, malformed, and non-ancestor history", async (t) => {
+  const manifest = { sourceSha, artifacts: manifestArtifacts };
+  const result = publishResult(["matching", "matching", "matching"]);
+  await t.test("incomplete exact metadata", async () => {
+    const github = recoveryGitHub({
+      inspectRelease(tag) {
+        return tag.endsWith("dom-to-figma@0.4.0")
+          ? { tag, sha: sourceSha }
+          : { tag, sha: "1".repeat(40) };
+      },
+    });
+    await assert.rejects(
+      selectMetadataArtifacts({
+        manifest,
+        result,
+        recoverMissingMetadata: true,
+        github,
+      }),
+      /incomplete existing metadata/u
+    );
+  });
+  for (const [name, tags, error] of [
+    ["no predecessor", [], /no owned predecessor/u],
+    [
+      "version regression",
+      [{ tag: "@aakkino/dom-to-figma@0.5.0", sha: "2".repeat(40) }],
+      /does not increase/u,
+    ],
+    [
+      "malformed predecessor",
+      [{ tag: "@aakkino/dom-to-figma@latest", sha: "2".repeat(40) }],
+      /valid semantic version/u,
+    ],
+    [
+      "ambiguous predecessor",
+      [
+        {
+          tag: "@aakkino/dom-to-figma@0.3.0+first",
+          sha: "2".repeat(40),
+        },
+        {
+          tag: "@aakkino/dom-to-figma@0.3.0+second",
+          sha: "3".repeat(40),
+        },
+      ],
+      /no unique predecessor/u,
+    ],
+  ]) {
+    await t.test(name, async () => {
+      const github = recoveryGitHub({ listPackageTags: () => tags });
+      await assert.rejects(
+        selectMetadataArtifacts({
+          manifest,
+          result,
+          recoverMissingMetadata: true,
+          github,
+        }),
+        error
+      );
+    });
+  }
+  await t.test("non-ancestor predecessor", async () => {
+    const github = recoveryGitHub({ isAncestor: () => false });
+    await assert.rejects(
+      selectMetadataArtifacts({
+        manifest,
+        result,
+        recoverMissingMetadata: true,
+        github,
+      }),
+      /not an ancestor/u
+    );
+  });
+  await t.test("malformed Tag inspection", async () => {
+    const github = recoveryGitHub({
+      inspectTag(tag) {
+        return tag.endsWith("dom-to-figma@0.4.0")
+          ? { sha: "main" }
+          : { sha: "1".repeat(40) };
+      },
+    });
+    await assert.rejects(
+      selectMetadataArtifacts({
+        manifest,
+        result,
+        recoverMissingMetadata: true,
+        github,
+      }),
+      /invalid commit SHA/u
+    );
+  });
+});
+
+test("Release targets resolve target_commitish instead of tag_name", () => {
+  const tag = "@aakkino/dom-to-figma@0.4.0";
+  const targetCommitish = "recovery-source";
+  let resolved;
+  assert.deepEqual(
+    resolveReleaseTarget(
+      { tag_name: tag, target_commitish: targetCommitish },
+      (value) => {
+        resolved = value;
+        return sourceSha;
+      }
+    ),
+    { tag, sha: sourceSha }
+  );
+  assert.equal(resolved, targetCommitish);
+  assert.throws(
+    () =>
+      resolveReleaseTarget(
+        { tag_name: tag, target_commitish: targetCommitish },
+        () => "main"
+      ),
+    /did not resolve to a commit SHA/u
+  );
+  assert.throws(
+    () => resolveReleaseTarget({ tag_name: tag }, () => sourceSha),
+    /invalid tag or target_commitish/u
+  );
+});
+
+test("metadata preflight rejects a wrong Release target before writes", async () => {
+  const created = [];
+  await assert.rejects(
+    reconcileMetadata({
+      artifacts: [manifestArtifacts[0], manifestArtifacts[2]],
+      sourceSha,
+      github: {
+        inspectTag() {
+          return { sha: sourceSha };
+        },
+        inspectRelease(tag) {
+          return tag.endsWith("dom-to-figma@0.4.0")
+            ? { tag, sha: "b".repeat(40) }
+            : { tag, sha: sourceSha };
+        },
+        createTag(tag) {
+          created.push(tag);
+        },
+        createRelease(tag) {
+          created.push(tag);
+        },
+      },
+    }),
+    /Release does not target/u
+  );
+  assert.deepEqual(created, []);
+});
+
+test("recovery rerun validates correct selected metadata without writes", async () => {
+  const created = [];
+  const github = recoveryGitHub({
+    inspectTag(tag) {
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? { sha: sourceSha }
+        : { sha: "1".repeat(40) };
+    },
+    inspectRelease(tag) {
+      return tag.endsWith("dom-to-figma@0.4.0")
+        ? { tag, sha: sourceSha }
+        : { tag, sha: "1".repeat(40) };
+    },
+    createTag(tag) {
+      created.push(tag);
+    },
+    createRelease(tag) {
+      created.push(tag);
+    },
+  });
+  const selected = await selectMetadataArtifacts({
+    manifest: { sourceSha, artifacts: manifestArtifacts },
+    result: publishResult(["matching", "matching", "matching"]),
+    recoverMissingMetadata: true,
+    github,
+  });
+  assert.deepEqual(selected, [manifestArtifacts[2]]);
+  await reconcileMetadata({ artifacts: selected, sourceSha, github });
   assert.deepEqual(created, []);
 });

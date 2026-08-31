@@ -222,7 +222,9 @@ export async function publishSerially({ artifacts, registry }) {
       );
     }
     results.push({
-      coordinate: `${artifact.name}@${artifact.version}`,
+      name: artifact.name,
+      version: artifact.version,
+      integrity: artifact.integrity,
       state: initialState,
     });
   }
@@ -234,16 +236,181 @@ export async function publishSerially({ artifacts, registry }) {
   return results;
 }
 
+export function buildPublishResult(manifest, artifacts) {
+  const result = { sourceSha: manifest.sourceSha, artifacts };
+  assertPublishResult({ manifest, result });
+  return result;
+}
+
+export async function publishAndPersistResult({
+  manifest,
+  registry,
+  persistResult,
+}) {
+  const artifacts = await publishSerially({
+    artifacts: manifest.artifacts,
+    registry,
+  });
+  const result = buildPublishResult(manifest, artifacts);
+  await persistResult(result);
+  return result;
+}
+
+export function assertPublishResult({ manifest, result }) {
+  assertSourceSha(result?.sourceSha);
+  if (result.sourceSha !== manifest.sourceSha) {
+    throw new Error("Publish result source SHA does not match the manifest");
+  }
+  assertExactKeys(result, ["artifacts", "sourceSha"], "publish result");
+  if (!Array.isArray(result.artifacts)) {
+    throw new Error("Publish result artifacts must be an array");
+  }
+  if (result.artifacts.length !== manifest.artifacts.length) {
+    throw new Error("Publish result must contain every manifest artifact");
+  }
+  const coordinates = new Set();
+  for (const [index, entry] of result.artifacts.entries()) {
+    assertExactKeys(
+      entry,
+      ["integrity", "name", "state", "version"],
+      "publish result artifact"
+    );
+    const artifact = manifest.artifacts[index];
+    const expected = releasePackages[index];
+    const coordinate = `${entry.name}@${entry.version}`;
+    if (
+      !(artifact && expected) ||
+      entry.name !== expected.name ||
+      entry.name !== artifact.name ||
+      entry.version !== artifact.version ||
+      entry.integrity !== artifact.integrity
+    ) {
+      throw new Error(
+        `Publish result artifact does not match manifest position ${index}`
+      );
+    }
+    if (entry.state !== "absent" && entry.state !== "matching") {
+      throw new Error(`${coordinate} has an invalid initial Registry state`);
+    }
+    if (coordinates.has(coordinate)) {
+      throw new Error(`Publish result contains duplicate ${coordinate}`);
+    }
+    coordinates.add(coordinate);
+  }
+  return true;
+}
+
+export async function selectMetadataArtifacts({
+  manifest,
+  result,
+  recoverMissingMetadata = false,
+  github,
+}) {
+  assertPublishResult({ manifest, result });
+  const selected = result.artifacts.flatMap((entry, index) =>
+    entry.state === "absent" ? [manifest.artifacts[index]] : []
+  );
+  if (!recoverMissingMetadata) {
+    return selected;
+  }
+  if (!github) {
+    throw new Error("Recovery selection requires the GitHub boundary");
+  }
+
+  for (const [index, entry] of result.artifacts.entries()) {
+    if (entry.state !== "matching") {
+      continue;
+    }
+    const artifact = manifest.artifacts[index];
+    const tag = `${artifact.name}@${artifact.version}`;
+    const existingTag = await github.inspectTag(tag);
+    const existingRelease = await github.inspectRelease(tag);
+    assertInspectedTag(existingTag, tag);
+    assertInspectedRelease(existingRelease, tag);
+    if (existingTag && existingRelease) {
+      if (
+        existingRelease.tag !== tag ||
+        existingRelease.sha !== existingTag.sha
+      ) {
+        throw new Error(`${tag} has conflicting existing metadata`);
+      }
+      if (existingTag.sha === manifest.sourceSha) {
+        selected.push(artifact);
+      }
+      continue;
+    }
+    if (existingTag || existingRelease) {
+      throw new Error(`${tag} has incomplete existing metadata`);
+    }
+
+    const candidateVersion = parseSemVer(artifact.version, tag);
+    const ownedTags = await github.listPackageTags(artifact.name);
+    if (!Array.isArray(ownedTags) || ownedTags.length > 1000) {
+      throw new Error(`${artifact.name} has ambiguous owned tag history`);
+    }
+    const seenTags = new Set();
+    const predecessors = ownedTags.map((ownedTag) => {
+      const expectedPrefix = `${artifact.name}@`;
+      if (
+        typeof ownedTag?.tag !== "string" ||
+        !ownedTag.tag.startsWith(expectedPrefix) ||
+        typeof ownedTag.sha !== "string" ||
+        !/^[0-9a-f]{40}$/u.test(ownedTag.sha) ||
+        seenTags.has(ownedTag.tag)
+      ) {
+        throw new Error(`${artifact.name} has ambiguous owned tag history`);
+      }
+      seenTags.add(ownedTag.tag);
+      const version = parseSemVer(
+        ownedTag.tag.slice(expectedPrefix.length),
+        ownedTag.tag
+      );
+      return { ...ownedTag, version };
+    });
+    if (predecessors.length === 0) {
+      throw new Error(`${tag} has no owned predecessor tag`);
+    }
+    predecessors.sort((left, right) =>
+      compareSemVer(right.version, left.version)
+    );
+    const predecessor = predecessors[0];
+    if (
+      predecessors[1] &&
+      compareSemVer(predecessors[1].version, predecessor.version) === 0
+    ) {
+      throw new Error(`${tag} has no unique predecessor tag`);
+    }
+    if (compareSemVer(candidateVersion, predecessor.version) <= 0) {
+      throw new Error(`${tag} does not increase the predecessor version`);
+    }
+    if (!(await github.isAncestor(predecessor.sha, manifest.sourceSha))) {
+      throw new Error(`${predecessor.tag} is not an ancestor of source SHA`);
+    }
+    selected.push(artifact);
+  }
+  return selected;
+}
+
 export async function reconcileMetadata({ artifacts, sourceSha, github }) {
   assertSourceSha(sourceSha);
   const states = [];
+  const coordinates = new Set();
   for (const artifact of artifacts) {
     const tag = `${artifact.name}@${artifact.version}`;
+    if (coordinates.has(tag)) {
+      throw new Error(`Metadata selection contains duplicate ${tag}`);
+    }
+    coordinates.add(tag);
     const existingTag = await github.inspectTag(tag);
+    assertInspectedTag(existingTag, tag);
     if (existingTag && existingTag.sha !== sourceSha) {
       throw new Error(`${tag} already points to ${existingTag.sha}`);
     }
     const release = await github.inspectRelease(tag);
+    assertInspectedRelease(release, tag);
+    if (release && (release.tag !== tag || release.sha !== sourceSha)) {
+      throw new Error(`${tag} Release does not target ${sourceSha}`);
+    }
     states.push({ tag, existingTag, release });
   }
 
@@ -470,18 +637,40 @@ async function runPublish(args) {
       "Checked-out source SHA does not match the staged manifest"
     );
   }
-  await publishSerially({
-    artifacts: manifest.artifacts,
+  const resultPath = resolve(
+    repositoryRoot,
+    argument(args, "--result") ?? ".artifacts/private-release/result.json"
+  );
+  await publishAndPersistResult({
+    manifest,
     registry: shellRegistry(),
+    persistResult(result) {
+      writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+    },
   });
 }
 
 async function runMetadata(args) {
   const manifest = readReleaseManifest(args, { verifyTarballs: false });
+  if (git("rev-parse", "HEAD") !== manifest.sourceSha) {
+    throw new Error("Checked-out source SHA does not match the manifest");
+  }
+  const result = readPublishResult(args, manifest);
+  const github = shellGitHub();
+  const artifacts = await selectMetadataArtifacts({
+    manifest,
+    result,
+    recoverMissingMetadata: booleanArgument(
+      args,
+      "--recover-missing-metadata",
+      false
+    ),
+    github,
+  });
   await reconcileMetadata({
-    artifacts: manifest.artifacts,
+    artifacts,
     sourceSha: manifest.sourceSha,
-    github: shellGitHub(),
+    github,
   });
 }
 
@@ -749,13 +938,13 @@ function shellGitHub() {
     inspectTag(tag) {
       const result = spawnCapture("gh", [
         "api",
-        `repos/${ownedRepository}/git/ref/tags/${encodeURIComponent(tag)}`,
+        `repos/${ownedRepository}/commits/${encodeURIComponent(tag)}`,
       ]);
       if (result.status !== 0 && /HTTP 404/u.test(result.stderr)) {
         return null;
       }
       assertCommand(result, "tag inspection");
-      return { sha: JSON.parse(result.stdout).object.sha };
+      return { sha: JSON.parse(result.stdout).sha };
     },
     createTag(tag, sha) {
       runInherited("gh", [
@@ -778,7 +967,15 @@ function shellGitHub() {
         return null;
       }
       assertCommand(result, "release inspection");
-      return { tag: JSON.parse(result.stdout).tag_name };
+      const release = JSON.parse(result.stdout);
+      return resolveReleaseTarget(release, (targetCommitish) => {
+        const target = spawnCapture("gh", [
+          "api",
+          `repos/${ownedRepository}/commits/${encodeURIComponent(targetCommitish)}`,
+        ]);
+        assertCommand(target, "release target inspection");
+        return JSON.parse(target.stdout).sha;
+      });
     },
     createRelease(tag, sha) {
       runInherited("gh", [
@@ -795,6 +992,35 @@ function shellGitHub() {
         "-F",
         "generate_release_notes=true",
       ]);
+    },
+    listPackageTags(name) {
+      const result = spawnCapture("gh", [
+        "api",
+        "--paginate",
+        "--slurp",
+        `repos/${ownedRepository}/tags?per_page=100`,
+      ]);
+      assertCommand(result, "owned tag history inspection");
+      const prefix = `${name}@`;
+      return JSON.parse(result.stdout)
+        .flat()
+        .filter(({ name: tag }) => tag.startsWith(prefix))
+        .map(({ name: tag, commit }) => ({ tag, sha: commit.sha }));
+    },
+    isAncestor(ancestor, descendant) {
+      const result = spawnCapture("git", [
+        "merge-base",
+        "--is-ancestor",
+        ancestor,
+        descendant,
+      ]);
+      if (result.status === 0) {
+        return true;
+      }
+      if (result.status === 1) {
+        return false;
+      }
+      assertCommand(result, "tag ancestry inspection");
     },
   };
 }
@@ -819,6 +1045,126 @@ function readReleaseManifest(args, { verifyTarballs = true } = {}) {
     });
   }
   return manifest;
+}
+
+function readPublishResult(args, manifest) {
+  const path = resolve(
+    repositoryRoot,
+    argument(args, "--result") ?? ".artifacts/private-release/result.json"
+  );
+  const result = JSON.parse(readFileSync(path, "utf8"));
+  assertPublishResult({ manifest, result });
+  return result;
+}
+
+function assertExactKeys(value, keys, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const actual = Object.keys(value).sort();
+  const expected = [...keys].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} has unexpected fields`);
+  }
+}
+
+export function resolveReleaseTarget(release, resolveCommit) {
+  if (
+    !release ||
+    typeof release !== "object" ||
+    typeof release.tag_name !== "string" ||
+    release.tag_name.length === 0 ||
+    release.tag_name.length > 255 ||
+    typeof release.target_commitish !== "string" ||
+    release.target_commitish.length === 0 ||
+    release.target_commitish.length > 255
+  ) {
+    throw new Error("Release has an invalid tag or target_commitish");
+  }
+  const sha = resolveCommit(release.target_commitish);
+  if (typeof sha !== "string" || !/^[0-9a-f]{40}$/u.test(sha)) {
+    throw new Error("Release target did not resolve to a commit SHA");
+  }
+  return { tag: release.tag_name, sha };
+}
+
+function assertInspectedTag(value, tag) {
+  if (
+    value !== null &&
+    (!value ||
+      typeof value !== "object" ||
+      typeof value.sha !== "string" ||
+      !/^[0-9a-f]{40}$/u.test(value.sha))
+  ) {
+    throw new Error(`${tag} Tag inspection returned an invalid commit SHA`);
+  }
+}
+
+function assertInspectedRelease(value, tag) {
+  if (
+    value !== null &&
+    (!value ||
+      typeof value !== "object" ||
+      typeof value.tag !== "string" ||
+      typeof value.sha !== "string" ||
+      !/^[0-9a-f]{40}$/u.test(value.sha))
+  ) {
+    throw new Error(`${tag} Release inspection returned invalid metadata`);
+  }
+}
+
+function parseSemVer(value, label) {
+  const match =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.exec(
+      value
+    );
+  if (!match) {
+    throw new Error(`${label} is not a valid semantic version`);
+  }
+  return {
+    major: BigInt(match[1]),
+    minor: BigInt(match[2]),
+    patch: BigInt(match[3]),
+    prerelease: match[4]?.split(".") ?? [],
+  };
+}
+
+function compareSemVer(left, right) {
+  for (const key of ["major", "minor", "patch"]) {
+    if (left[key] !== right[key]) {
+      return left[key] < right[key] ? -1 : 1;
+    }
+  }
+  if (left.prerelease.length === 0 || right.prerelease.length === 0) {
+    if (left.prerelease.length === right.prerelease.length) {
+      return 0;
+    }
+    return left.prerelease.length === 0 ? 1 : -1;
+  }
+  const length = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined || rightPart === undefined) {
+      if (leftPart === rightPart) {
+        return 0;
+      }
+      return leftPart === undefined ? -1 : 1;
+    }
+    if (leftPart === rightPart) {
+      continue;
+    }
+    const leftNumeric = /^\d+$/u.test(leftPart);
+    const rightNumeric = /^\d+$/u.test(rightPart);
+    if (leftNumeric && rightNumeric) {
+      return BigInt(leftPart) < BigInt(rightPart) ? -1 : 1;
+    }
+    if (leftNumeric !== rightNumeric) {
+      return leftNumeric ? -1 : 1;
+    }
+    return leftPart < rightPart ? -1 : 1;
+  }
+  return 0;
 }
 
 function exportTargets(value) {
@@ -879,6 +1225,17 @@ function assertSourceSha(value) {
 function argument(args, name) {
   const index = args.indexOf(name);
   return index === -1 ? undefined : args[index + 1];
+}
+
+function booleanArgument(args, name, fallback) {
+  const value = argument(args, name);
+  if (value === undefined) {
+    return fallback;
+  }
+  if (value !== "true" && value !== "false") {
+    throw new Error(`${name} must be true or false`);
+  }
+  return value === "true";
 }
 
 function git(...args) {
