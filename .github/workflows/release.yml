@@ -9,6 +9,11 @@ on:
         description: Exact reviewed commit on main (40 lowercase hex characters)
         required: true
         type: string
+      recover_missing_metadata:
+        description: Recover verified matching packages with provably missing metadata
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}
@@ -87,11 +92,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
           GH_TOKEN: ${{ secrets.PACKAGE_PUBLISH_TOKEN }}
           ACTIONS_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload non-binary release manifest
+      - name: Upload non-binary release evidence
         uses: actions/upload-artifact@v4
         with:
           name: private-release-manifest-${{ inputs.source_sha }}
-          path: .artifacts/private-release/manifest.json
+          path: |
+            .artifacts/private-release/manifest.json
+            .artifacts/private-release/result.json
           if-no-files-found: error
           retention-days: 7
 
@@ -105,12 +112,13 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@v4
         with:
           name: private-release-manifest-${{ inputs.source_sha }}
           path: .artifacts/private-release
       - name: Reconcile metadata at the reviewed SHA
-        run: pnpm release:metadata
+        run: pnpm release:metadata --recover-missing-metadata "${{ inputs.recover_missing_metadata }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

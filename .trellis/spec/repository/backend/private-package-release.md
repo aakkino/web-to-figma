@@ -26,8 +26,10 @@ pnpm test:release
 
 `release:preflight` creates `.artifacts/private-release/manifest.json` and one
 locally inspected tarball per package. `release:publish` must consume those
-exact bytes in the same protected job. `release:metadata` consumes only the
-non-binary manifest after publication succeeds.
+exact bytes in the same protected job, then write
+`.artifacts/private-release/result.json` only after every verification, smoke
+test, and dist-tag promotion succeeds. `release:metadata` consumes only the
+non-binary manifest and source-bound result after publication succeeds.
 
 ## 3. Contracts
 
@@ -68,6 +70,20 @@ non-binary manifest after publication succeeds.
   replace or weaken the PAT publication boundary.
 - Publication order is fixed. A package version is either absent, exactly
   matching the staged artifact, or conflicting. Only absent versions publish.
+- The publish result contains every allowlisted coordinate in fixed order with
+  only `name`, `version`, `integrity`, and its closed initial Registry state
+  (`absent` or `matching`). Its source SHA and every identity must exactly
+  match the manifest before any metadata API call.
+- Normal metadata reconciliation selects only coordinates whose persisted
+  initial state was `absent`. An empty selection is a successful no-op and
+  must make no Tag or Release reads. Historical matching coordinates are not
+  metadata candidates merely because they remain in the release manifest.
+- The workflow recovery input `recover_missing_metadata` is a boolean that
+  defaults to `false`. It affects only metadata selection; it does not change
+  publication, Registry verification, or the result document.
+- Tag inspection must dereference lightweight or annotated refs to a commit.
+  Release inspection must resolve the Release's `target_commitish` to a commit;
+  resolving only `tag_name` does not prove the recorded Release target.
 - GitHub Packages may omit package-manifest fields such as `exports` from
   `npm view`. Treat that response as authoritative only for the exact
   coordinate and declared `dist.integrity`. For immutable-content comparison,
@@ -92,8 +108,13 @@ non-binary manifest after publication succeeds.
 | Anonymous probe returns explicit 401, 403, or 404 | Accept as denied access |
 | Anonymous probe succeeds, times out, has a network error, or returns 5xx | Fail; never infer privacy from an inconclusive result |
 | A later package fails | Do not promote any `latest` dist-tag or create metadata |
-| Any existing tag points elsewhere | Inspect all metadata first, then stop without creating refs |
-| Existing tag points to the approved SHA and Release exists | Accept as idempotent success |
+| Any selected existing tag points elsewhere | Inspect all selected metadata first, then stop without creating refs |
+| A selected Release names another tag or resolves to another commit | Stop before creating any Tag or Release |
+| An inspected Tag and Release both exist but resolve to different commits | Stop before metadata history resolution or writes |
+| Existing selected tag and Release resolve to the approved SHA | Accept as idempotent success |
+| Result is missing, reordered, duplicated, malformed, or differs from the manifest | Stop before metadata reads |
+| Normal result selection is empty | Succeed without historical metadata reads or writes |
+| Explicit recovery history is ambiguous, malformed, non-increasing, or not ancestral | Stop before metadata writes |
 
 Diagnostics must redact credentials and remain bounded.
 
@@ -102,8 +123,10 @@ Diagnostics must redact credentials and remain bounded.
 - Good: all three versions are absent; publish and verify each serially, then
   promote all `latest` tags and reconcile repository tags/Releases.
 - Base: an interrupted run left one or more byte-identical versions present;
-  verify them, publish only missing versions, then finish promotion and
-  metadata.
+  verify them, publish only missing versions, then finish promotion. Normal
+  metadata owns only versions initially absent in that invocation; an
+  explicitly authorized recovery may select a matching version only under the
+  predicates below.
 - Bad: an existing version has different integrity or metadata, anonymous
   access succeeds, a transient error is reported as denial, or a tarball leaves
   the protected job. The run must fail closed.
@@ -115,7 +138,8 @@ Diagnostics must redact credentials and remain bounded.
   tampering rejection, serial stopping, no partial promotion, authorized
   import, metadata preflight, GitHub `npm view` manifest-field omission,
   downloaded-tarball integrity-before-parse ordering, credential-free tar
-  extraction, and release-surface policy.
+  extraction, publish-result validation and selection, recovery history,
+  Release target resolution, empty selection, and release-surface policy.
 - `pnpm release:policy`: assert the exact publishable allowlist, owned scope,
   GitHub registry, fork metadata, dependency graph, and guarded workflows.
 - `pnpm release:preflight --source-sha <sha>`: build real tarballs, inspect file
@@ -195,4 +219,37 @@ binaries through a public repository artifact.
 ```
 
 Build, inspect, publish, and verify the exact local tarballs inside one
-protected job. Upload only `manifest.json` for metadata reconciliation.
+protected job. Upload only `manifest.json` and `result.json` for metadata
+reconciliation.
+
+## 9. Missing Metadata Recovery
+
+Normal mode never infers metadata ownership from a matching Registry version.
+When `recover_missing_metadata` is explicitly enabled, a matching coordinate
+may enter the ordinary metadata reconciler only after all of these predicates
+hold:
+
+1. The current run's result records `matching`, and its source, coordinate,
+   version, and integrity exactly match the fixed-order manifest.
+2. The exact package-version Tag and GitHub Release are both absent. A correct
+   pair already at the current reviewed SHA is an idempotent no-op; a partial
+   pair is an error.
+3. Every owned same-package Tag has a valid semantic version and unambiguous
+   commit SHA. The candidate version is strictly greater than the unique
+   highest owned version.
+4. That unique predecessor commit is an ancestor of the reviewed source SHA.
+5. Registry bytes and package metadata already passed the protected publish
+   job's ordinary `matching` verification.
+
+Package ordering, tag absence alone, an arbitrary historical SHA, and optional
+Registry `gitHead` are never provenance. All selected Tag and Release states
+must be inspected before the first write, and an existing Release must name the
+selected Tag and resolve to the selected source commit.
+
+The known compatibility case is the immutable private
+`@aakkino/dom-to-figma@0.4.0` partial publication. Recovery must preserve its
+bytes and all historical package Tags. After this correction is reviewed and
+merged, the parent release task must capture the new current `origin/main` SHA,
+obtain fresh protected-environment authorization, and use the ordinary Release
+workflow with explicit recovery enabled. This child must not dispatch that run
+or manually mutate Registry versions, Tags, Releases, or branches.

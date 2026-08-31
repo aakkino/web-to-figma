@@ -1,0 +1,4 @@
+{"file":".trellis/spec/repository/backend/index.md","reason":"Defines the repository release-infrastructure layer and routes to its authoritative package-release contract."}
+{"file":".trellis/spec/repository/backend/private-package-release.md","reason":"Governs exact-SHA protected publication, idempotent registry verification, access checks, metadata reconciliation, and failure behavior."}
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines repository-wide release, Git, validation, and commit conventions for the operational handoff."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Defines the package release gate and the test/build/parity evidence expected for dom-to-figma changes."}
