@@ -1,5 +1,14 @@
 # @aakkino/dom-to-figma
 
+## 0.4.0
+
+### Minor Changes
+
+- [#14](https://github.com/aakkino/web-to-figma/pull/14) [`30d33b9`](https://github.com/aakkino/web-to-figma/commit/30d33b9131e1775bc54c53a6afe4548a3fd2dc71) Thanks [@aakkino](https://github.com/aakkino)! - Convert computed CSS raster background layers into editable Figma IMAGE paints, with bounded raster fallback and structured diagnostics for unsupported geometry.
+
+- [#16](https://github.com/aakkino/web-to-figma/pull/16) [`a1c06bd`](https://github.com/aakkino/web-to-figma/commit/a1c06bdd4c4b7e45ec9a4e134553cad9856dd8dc) Thanks [@aakkino](https://github.com/aakkino)! - Support capture-local CSS background expressions through an optional background
+  image resolver while preserving computed-style precedence.
+
 ## 0.3.0
 
 ### Minor Changes
