@@ -1,0 +1,7 @@
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Package entry point and mandatory pre-development/upstream refresh reading order."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Formal exact-ref, partial-overlap, absorbed-path, budget, adapter, and cherry-pick governance contract."}
+{"file":".trellis/spec/dom-to-figma/frontend/rendering-contracts.md","reason":"Border rendering and release provenance contracts needed to evaluate dotted-border semantics."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Required converter unit, browser, package, and compatibility evidence boundaries."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Oracle baseline and parity evidence rules for PR #33 scenes and scoreboard changes."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-patch-retirement/research/candidate-audit-2026-07-26.md","reason":"Historical mixed-commit and partial-equivalence rejection example."}
+{"file":".trellis/tasks/archive/2026-07/07-27-upstream-style-effects-intake/research/final-intake-audit-2026-07-27.md","reason":"Historical selective capability intake, absorbed-path, and gate evidence example."}

@@ -1,0 +1,29 @@
+{
+  "id": "audit-local-main-20-commits",
+  "name": "audit-local-main-20-commits",
+  "title": "审计本地 main 的 20 个提交",
+  "description": "固定 origin/main..main 快照，逐提交映射证据、风险、cohort 和推进处置。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-25",
+  "completedAt": "2026-08-25",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-25-reconcile-local-main-with-origin-main",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "promotion_ledger_approved": "true",
+    "promotion_ledger_approved_at": "2026-08-25"
+  }
+}

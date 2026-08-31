@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Repository-wide TypeScript, formatting, test, and verification requirements."}
+{"file":".trellis/spec/fig-kiwi/frontend/index.md","reason":"Routes the fig-kiwi runtime test change to its required domain guides."}
+{"file":".trellis/spec/fig-kiwi/frontend/testing-guidelines.md","reason":"Defines clipboard test shapes and package verification commands."}
+{"file":".trellis/spec/fig-kiwi/frontend/clipboard-and-tree.md","reason":"Defines the malformed optional metadata contract under test."}
+{"file":".trellis/tasks/08-03-codex-native-subagent-smoke-test/research/subagent-smoke-target.md","reason":"Records native injection evidence, the clean target file, exact scenario, and focused command."}

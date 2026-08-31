@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Apply repository-wide TypeScript, validation, generated-file, and commit boundaries."}
+{"file": ".trellis/spec/extension/frontend/index.md", "reason": "Route FD1 work through the extension content-script architecture and applicable frontend guidance."}
+{"file": ".trellis/spec/extension/frontend/components-and-state.md", "reason": "Keep diagnostics presentation-only and preserve WorkspaceController state ownership and accessible UI."}
+{"file": ".trellis/spec/extension/frontend/testing-and-quality.md", "reason": "Use the required extension test, type, Chrome, Firefox, lint, and manual-check gates."}
+{"file": ".trellis/spec/extension/frontend/loaders-and-conversion.md", "reason": "Preserve the existing font diagnostic, glyph fallback, privacy, and adapter boundaries."}
+{"file": ".trellis/tasks/archive/2026-08/08-28-rebuild-fd1-font-diagnostics/research/fd1-audit-context.md", "reason": "Use the byte-sourced FD1 audit extraction for source evidence, baseline gap, candidate boundary, and preservation contract."}

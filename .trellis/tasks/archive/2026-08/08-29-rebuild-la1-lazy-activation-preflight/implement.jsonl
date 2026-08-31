@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Apply workspace, TypeScript, verification, preservation, and commit conventions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Keep adapter settings, phases, diagnostics, extension consumers, and tests synchronized."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Route extension implementation to the applicable runtime and testing contracts."}
+{"file":".trellis/spec/extension/frontend/loaders-and-conversion.md","reason":"Preserve the adapter-owned staged capture, cleanup, cancellation, and conversion boundaries."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Apply extension unit, browser, type, build, and manual validation gates."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Preserve frozen inventory, scheduler, diagnostics, and no-late-fetch behavior."}
+{"file":".trellis/tasks/archive/2026-08/08-29-rebuild-la1-lazy-activation-preflight/research/current-baseline-and-evidence.md","reason":"Use the pinned target, historical evidence boundary, current seams, and parallel-delivery constraints."}

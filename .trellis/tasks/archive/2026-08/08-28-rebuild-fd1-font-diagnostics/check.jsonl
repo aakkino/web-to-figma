@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Verify repository-wide scope, formatting, validation, generated-file, and release boundaries."}
+{"file": ".trellis/spec/extension/frontend/index.md", "reason": "Check the changed files against the extension runtime and frontend routing guidance."}
+{"file": ".trellis/spec/extension/frontend/components-and-state.md", "reason": "Verify presentation-only state use, semantic accessibility, and narrow-workspace behavior."}
+{"file": ".trellis/spec/extension/frontend/testing-and-quality.md", "reason": "Verify focused tests and all required extension package gates."}
+{"file": ".trellis/spec/extension/frontend/loaders-and-conversion.md", "reason": "Verify font diagnostics remain privacy-safe and do not alter adapter or glyph-resolution contracts."}
+{"file": ".trellis/tasks/archive/2026-08/08-28-rebuild-fd1-font-diagnostics/research/fd1-audit-context.md", "reason": "Reconcile FD1-only output, target identity, validation, and dirty-worktree preservation against the byte-sourced audit extraction."}

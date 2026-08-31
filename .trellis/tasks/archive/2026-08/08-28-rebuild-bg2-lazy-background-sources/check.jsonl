@@ -1,0 +1,8 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Verify scope, formatting, changeset, package gates, commit shape, and unrelated-worktree preservation."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Trace the owner/source data from parsing through inventory, preparation, bridge, core paint output, and cleanup."}
+{"file":".trellis/spec/dom-to-figma/frontend/architecture.md","reason":"Reject cache/session leakage and adapter concepts entering the published converter boundary."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Verify prepared-only ordering, deduplication, computed-background precedence, placeholders, cancellation, diagnostics, and stable-core fallback."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Verify any core delta registration, fingerprints, supported targets, and compatibility evidence."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Confirm the executed unit/browser/build/compatibility/oracle evidence matches the touched rendering surface."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Confirm Chrome and Firefox gates and that no extension permissions, messaging, storage, or UI scope leaked into BG2."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg2-lazy-background-sources/research/bg2-current-baseline-context.md","reason":"Reconcile exact target identity, S46/S47 evidence-only treatment, BG1 dependency, exclusions, rollback, and dirty-root preservation."}

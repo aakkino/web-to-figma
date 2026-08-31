@@ -1,0 +1,32 @@
+{
+  "id": "migrate-fork-private-package-registry",
+  "name": "migrate-fork-private-package-registry",
+  "title": "Migrate fork packages to private registry",
+  "description": "Plan and migrate fork-owned packages away from unauthorized @figit npm publishing to a private registry under an owned scope.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-27",
+  "completedAt": "2026-08-27",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "planning_deferred_to_next_session": "true",
+    "planning_approved": "false",
+    "remote_write_approved": "false",
+    "triggering_release_run": "33045155450",
+    "current_main": "8ef6b90909a0f0112fae6d6220bcb124c64f8d4d"
+  }
+}

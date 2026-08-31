@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Verify dependency scope, repository gates, dirty-root preservation, and commit discipline."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Audit all artifact/output contract consumers and lifecycle transitions."}
+{"file":".trellis/spec/extension/frontend/architecture.md","reason":"Check immutable artifact ownership and explicit output/new-capture flow."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Check validation order, privacy allow-list, user activation, and permission boundaries."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Verify automated and gated extension checks are reported accurately."}
+{"file":".trellis/tasks/archive/2026-08/08-29-rebuild-cp1-replayable-capture-artifacts/research/current-baseline-and-evidence.md","reason":"Check target identity, historical non-replay rule, current seams, and post-LA1 revalidation."}

@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Repository-wide review and verification requirements."}
+{"file":".trellis/spec/fig-kiwi/frontend/index.md","reason":"Routes review of the fig-kiwi test change to its domain guides."}
+{"file":".trellis/spec/fig-kiwi/frontend/testing-guidelines.md","reason":"Defines required clipboard coverage and package test gates."}
+{"file":".trellis/spec/fig-kiwi/frontend/clipboard-and-tree.md","reason":"Provides the production contract the new test must assert without changing runtime behavior."}
+{"file":".trellis/tasks/08-03-codex-native-subagent-smoke-test/research/subagent-smoke-target.md","reason":"Provides the target scope, clean-worktree caveat, native injection evidence, and expected validation."}

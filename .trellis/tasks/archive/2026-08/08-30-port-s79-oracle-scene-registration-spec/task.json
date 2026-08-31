@@ -1,0 +1,33 @@
+{
+  "id": "port-s79-oracle-scene-registration-spec",
+  "name": "port-s79-oracle-scene-registration-spec",
+  "title": "Port S79 oracle scene-registration specification",
+  "description": "Semantically rebuild the durable S79 oracle scene-registration contract against a freshly pinned origin/main without cherry-picking 37f5361.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-30",
+  "completedAt": "2026-08-30",
+  "branch": "port/s79-oracle-scene-registration-spec",
+  "base_branch": "main",
+  "worktree_path": "D:/desktop_directory/web-to-figma/.tmp/port-s79-oracle-scene-registration-spec",
+  "commit": "107667e0b2eda7ed6a268cdaad575edfc31dc89c",
+  "pr_url": "https://github.com/aakkino/web-to-figma/pull/21",
+  "subtasks": [],
+  "children": [],
+  "parent": "08-30-reconcile-post-audit-sync-tail",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "target_commit": "107667e0b2eda7ed6a268cdaad575edfc31dc89c",
+    "publication_status": "merged_and_contained",
+    "pr_number": 21,
+    "ci_status": "all_required_checks_passed",
+    "merge_commit": "1c98bb0e0d04682f619a5aadccdd5027959ac2e0",
+    "final_main_sha": "1c98bb0e0d04682f619a5aadccdd5027959ac2e0"
+  }
+}

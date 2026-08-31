@@ -1,0 +1,31 @@
+{
+  "id": "review-upstream-compat-targets",
+  "name": "review-upstream-compat-targets",
+  "title": "复审 upstream 兼容目标",
+  "description": "复审漂移的 stable/upstream targets，恢复阻断兼容门禁。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-25",
+  "completedAt": "2026-08-25",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-25-reconcile-local-main-with-origin-main",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "target_review_result": "pass",
+    "stable_version": "0.2.4",
+    "stable_commit": "859efea8d7f8330783c6c4e3e520fd673e877336",
+    "upstream_main_commit": "859efea8d7f8330783c6c4e3e520fd673e877336"
+  }
+}

@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Check exact payload, formatting, validation, commit, and PR boundaries."}
+{"file": ".trellis/spec/extension/frontend/testing-and-quality.md", "reason": "Require focused, extension, browser-build, repository, and real-extension smoke gates for the reconciled head."}
+{"file": ".trellis/spec/extension/frontend/loaders-and-conversion.md", "reason": "Check that promoted diagnostics remain privacy-safe and do not alter resolver, adapter, or capture behavior."}
+{"file": ".trellis/tasks/archive/2026-08/08-29-promote-fd1-to-main/research/current-promotion-preflight.md", "reason": "Verify current-target reconciliation, remote identities, drift stops, payload containment, and preservation evidence."}
+{"file": ".trellis/tasks/archive/2026-08/08-28-rebuild-fd1-font-diagnostics/research/implementation-review.md", "reason": "Compare the promoted committed shape with the independently reviewed FD1 implementation and Unicode-control privacy contract."}
+{"file": ".trellis/tasks/archive/2026-08/08-29-promote-fd1-to-main/research/target-repository-clarification.md", "reason": "Verify every PR read/write explicitly targets aakkino/web-to-figma and treats figitdesign/web-to-figma only as compatibility upstream."}

@@ -1,0 +1,2 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines repository-wide lint, typecheck, workflow, release, and change-isolation expectations for the CI-only fix."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Defines the pinned upstream target and absorbed-path governance contract that requires the upstream commit object."}

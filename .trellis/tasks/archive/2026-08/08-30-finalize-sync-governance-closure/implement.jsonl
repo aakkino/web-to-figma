@@ -1,0 +1,3 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/tasks/archive/2026-08/08-30-reconcile-post-audit-sync-tail/research/original-audit-contract.md", "reason": "Preserve the original S01-S73 disposition and dirty-worktree contracts."}
+{"file": ".trellis/tasks/archive/2026-08/08-30-reconcile-post-audit-sync-tail/research/post-audit-tail-preflight.md", "reason": "Apply the non-self-referential terminal freeze and tag constraint."}

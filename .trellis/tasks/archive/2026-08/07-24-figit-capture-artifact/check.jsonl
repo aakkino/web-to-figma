@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Check repository and dependency conventions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Check artifact/output contracts end to end."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Check extension runtime rules."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Check clipboard activation, permissions and data exposure."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Check unit/build/browser gates."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Verify file and clipboard implementation against official constraints."}

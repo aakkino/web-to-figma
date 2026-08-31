@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Preserve repository commit, validation, formatting, and one-logical-PR conventions during FD1 promotion."}
+{"file": ".trellis/spec/extension/frontend/components-and-state.md", "reason": "Keep current controller-owned capture state and limit FD1 reconciliation to the existing presentation boundary."}
+{"file": ".trellis/spec/extension/frontend/loaders-and-conversion.md", "reason": "Preserve font diagnostic privacy and resolver/capture contracts while reconciling the old FD1 branch with current main."}
+{"file": ".trellis/tasks/archive/2026-08/08-29-promote-fd1-to-main/research/current-promotion-preflight.md", "reason": "Bind implementation to the verified source, target, payload, remote state, drift policy, and promotion topology."}
+{"file": ".trellis/tasks/archive/2026-08/08-28-rebuild-fd1-font-diagnostics/research/implementation-review.md", "reason": "Preserve the independently reviewed FD1 scope, Unicode privacy fix, validation evidence, and known missing manual smoke."}
+{"file": ".trellis/tasks/archive/2026-08/08-29-promote-fd1-to-main/research/target-repository-clarification.md", "reason": "Prevent GitHub CLI fork inference from substituting the upstream parent for the explicit promotion repository."}

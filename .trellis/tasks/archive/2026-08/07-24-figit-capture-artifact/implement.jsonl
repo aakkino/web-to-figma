@@ -1,0 +1,8 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Required repository conventions before extension codec/sink edits."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"The persisted artifact and output port have multiple producers/consumers."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Extension runtime pre-development checklist."}
+{"file":".trellis/spec/extension/frontend/components-and-state.md","reason":"File input and ready/output UI lifecycle rules."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Clipboard permissions/activation and sensitive data constraints."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Extension browser/build verification."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/current-capture-capability-map.md","reason":"Current output/result boundary and missing persistence baseline."}
+{"file":".trellis/tasks/07-24-extension-capture-persistence/research/webextension-runtime-constraints.md","reason":"Official clipboard, file input and Blob/download constraints."}

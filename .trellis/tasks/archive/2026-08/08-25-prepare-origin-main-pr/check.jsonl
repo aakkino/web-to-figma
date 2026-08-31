@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "检查顺序 PR 的仓库级安全边界。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "检查 PR 中 registry、target 和 CI 契约。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-local-main-20-commits/research/local-main-origin-main-commit-ledger-2026-08-25.md", "reason": "检查 review branch 只包含批准内容。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/upstream-core-delta-candidate.json", "reason": "检查 registry target 和 capability 状态无额外漂移。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-validate-local-main-promotion/research/promotion-validation-2026-08-25.md", "reason": "检查 branch head/base、映射、路径和验证证据一致。"}

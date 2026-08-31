@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/archive/2026-08/08-30-port-s79-oracle-scene-registration-spec/research/s79-port-contract.md", "reason": "Use the verified S79 identity, target implementation evidence, mixed package naming, and semantic-only port boundary."}
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Apply the repository-wide Git safety, validation, and documentation conventions required by the oracle-harness index."}
+{"file": ".trellis/spec/oracle-harness/frontend/index.md", "reason": "Follow the oracle-harness pre-development routing and repository conventions for spec work."}
+{"file": ".trellis/spec/oracle-harness/frontend/architecture.md", "reason": "Rebuild the dual-projection scene-registration contract within the current target architecture guidance."}
+{"file": ".trellis/spec/oracle-harness/frontend/cli-and-artifacts.md", "reason": "Preserve the current harness command, artifact, and baseline boundaries while documenting registration gates."}
+{"file": ".trellis/spec/oracle-harness/frontend/testing-guidelines.md", "reason": "Add the named manifest test and preserve the independent unit, parity, type-check, and lint gates."}
+{"file": ".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md", "reason": "Keep the registration guidance consistent with the existing scoreboard ratchet contract and baseline policy."}

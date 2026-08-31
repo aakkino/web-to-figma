@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Check workspace conventions, release policy, generated files, and repository-wide quality gates."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Audit complete identity flow across source, package, automation, registry, and consumers."}
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "Route checker to primary package API, compatibility, and test contracts."}
+{"file": ".trellis/spec/dom-to-figma/frontend/testing-guidelines.md", "reason": "Verify build, pack, browser, and clean consumer evidence."}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "Ensure upstream compatibility references remain upstream while fork identities migrate."}
+{"file": ".trellis/spec/fig-kiwi/frontend/index.md", "reason": "Verify the renamed Kiwi public runtime/export boundary."}
+{"file": ".trellis/spec/fig-kiwi/frontend/testing-guidelines.md", "reason": "Verify Kiwi release and compatibility checks."}
+{"file": ".trellis/spec/fig-kiwi/backend/index.md", "reason": "Check tooling and generated schema boundary after rename."}
+{"file": ".trellis/spec/extension/frontend/index.md", "reason": "Check extension consumer resolution and build coverage."}
+{"file": ".trellis/spec/oracle-harness/frontend/index.md", "reason": "Check oracle consumer resolution and parity coverage."}
+{"file": ".trellis/spec/playground/frontend/index.md", "reason": "Check playground consumer resolution and build coverage."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/package-boundary.md", "reason": "Audit implementation coverage against the complete local rename/publication inventory."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/release-recovery.md", "reason": "Audit version reconciliation, serial publish, partial success, and remote-state evidence."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/github-packages-registry.md", "reason": "Audit registry/auth/privacy behavior against current official constraints."}

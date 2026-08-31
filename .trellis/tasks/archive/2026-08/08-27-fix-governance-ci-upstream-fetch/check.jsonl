@@ -1,0 +1,2 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines the repository quality gate and protects against unrelated workflow or release changes."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Defines expected governance behavior, exact target verification, and report outcomes to review."}

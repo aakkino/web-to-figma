@@ -1,0 +1,31 @@
+{
+  "id": "validate-local-main-promotion",
+  "name": "validate-local-main-promotion",
+  "title": "验证本地主线推进集合",
+  "description": "在隔离 worktree 对批准的 cohort 运行完整质量与兼容门禁。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-25",
+  "completedAt": "2026-08-25",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-25-reconcile-local-main-with-origin-main",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "validation_result": "pass",
+    "promotion_unit_count": "4",
+    "final_prevalidation_head": "61888631fb9059f1c8cbb7d2d97e2ab03a105a6d",
+    "first_unit": "C1+C2"
+  }
+}

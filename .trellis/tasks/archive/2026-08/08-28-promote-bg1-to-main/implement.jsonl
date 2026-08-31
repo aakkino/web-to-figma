@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Apply repository validation, changeset, generated-artifact, branch, and commit boundaries during promotion."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Preserve the reviewed core-adapter-oracle contract and trace every promotion consumer without scope expansion."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Enforce exact core-delta registry, fingerprint, stable/main target, and compatibility gates for the promoted committed shape."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Run the published converter's unit, browser, build, and release-relevant checks on the actual PR base."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Require Tier-0 parity without tolerance or baseline weakening during promotion."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/pre-execution-preservation.md","reason":"Preserve the dirty root and unrelated worktree state recorded before BG1 execution."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/bg1-audit-context.md","reason":"Keep the exact BG1 cohort, exclusions, validation, rollback, and BG2 dependency in scope."}
