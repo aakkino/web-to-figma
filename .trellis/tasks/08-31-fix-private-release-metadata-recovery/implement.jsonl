@@ -1,0 +1,5 @@
+{"file":".trellis/spec/repository/backend/index.md","reason":"Identifies the repository release-infrastructure ownership boundary."}
+{"file":".trellis/spec/repository/backend/private-package-release.md","reason":"Defines exact-SHA publication, metadata, recovery, credential, and failure invariants that the fix must preserve and update."}
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines repository-wide testing, workflow, release, and commit conventions."}
+{"file":".trellis/tasks/08-31-release-dom-to-figma-0-4-0/research/release-run-33355456677-debug.md","reason":"Provides the exact failed-run causal chain and durable partial-publication state."}
+{"file":".trellis/tasks/08-31-release-dom-to-figma-0-4-0/research/metadata-recovery-design.md","reason":"Provides source-indexed option analysis, recommended result handoff, recovery selector, and regression matrix."}

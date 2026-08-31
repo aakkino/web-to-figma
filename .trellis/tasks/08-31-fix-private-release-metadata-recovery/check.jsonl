@@ -1,0 +1,5 @@
+{"file":".trellis/spec/repository/backend/index.md","reason":"Identifies the owning release-infrastructure layer for the checker."}
+{"file":".trellis/spec/repository/backend/private-package-release.md","reason":"Supplies the release safety and validation contract for full-scope checking."}
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Supplies repository quality, testing, and release conventions."}
+{"file":".trellis/tasks/08-31-release-dom-to-figma-0-4-0/research/release-run-33355456677-debug.md","reason":"Anchors verification to the actual partial publication and deterministic failure."}
+{"file":".trellis/tasks/08-31-release-dom-to-figma-0-4-0/research/metadata-recovery-design.md","reason":"Defines rejected unsafe alternatives, expected invariants, and complete regression matrix."}

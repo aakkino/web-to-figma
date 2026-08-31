@@ -1,0 +1,4 @@
+{"file":".trellis/spec/repository/backend/index.md","reason":"Identifies the owning release-infrastructure layer for the checker."}
+{"file":".trellis/spec/repository/backend/private-package-release.md","reason":"Provides the full release invariants and error matrix that the live evidence must satisfy."}
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Provides repository-wide quality, release, Git, and commit expectations for the final operational result."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Defines package-specific CI, parity, and Changeset release evidence to verify."}
