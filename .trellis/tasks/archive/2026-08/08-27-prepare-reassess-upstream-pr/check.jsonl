@@ -1,0 +1,4 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines the workspace-wide CI-equivalent sequence and lint/build/test expectations to verify."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Defines expected governance and stable/upstream-main adapter outcomes, including advisory CI semantics."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Defines the Tier-0 parity ratchet invariants and prohibits changing tolerances or baselines to obtain a pass."}
+{"file":".trellis/spec/oracle-harness/frontend/testing-guidelines.md","reason":"Defines the oracle package and parity gates and the distinction between default, browser-gated, and live checks."}

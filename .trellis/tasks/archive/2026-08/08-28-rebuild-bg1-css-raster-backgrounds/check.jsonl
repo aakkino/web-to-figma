@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Verify scope, formatting, tests, changeset, generated artifacts, and one-logical-change boundaries."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Trace each source and diagnostic across inventory, scheduler, bridge, converter, and payload with no duplicated contract."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Verify prepared-only behavior, cancellation, placeholders, cleanup, capability fallback, and exclusion of BG2 lazy sources."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Check exact registry paths/fingerprints, private package policy, and stable/main compatibility without masking drift."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Verify core unit/browser, consumer-visible payload, build, release, and oracle evidence is real and complete."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Reject tolerance or scoreboard relaxation used solely to hide a BG1 rendering regression."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/bg1-audit-context.md","reason":"Reconcile the result against exact BG1 scope, target, rollback, BG2 dependency, and dirty-root preservation."}

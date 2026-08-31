@@ -1,0 +1,10 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Apply monorepo, TypeScript, formatting, release, changeset, and verification rules to the BG2 rebuild."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Keep the owner/source mapping coherent across adapter inventory, bridge context, core resolver, and extension fixture."}
+{"file":".trellis/spec/dom-to-figma/frontend/architecture.md","reason":"Preserve the published converter boundary, conversion lifetime, cache ownership, and module responsibilities."}
+{"file":".trellis/spec/dom-to-figma/frontend/converter-guidelines.md","reason":"Reuse current loader/cache/style conversion paths and preserve best-effort conversion behavior."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Compose BG2 with BG1 prepared-only scheduling, diagnostics, capability fallback, cancellation, and cleanup contracts."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Register and validate any current-baseline public/core runtime delta without replaying stale fingerprints."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Select the required unit, Chromium, compatibility, build, and oracle gates for touched core paths."}
+{"file":".trellis/spec/extension/frontend/loaders-and-conversion.md","reason":"Keep extension ownership limited to transport/consumer behavior and preserve cleanup and clipboard sequencing."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Run the required extension test, type, Chrome, and Firefox build gates without broadening product scope."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg2-lazy-background-sources/research/bg2-current-baseline-context.md","reason":"Use the exact BG1 containment, BG2 absence, historical evidence, target boundary, and preservation findings established during planning."}

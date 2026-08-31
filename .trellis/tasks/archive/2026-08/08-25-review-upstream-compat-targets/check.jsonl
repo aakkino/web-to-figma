@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "检查 target、fingerprint、预算和失败策略。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-sync-upstream-20260726/research/sync-upstream-20260726-branch-audit-2026-08-25.md", "reason": "核对新目标没有误用旧审计批准。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-local-main-20-commits/research/local-main-origin-main-commit-ledger-2026-08-25.md", "reason": "复核目标变更严格匹配已批准的推进集合和依赖。"}

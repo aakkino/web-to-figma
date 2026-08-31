@@ -1,0 +1,1 @@
+{"file": ".trellis/tasks/archive/2026-08/08-29-rebuild-la2-infinite-scroll-stabilization/research/current-la2-containment.md", "reason": "Use the current-target comparison to avoid replaying S59 or creating a redundant LA2 patch when LA1 already satisfies the contract."}

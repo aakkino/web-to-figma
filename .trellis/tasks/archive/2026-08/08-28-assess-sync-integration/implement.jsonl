@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Defines repository safety, generated-artifact, testing, release, and commit boundaries for the assessment."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"The sync range crosses converter, extension, oracle, package, release, and artifact contracts."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Defines patch/equivalence evidence, capability ownership, target pins, fingerprints, and removal conditions."}
+{"file":".trellis/tasks/archive/2026-08/08-25-audit-sync-upstream-20260726/research/sync-upstream-20260726-branch-audit-2026-08-25.md","reason":"Provides the complete prior 47-commit ledger, evidence levels, task mapping, and historical disposition boundaries."}
+{"file":".trellis/tasks/archive/2026-08/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md","reason":"Explains which historical style capabilities were rebuilt on stabilized main and why old clean-apply evidence is insufficient."}

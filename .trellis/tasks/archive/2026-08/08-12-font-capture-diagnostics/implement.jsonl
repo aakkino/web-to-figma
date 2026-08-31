@@ -1,0 +1,4 @@
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Defines the browser extension runtime, state ownership, and relevant guideline routing."}
+{"file":".trellis/spec/extension/frontend/components-and-state.md","reason":"Defines extension React state and accessible UI composition requirements."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Defines focused tests and required extension package verification gates."}
+{"file":".trellis/spec/extension/frontend/loaders-and-conversion.md","reason":"Defines font diagnostic privacy boundaries and capture adapter contracts that the UI must preserve."}

@@ -1,0 +1,7 @@
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Verify the research follows the package guideline routing and required upstream review contract."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Check every recommendation against exact-ref, partial-overlap, absorbed-path, budget, and gate rules."}
+{"file":".trellis/spec/dom-to-figma/frontend/rendering-contracts.md","reason":"Check dotted-border semantic and provenance claims against current rendering contracts."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Check that executed and deferred evidence is represented at the correct verification tier."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Check treatment of PR oracle scenes, snapshots, and baseline updates."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-patch-retirement/research/candidate-audit-2026-07-26.md","reason":"Check consistency with the prior mixed-commit rejection decision structure."}
+{"file":".trellis/tasks/archive/2026-07/07-27-upstream-style-effects-intake/research/final-intake-audit-2026-07-27.md","reason":"Check consistency with prior selective intake and absorbed upstream path evidence."}

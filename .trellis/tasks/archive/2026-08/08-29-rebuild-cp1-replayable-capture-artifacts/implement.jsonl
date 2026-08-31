@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Apply workspace, TypeScript, dependency, verification, preservation, and commit conventions."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Keep artifact, output, controller, UI, settings, tests, and package contracts synchronized."}
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Route implementation across extension runtime contexts and applicable guides."}
+{"file":".trellis/spec/extension/frontend/architecture.md","reason":"Preserve the explicit capture-to-artifact-to-output workspace flow."}
+{"file":".trellis/spec/extension/frontend/messaging-and-security.md","reason":"Preserve user activation, file validation, privacy, permissions, and typed boundaries."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Apply extension unit, browser, type, build, and manual validation gates."}
+{"file":".trellis/tasks/archive/2026-08/08-29-rebuild-cp1-replayable-capture-artifacts/research/current-baseline-and-evidence.md","reason":"Use the pinned target, current output seams, non-replay rule, and serialized merge plan."}

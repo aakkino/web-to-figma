@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "review branch、PR 和仓库操作约定。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "确保每个 PR 保留兼容门禁和精确 target 证据。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-local-main-20-commits/research/local-main-origin-main-commit-ledger-2026-08-25.md", "reason": "用户批准的 keep/split/exclude、cohort 路径和原始 SHA。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/target-review-2026-08-25.md", "reason": "当前 immutable targets 和治理变更边界。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/upstream-core-delta-candidate.json", "reason": "最终 registry candidate。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-validate-local-main-promotion/research/promotion-validation-2026-08-25.md", "reason": "四个 promotion units、curated SHA 映射和完整门禁证据。"}

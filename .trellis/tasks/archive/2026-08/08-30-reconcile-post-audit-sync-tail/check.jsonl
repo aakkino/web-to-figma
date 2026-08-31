@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/archive/2026-08/08-30-reconcile-post-audit-sync-tail/research/original-audit-contract.md", "reason": "Verify full-ledger continuity from the authoritative 73-row starting point and preserve the original rejection and dirty-state constraints without context truncation."}
+{"file": ".trellis/tasks/archive/2026-08/08-30-reconcile-post-audit-sync-tail/research/post-audit-tail-preflight.md", "reason": "Verify the post-audit identities, disposition rationale, S79 classification, and freeze protocol against planning evidence."}
+{"file": ".trellis/spec/oracle-harness/frontend/architecture.md", "reason": "Check that any S79 port matches current scene discovery, identity, snapshot, and scoreboard contracts."}
+{"file": ".trellis/spec/oracle-harness/frontend/testing-guidelines.md", "reason": "Check that the target-line port retains both oracle unit-suite and parity-ratchet validation requirements."}

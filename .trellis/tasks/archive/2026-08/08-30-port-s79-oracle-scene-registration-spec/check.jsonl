@@ -1,0 +1,7 @@
+{"file": ".trellis/tasks/archive/2026-08/08-30-port-s79-oracle-scene-registration-spec/research/s79-port-contract.md", "reason": "Independently verify target identity, exact scope, package naming, and the prohibition on literal cherry-pick."}
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Check repository-wide Git safety, validation, and documentation compliance required by the oracle-harness index."}
+{"file": ".trellis/spec/oracle-harness/frontend/index.md", "reason": "Check compliance with the oracle-harness spec routing and required quality process."}
+{"file": ".trellis/spec/oracle-harness/frontend/architecture.md", "reason": "Verify both registration projections, stable identity/order rules, and non-substitutable validation gates are complete."}
+{"file": ".trellis/spec/oracle-harness/frontend/cli-and-artifacts.md", "reason": "Check the port against current harness commands, artifacts, and baseline ownership boundaries."}
+{"file": ".trellis/spec/oracle-harness/frontend/testing-guidelines.md", "reason": "Verify the named manifest test, unit/parity separation, and target package command are accurate."}
+{"file": ".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md", "reason": "Check that the new guidance does not weaken or contradict scoreboard baseline and ratchet policy."}

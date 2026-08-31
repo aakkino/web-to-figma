@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Verify repository gates, dirty-root preservation, and commit discipline."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Audit every phase, setting, diagnostic, and consumer across adapter and extension."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Verify automated and gated browser-extension checks are reported accurately."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Check inventory freezing, resource de-duplication, cancellation, and conversion boundaries."}
+{"file":".trellis/tasks/archive/2026-08/08-29-rebuild-la1-lazy-activation-preflight/research/current-baseline-and-evidence.md","reason":"Check target identity, scope, historical non-replay rule, and serialized merge plan."}

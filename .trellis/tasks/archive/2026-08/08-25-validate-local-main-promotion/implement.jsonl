@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "加载 dom-to-figma 预开发和质量检查入口。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "运行完整 compatibility promotion gates。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md", "reason": "adapter/image cohort 的资源管线契约与测试门禁。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/rendering-contracts.md", "reason": "traversal、font 和 image 行为契约。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-local-main-20-commits/research/local-main-origin-main-commit-ledger-2026-08-25.md", "reason": "用户批准的 cohort、keep/split/exclude 和 original SHA 映射。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/target-review-2026-08-25.md", "reason": "当前 stable/upstream immutable targets、门禁证据和精确治理变更。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/upstream-core-delta-candidate.json", "reason": "隔离候选中必须应用的已复核 registry target 内容。"}

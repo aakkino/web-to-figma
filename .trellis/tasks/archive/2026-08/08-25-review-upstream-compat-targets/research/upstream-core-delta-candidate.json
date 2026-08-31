@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "coreRoot": "packages/dom-to-figma/src",
+  "targets": {
+    "governance": {
+      "ref": "fork-base/ac830db",
+      "commit": "ac830db5b89d2e8e7eede86f9419303988ae1938"
+    },
+    "stable": {
+      "package": "@figit/dom-to-figma",
+      "version": "0.2.4",
+      "ref": "@figit/dom-to-figma@0.2.4",
+      "commit": "859efea8d7f8330783c6c4e3e520fd673e877336"
+    },
+    "upstreamMain": {
+      "ref": "upstream/main",
+      "commit": "859efea8d7f8330783c6c4e3e520fd673e877336",
+      "resolvedAt": "2026-08-25"
+    }
+  },
+  "budget": {
+    "baselineSourceFiles": 20,
+    "baselineRuntimeFiles": 15,
+    "runtimeFileLimit": 15,
+    "runtimeMilestones": [10, 5, 0]
+  },
+  "sharedPaths": [
+    {
+      "path": "packages/dom-to-figma/src/converter/convert.ts",
+      "capabilities": ["composed-dom-traversal", "nowrap-text-sizing"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/dom.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/layout/infer.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+      "capabilities": [
+        "responsive-shadow-dom",
+        "image-presentation",
+        "image-loader-cancellation"
+      ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+      "capabilities": [
+        "composed-dom-traversal",
+        "glyph-aware-font-fallback",
+        "nowrap-text-sizing"
+      ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/walk.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.ts",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "responsive-shadow-dom",
+      "capability": "Responsive geometry and open Shadow DOM conversion",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["af1bec8346932a723071305ee1686c2c67d185ae"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "split-draft-pending",
+      "removeWhen": "selected upstream baseline preserves responsive geometry and open Shadow DOM behavior with parity",
+      "patchFingerprint": "sha256:1254ea8fce9a0f211fec0ab2f1b513b5169b7431def4e8e7e0ed5fa92115516a"
+    },
+    {
+      "id": "composed-dom-traversal",
+      "capability": "Injectable composed DOM traversal",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["e8b46a486eef608a62c66ff8a6cef69e7536bc23"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/figma.dom-traversal.browser.test.ts",
+        "packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "selected upstream baseline exposes equivalent traversal injection and composed-parent semantics",
+      "patchFingerprint": "sha256:dcb5695384813b80126b049a0f0797fc14b7563967ae46ce4d47775446410735"
+    },
+    {
+      "id": "glyph-aware-font-fallback",
+      "capability": "Glyph-aware CJK font fallback",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["ea9956ae79fc3c1876b4f0eae95910b8ffcf1f9e"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/font-cache.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/converter/font-cache.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.test.ts",
+        "packages/dom-to-figma/src/figma.text.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "upstream-ready-local",
+      "removeWhen": "selected upstream baseline covers glyph availability and CJK fallback without text parity regressions",
+      "patchFingerprint": "sha256:3df44125a7f2f2149aafc9d90730b058d60c9e4fd1d14e6ada14eb31fffb2d21"
+    },
+    {
+      "id": "image-presentation",
+      "capability": "Image object-fit and object-position presentation",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["0149d6299e5d55d20ef42a42fb06fd031549fb3f"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.ts"
+      ],
+      "tests": [
+        "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.test.ts",
+        "packages/dom-to-figma/src/figma.image.browser.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "partial-upstream-main-object-fit",
+      "removeWhen": "selected upstream baseline preserves cover, contain, fill, and object-position behavior with parity",
+      "patchFingerprint": "sha256:428dfa851a1f52c382bbea97b33303cd01383128bc1227ec135d2d416c9d2726"
+    },
+    {
+      "id": "image-loader-cancellation",
+      "capability": "Abortable image fetch and format normalization",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["4da4c51267abf635ee021091adf65d514667eb56"],
+      "paths": ["packages/dom-to-figma/src/converter/nodes/image/loader.ts"],
+      "tests": [
+        "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts"
+      ],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "removeWhen": "the selected upstream baseline propagates AbortSignal through image fetch and decode cleanup",
+      "patchFingerprint": "sha256:fa79cf5a8d6b5d591013e0883b6d07dc149df26e369393921529f97aca6b312b"
+    },
+    {
+      "id": "nowrap-text-sizing",
+      "capability": "Non-wrapping single-line text sizing",
+      "classification": "generic-temporary-patch",
+      "originCommits": ["ab0f56ea49ac34389cb7bc33a4987ac1a8d0b9e5"],
+      "paths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts"
+      ],
+      "tests": ["packages/dom-to-figma/src/figma.text.browser.test.ts"],
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "upstream-ready-local",
+      "removeWhen": "selected upstream baseline preserves measured nowrap width and single-line height with parity",
+      "patchFingerprint": "sha256:79eab6e13f2fa7efa298fb1d23ae76c49707d0f27ee0c885b4e0b522368a15ee"
+    }
+  ]
+}

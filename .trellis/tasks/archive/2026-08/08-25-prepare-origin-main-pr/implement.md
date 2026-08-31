@@ -1,0 +1,34 @@
+# Origin main 顺序 PR 计划
+
+- [x] 确认前置任务和当前 cohort 验证报告通过。
+- [x] 刷新 `origin/main` 并确认与报告 base 相同。
+- [x] 在已授权范围内从 `origin/main` 创建并核验首个 C1+C2 本地 review branch。
+- [x] 在获得授权后 push 唯一 review branch。
+- [x] 在获得授权后创建 PR。
+- [x] 核对 PR commit/file diff 精确匹配账本。
+- [x] 核对 GitHub-required checks；repository gate 与 Tier-0 parity 均通过。
+- [x] 修复 Linux CI 的 pnpm 参数转发并普通 push；governance/upstream-main 已转绿，stable 暴露独立 tag-fetch 前置条件。
+- [x] 精确 fetch registry stable tag 并普通 push；stable/governance/upstream-main 与 required checks 全部通过。
+- [x] 在单独授权后同步 PR body 的当前 head、4 commits、CI follow-ups 和门禁状态。
+- [x] C1+C2 等待 review 并取得单独 merge 授权。
+- [x] 以 merge commit 合并 C1+C2，刷新 refs 并记录结果。
+- [x] 基于新 `origin/main` 重新构造并完整验证 C3 traversal 本地 review branch。
+- [x] 在单独授权后普通 push C3 traversal branch 并核验三类 ref。
+- [x] 在单独授权后为 C3 traversal branch 创建 PR，并核验初始 CI/review 状态。
+- [x] 等待 C3 required CI；repository、Tier-0、governance、stable 和 upstream-main 均通过。
+- [x] 在单独授权后同步 C3 PR body 的已收敛 CI 与非 required Preview 状态。
+- [x] C3 独立 review 通过；正文、refs、门禁和非 required Preview 状态准确。
+- [x] 取得单独授权并以 merge commit 合并 C3；保留已审阅的 curated commit。
+- [x] 在单独授权后基于新 `origin/main` 重构并完整验证 C4 font 本地 review branch。
+- [x] 在单独授权后普通 push C4 font branch，并核验精确 remote ref。
+- [x] 在单独授权后为 C4 font branch 创建 PR，并核验初始 CI/review 状态。
+- [x] 等待 C4 required CI 与独立 review；五项项目门禁和两个 required checks 均通过，非 required Preview 因 App 未安装失败。
+- [x] 取得单独授权后同步 C4 PR body 的已收敛 CI、Preview 和独立 review 状态。
+- [x] 取得单独授权后以 merge commit 合并 C4；保留已审阅的 curated commit 和 review branch。
+- [x] 在单独授权后基于新 `origin/main` 重构并完整验证 C5 image 本地 review branch。
+- [x] 在单独授权后普通 push C5 image branch，并核验精确 remote ref。
+- [x] 在单独授权后为 C5 image branch 创建 PR，并核验初始 CI/review 状态。
+- [x] 等待 C5 required CI 与独立 review；五项项目门禁和两个 required checks 均通过，非 required Preview 因 App 未安装失败。
+- [x] 取得单独授权后同步 C5 PR body 的已收敛 CI、Preview 和独立 review 状态。
+- [x] 取得单独授权后以 merge commit 合并 C5；保留已审阅 curated commit 和 review branch。
+- [x] 完成独立 final full-scope check；任务已 ready for archive，但本次不执行归档。

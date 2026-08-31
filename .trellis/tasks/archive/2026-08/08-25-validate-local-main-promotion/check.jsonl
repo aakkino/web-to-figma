@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "执行 dom-to-figma 全层质量检查。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "检查 core-delta、stable adapter 和 upstream-main 证据。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md", "reason": "复核 adapter/image 兼容与回归覆盖。"}
+{"file": ".trellis/spec/dom-to-figma/frontend/rendering-contracts.md", "reason": "复核 traversal、font 和 image 行为覆盖。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-audit-local-main-20-commits/research/local-main-origin-main-commit-ledger-2026-08-25.md", "reason": "检查 curated 集合严格匹配用户批准的处置和 SHA 边界。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/target-review-2026-08-25.md", "reason": "检查验证使用当前 immutable targets 与阻断门禁。"}
+{"file": ".trellis/tasks/archive/2026-08/08-25-review-upstream-compat-targets/research/upstream-core-delta-candidate.json", "reason": "检查候选 registry 未出现额外字段漂移。"}

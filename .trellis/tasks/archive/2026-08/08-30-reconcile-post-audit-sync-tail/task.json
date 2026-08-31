@@ -1,0 +1,31 @@
+{
+  "id": "reconcile-post-audit-sync-tail",
+  "name": "reconcile-post-audit-sync-tail",
+  "title": "Reconcile post-audit sync tail and freeze source",
+  "description": "Reconcile every sync-only commit added after the original 73-row audit, decide whether durable outcomes require target-line ports, freeze the terminal sync SHA, and prove whole-branch governance closure.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-30",
+  "completedAt": "2026-08-30",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": ["08-30-port-s79-oracle-scene-registration-spec"],
+  "parent": "08-28-govern-sync-branch-cherry-picks",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "codex_implement_model": "gpt-5.6-sol",
+    "codex_implement_reasoning": "low",
+    "codex_check_model": "gpt-5.6-sol",
+    "codex_check_reasoning": "medium"
+  }
+}

@@ -1,0 +1,43 @@
+# Trellis Seven-Role Contract
+
+| Role | Default route | Trigger | Write boundary | Context | Proof |
+| --- | --- | --- | --- | --- | --- |
+| research | `exploration` | Missing repository or external evidence | Active task `research/` only | Native research context | Persisted source-indexed report |
+| implement | `bounded_worker`; `hard_implementation` when classified hard | Reviewed implementation unit | Assigned paths | Implementation family | Artifacts and focused checks |
+| check | `checking`; `hard_checking` after hard implementation | Implementation needs verification | Task scope; may self-fix | Check family | Findings and validation results |
+| debug | `debugging` | Reproducible failure or failed prior fix | Assigned failure scope | Implementation family | Reproduction, root cause, regression proof |
+| review | `review` | Independent judgment after checks | Read-only | Check family | Severity-ordered file:line findings |
+| audit | `audit` | High-risk or cross-boundary traceability | Read-only | Check family | Requirement/risk/evidence trace |
+| release | `release` | Release-readiness decision | Read-only | Check family plus operator evidence | `ready` or `blocked` only |
+
+## Dispatch Contract
+
+The main session must include:
+
+1. `Active task: <task-path>` as the first line.
+2. The exact role, model route, and bounded responsibility.
+3. Repository-relative owned paths.
+4. Dependencies that must complete first.
+5. Expected artifacts.
+6. Executable or inspectable proof.
+
+Completion text is not proof. The main session verifies artifacts and commands
+before integration. No child role may commit, push, merge, archive a task, or
+spawn another Trellis role.
+
+## Context Families
+
+- Implementation family: `implement.jsonl`, every real referenced spec or
+  research file, `prd.md`, optional `design.md`, optional `implement.md`.
+- Check family: `check.jsonl`, every real referenced spec or research file,
+  `prd.md`, optional `design.md`, optional `implement.md`.
+- Custom roles read the exact task path from the dispatch prompt. If it is
+  missing or invalid, they stop and ask the main session. They never guess or
+  borrow another session's active task.
+
+## Channel Adapter
+
+Channel roles use `.trellis/agents/<role>.md` and are separate from platform
+profiles. The main session supplies the active task plus explicit `--file` or
+`--jsonl` context. Prefer direct Codex read-only roles when the filesystem
+boundary must be enforced; Channel read-only cards are instruction boundaries.

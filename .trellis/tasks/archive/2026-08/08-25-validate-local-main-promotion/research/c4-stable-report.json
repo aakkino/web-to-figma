@@ -1,0 +1,395 @@
+{
+  "target": "stable",
+  "resolved": {
+    "ref": "@figit/dom-to-figma@0.2.4",
+    "commit": "859efea8d7f8330783c6c4e3e520fd673e877336",
+    "head": "ac538479b40daed491b8739f7056beb46355e434",
+    "package": "@figit/dom-to-figma",
+    "version": "0.2.4",
+    "latestVersion": "0.2.4"
+  },
+  "summary": {
+    "sourceFiles": 49,
+    "runtimeFiles": 26,
+    "testFiles": 23,
+    "insertions": 2223,
+    "deletions": 3584,
+    "capabilityCount": 6,
+    "unmappedRuntimeFiles": 11,
+    "unmappedTestFiles": 15
+  },
+  "budget": {
+    "baselineSourceFiles": 20,
+    "baselineRuntimeFiles": 15,
+    "runtimeFileLimit": 15,
+    "runtimeMilestones": [10, 5, 0]
+  },
+  "capabilities": [
+    {
+      "id": "responsive-shadow-dom",
+      "capability": "Responsive geometry and open Shadow DOM conversion",
+      "classification": "generic-temporary-patch",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "split-draft-pending",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "testPaths": [
+        "packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"
+      ]
+    },
+    {
+      "id": "composed-dom-traversal",
+      "capability": "Injectable composed DOM traversal",
+      "classification": "generic-temporary-patch",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "pr-draft-pending",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/dom.ts",
+        "packages/dom-to-figma/src/converter/layout/infer.ts",
+        "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+        "packages/dom-to-figma/src/converter/walk.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "testPaths": [
+        "packages/dom-to-figma/src/figma.dom-traversal.browser.test.ts",
+        "packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts"
+      ]
+    },
+    {
+      "id": "staged-image-preparation",
+      "capability": "Staged image preparation and placeholders",
+      "classification": "generic-mechanism-with-adapter-policy",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "adapter-fallback-required-before-pr",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/image-cache.ts",
+        "packages/dom-to-figma/src/converter/image-preparation.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/figma.ts"
+      ],
+      "testPaths": ["packages/dom-to-figma/src/figma.image.browser.test.ts"]
+    },
+    {
+      "id": "glyph-aware-font-fallback",
+      "capability": "Glyph-aware CJK font fallback",
+      "classification": "generic-temporary-patch",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "upstream-ready-local",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/font-cache.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.ts"
+      ],
+      "testPaths": [
+        "packages/dom-to-figma/src/converter/font-cache.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.test.ts",
+        "packages/dom-to-figma/src/figma.text.browser.test.ts"
+      ]
+    },
+    {
+      "id": "image-presentation",
+      "capability": "Image object-fit and object-position presentation",
+      "classification": "generic-temporary-patch",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "partial-upstream-main-object-fit",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.ts"
+      ],
+      "testPaths": [
+        "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts",
+        "packages/dom-to-figma/src/converter/nodes/image/presentation.test.ts",
+        "packages/dom-to-figma/src/figma.image.browser.test.ts"
+      ]
+    },
+    {
+      "id": "nowrap-text-sizing",
+      "capability": "Non-wrapping single-line text sizing",
+      "classification": "generic-temporary-patch",
+      "owner": "abskino",
+      "reviewBy": "2026-10-31",
+      "upstreamState": "upstream-ready-local",
+      "runtimePaths": [
+        "packages/dom-to-figma/src/converter/convert.ts",
+        "packages/dom-to-figma/src/converter/nodes/text/converter.ts"
+      ],
+      "testPaths": ["packages/dom-to-figma/src/figma.text.browser.test.ts"]
+    }
+  ],
+  "paths": [
+    {
+      "path": "packages/dom-to-figma/src/converter/convert.ts",
+      "category": "runtime",
+      "capabilities": ["composed-dom-traversal", "nowrap-text-sizing"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/dom.ts",
+      "category": "runtime",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/font-cache.test.ts",
+      "category": "test",
+      "capabilities": ["glyph-aware-font-fallback"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/font-cache.ts",
+      "category": "runtime",
+      "capabilities": ["glyph-aware-font-fallback"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/image-cache.ts",
+      "category": "runtime",
+      "capabilities": ["responsive-shadow-dom", "staged-image-preparation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/image-preparation.ts",
+      "category": "runtime",
+      "capabilities": ["staged-image-preparation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/layout/infer.ts",
+      "category": "runtime",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/form/converter.ts",
+      "category": "runtime",
+      "capabilities": ["composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/border-decomposition.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/border-decomposition.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/converter.ts",
+      "category": "runtime",
+      "capabilities": ["composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/rounded-dash-border.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/frame/rounded-dash-border.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/converter.ts",
+      "category": "runtime",
+      "capabilities": ["staged-image-preparation", "image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/loader.test.ts",
+      "category": "test",
+      "capabilities": ["image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/loader.ts",
+      "category": "runtime",
+      "capabilities": [
+        "responsive-shadow-dom",
+        "staged-image-preparation",
+        "image-presentation"
+      ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/presentation.test.ts",
+      "category": "test",
+      "capabilities": ["image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/image/presentation.ts",
+      "category": "runtime",
+      "capabilities": ["image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/text/converter.ts",
+      "category": "runtime",
+      "capabilities": [
+        "composed-dom-traversal",
+        "glyph-aware-font-fallback",
+        "nowrap-text-sizing"
+      ]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.test.ts",
+      "category": "test",
+      "capabilities": ["glyph-aware-font-fallback"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/nodes/text/primitives/font/loader.ts",
+      "category": "runtime",
+      "capabilities": ["glyph-aware-font-fallback"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/blur.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/blur.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/border-3d.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/border-3d.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/border.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/border.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/filter-color.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/filter-color.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/gradient.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/gradient.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/outline.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/outline.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/shadow.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/styles/shadow.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/types/node.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/types/paint.ts",
+      "category": "runtime",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/converter/walk.ts",
+      "category": "runtime",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.autolayout.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.border-double.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.border.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.dom-traversal.browser.test.ts",
+      "category": "test",
+      "capabilities": ["composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.filter.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.image.browser.test.ts",
+      "category": "test",
+      "capabilities": ["staged-image-preparation", "image-presentation"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.layout.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.shadow-dom.browser.test.ts",
+      "category": "test",
+      "capabilities": ["responsive-shadow-dom", "composed-dom-traversal"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.shadow.browser.test.ts",
+      "category": "test",
+      "capabilities": []
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.text.browser.test.ts",
+      "category": "test",
+      "capabilities": ["glyph-aware-font-fallback", "nowrap-text-sizing"]
+    },
+    {
+      "path": "packages/dom-to-figma/src/figma.ts",
+      "category": "runtime",
+      "capabilities": [
+        "responsive-shadow-dom",
+        "composed-dom-traversal",
+        "staged-image-preparation"
+      ]
+    }
+  ],
+  "errors": []
+}

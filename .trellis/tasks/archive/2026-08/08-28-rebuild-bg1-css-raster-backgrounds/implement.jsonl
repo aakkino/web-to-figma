@@ -1,0 +1,8 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Apply monorepo, TypeScript, validation, changeset, generated-file, and commit boundaries."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Keep computed-style discovery, preparation, bridge context, conversion, diagnostics, and payload contracts aligned across core and adapter."}
+{"file":".trellis/spec/dom-to-figma/frontend/index.md","reason":"Route BG1 through the published converter's required architecture, compatibility, type, and testing guidance."}
+{"file":".trellis/spec/dom-to-figma/frontend/staged-resource-pipeline.md","reason":"Preserve adapter-owned scheduling, prepared-only loading, cancellation, placeholders, BG1/BG2 separation, and compatibility behavior."}
+{"file":".trellis/spec/dom-to-figma/frontend/converter-guidelines.md","reason":"Keep CSS parsing in the style domain and reuse existing image/blob conversion paths without late fetches."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Govern the public delta, target fingerprints, capability negotiation, and stable/main compatibility without blind refreshes."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Use pure and Chromium tests plus published-package and oracle gates appropriate to paint and geometry behavior."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/bg1-audit-context.md","reason":"Inject exact cohort evidence, target identity, BG2 exclusion, validation, and dirty-worktree preservation rules."}

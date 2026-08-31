@@ -1,0 +1,5 @@
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Formal contracts for exact upstream refs, cherry/patch evidence, absorbed paths, target refreshes, and sync-branch blocking gates."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-compat-architecture/research/final-integration-review-2026-07-26.md","reason":"Historical final integration review establishing the governed fork/upstream baseline before the sync branch intake."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-patch-retirement/research/candidate-audit-2026-07-26.md","reason":"Authoritative no-cherry-pick decision for cc8d486 as a patch-retirement candidate."}
+{"file":".trellis/tasks/archive/2026-07/07-27-upstream-style-effects-intake/research/final-intake-audit-2026-07-27.md","reason":"Authoritative reviewed boundary, commit list, validation evidence, and no-remote-PR status for the selective style intake."}
+{"file":".trellis/tasks/archive/2026-08/08-03-research-upstream-pr-33-34/research/pr-33-34-cherry-pick-decision-2026-08-03.md","reason":"Authoritative no-action boundary for PR #33/#34 and evidence rules for future selective intake."}

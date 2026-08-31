@@ -1,0 +1,15 @@
+{"file": ".trellis/spec/guides/repository-conventions.md", "reason": "Workspace, package release, generated artifact, and repository-wide validation conventions."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Package identity crosses manifests, imports, lockfiles, workflows, packed artifacts, and consumers."}
+{"file": ".trellis/spec/dom-to-figma/frontend/index.md", "reason": "Primary published package boundary and routing to API, compatibility, and testing contracts."}
+{"file": ".trellis/spec/dom-to-figma/frontend/architecture.md", "reason": "Core public API and dependency ownership, including composed DOM and Kiwi boundaries."}
+{"file": ".trellis/spec/dom-to-figma/frontend/testing-guidelines.md", "reason": "Package build, pack, browser, and isolated consumer validation requirements."}
+{"file": ".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md", "reason": "Preserve intentional upstream @figit targets while renaming fork-owned identities."}
+{"file": ".trellis/spec/fig-kiwi/frontend/index.md", "reason": "Kiwi public runtime/export boundary and relevant implementation guidance."}
+{"file": ".trellis/spec/fig-kiwi/frontend/testing-guidelines.md", "reason": "Kiwi package release and compatibility validation gates."}
+{"file": ".trellis/spec/fig-kiwi/backend/index.md", "reason": "Kiwi tooling boundary must remain valid after package identity changes."}
+{"file": ".trellis/spec/extension/frontend/index.md", "reason": "Private extension consumer imports and build checks affected by owned package renames."}
+{"file": ".trellis/spec/oracle-harness/frontend/index.md", "reason": "Private oracle consumer and parity commands affected by core/Kiwi identity changes."}
+{"file": ".trellis/spec/playground/frontend/index.md", "reason": "Private playground consumer and build checks affected by core identity changes."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/package-boundary.md", "reason": "Complete publishable package, consumer, workflow, preview, docs, and intentional-exception inventory."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/release-recovery.md", "reason": "Authoritative remote baseline, Changesets partial-publish behavior, version recovery, and rollback gates."}
+{"file": ".trellis/tasks/08-27-migrate-fork-private-package-registry/research/github-packages-registry.md", "reason": "Approved registry, authentication, privacy, access, billing, and provenance constraints."}

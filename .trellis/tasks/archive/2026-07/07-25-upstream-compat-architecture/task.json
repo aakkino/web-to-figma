@@ -1,0 +1,33 @@
+{
+  "id": "upstream-compat-architecture",
+  "name": "upstream-compat-architecture",
+  "title": "最大化上游兼容架构",
+  "description": "在完整保留现有捕获行为的前提下，将 fork 核心差异逐步上游化、隔离或退役，最大化持续兼容上游的能力。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "kino",
+  "assignee": "abskino",
+  "createdAt": "2026-07-25",
+  "completedAt": "2026-07-26",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-25-upstream-core-delta-governance",
+    "07-25-vanilla-upstream-adapter-fallback",
+    "07-25-upstream-dom-traversal-port",
+    "07-25-upstream-image-pipeline",
+    "07-25-upstream-text-font-correctness",
+    "07-25-upstream-patch-retirement"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "2026-07-26: user accepted the 14 registered runtime deltas and local-only upstream PR drafts",
+  "meta": {}
+}

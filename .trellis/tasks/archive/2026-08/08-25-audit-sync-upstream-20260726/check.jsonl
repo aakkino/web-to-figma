@@ -1,0 +1,5 @@
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Check the report against formal exact-ref, partial-overlap, cherry evidence, and compatibility-gate requirements."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-compat-architecture/research/final-integration-review-2026-07-26.md","reason":"Verify the audit does not overstate the scope or review level of the original compatibility architecture baseline."}
+{"file":".trellis/tasks/archive/2026-07/07-25-upstream-patch-retirement/research/candidate-audit-2026-07-26.md","reason":"Verify the report preserves the exact object-fit partial-overlap and no-cherry-pick decision."}
+{"file":".trellis/tasks/archive/2026-07/07-27-upstream-style-effects-intake/research/final-intake-audit-2026-07-27.md","reason":"Verify commit boundaries, passed gates, and the absence of remote branch/PR evidence for the reviewed intake."}
+{"file":".trellis/tasks/archive/2026-08/08-03-research-upstream-pr-33-34/research/pr-33-34-cherry-pick-decision-2026-08-03.md","reason":"Verify no-action PR research is not misclassified as branch-wide integration approval."}

@@ -1,0 +1,31 @@
+{
+  "id": "fix-governance-ci-upstream-fetch",
+  "name": "fix-governance-ci-upstream-fetch",
+  "title": "Fix governance CI upstream fetch",
+  "description": "Make the governance CI job fetch the pinned reviewed upstream commit before absorbed-path verification, without changing the existing nine-commit PR.",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "kino",
+  "assignee": "kino",
+  "createdAt": "2026-08-27",
+  "completedAt": "2026-08-28",
+  "branch": "ci/fix-governance-upstream-fetch",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "08-27-prepare-reassess-upstream-pr",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "final_merge_sha": "b40fcfc786f53043a4d5ac71c6b1c4af099ec4ff",
+    "pr_number": "7",
+    "main_ci_run": "33041049507",
+    "main_ci_verified": "true"
+  }
+}

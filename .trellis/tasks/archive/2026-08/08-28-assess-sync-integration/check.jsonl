@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Checks safety boundaries, generated artifacts, validation scope, and release separation."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Checks that every cross-layer cohort and consumer contract is accounted for before disposition."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Checks capability equivalence claims, patch-signal limits, governance evidence, and target invariants."}
+{"file":".trellis/tasks/archive/2026-08/08-25-audit-sync-upstream-20260726/research/sync-upstream-20260726-branch-audit-2026-08-25.md","reason":"Checks continuity from the earlier 47-row audit and prevents historical conclusions from being broadened."}
+{"file":".trellis/tasks/archive/2026-08/08-26-reassess-upstream-cherry-pick/research/live-upstream-reassessment-2026-08-26.md","reason":"Checks the stabilized-main replacement map and selective-intake safety conclusions."}

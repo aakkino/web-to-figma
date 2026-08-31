@@ -1,0 +1,7 @@
+{"file":".trellis/spec/guides/repository-conventions.md","reason":"Verify exact scope, changeset, generated artifacts, validation evidence, and one promotion rollback unit."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Independently confirm the promoted core, adapter, registry, spec, and Oracle changes remain contract-aligned."}
+{"file":".trellis/spec/dom-to-figma/frontend/upstream-compatibility.md","reason":"Check registry paths, fingerprints, stable/main compatibility, and target identities without masking drift."}
+{"file":".trellis/spec/dom-to-figma/frontend/testing-guidelines.md","reason":"Verify local and CI test/build evidence covers the published BG1 behavior on the actual base."}
+{"file":".trellis/spec/oracle-harness/frontend/parity-and-ratchet.md","reason":"Reject tolerance, scoreboard, or baseline relaxation used only to make promotion pass."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/pre-execution-preservation.md","reason":"Verify dirty-root hashes, staged state, branch identity, and unrelated worktree occupancy remain preserved."}
+{"file":".trellis/tasks/archive/2026-08/08-28-rebuild-bg1-css-raster-backgrounds/research/bg1-audit-context.md","reason":"Reconcile PR, CI, merge, containment, rollback, and BG2 gating against the approved BG1 boundary."}

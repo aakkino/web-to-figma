@@ -1,0 +1,4 @@
+{"file":".trellis/spec/extension/frontend/index.md","reason":"Routes extension quality review to the applicable architecture and UI guidance."}
+{"file":".trellis/spec/extension/frontend/components-and-state.md","reason":"Check accessible semantic rendering and correct ownership of controller diagnostics."}
+{"file":".trellis/spec/extension/frontend/testing-and-quality.md","reason":"Defines required extension tests, type-checks, and browser build gates."}
+{"file":".trellis/spec/extension/frontend/loaders-and-conversion.md","reason":"Check that rendered font diagnostics preserve the established privacy and adapter boundaries."}
